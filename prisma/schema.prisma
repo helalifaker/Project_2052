@@ -1,0 +1,97 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  name      String
+  role      Role     @default(VIEWER)
+  createdAt DateTime @default(now())
+}
+
+enum Role {
+  ADMIN
+  PLANNER
+  VIEWER
+}
+
+model SystemConfig {
+  id                    String  @id @default(uuid())
+  zakatRate             Decimal @default(0.025)
+  debtInterestRate      Decimal @default(0.05)
+  depositInterestRate   Decimal @default(0.02)
+  minCashBalance        Decimal @default(1000000)
+  confirmedAt           DateTime?
+  updatedBy             String?
+}
+
+model HistoricalData {
+  id            String   @id @default(uuid())
+  year          Int
+  statementType String
+  lineItem      String
+  amount        Decimal
+  confirmed     Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@unique([year, statementType, lineItem])
+}
+
+model WorkingCapitalRatios {
+  id                       String  @id @default(uuid())
+  arPercent                Decimal
+  prepaidPercent           Decimal
+  apPercent                Decimal
+  accruedPercent           Decimal
+  deferredRevenuePercent   Decimal
+  locked                   Boolean @default(true)
+  calculatedFrom2024       DateTime
+}
+
+model CapExAsset {
+  id                 String   @id @default(uuid())
+  proposalId         String?
+  year               Int
+  assetName          String
+  amount             Decimal
+  usefulLife         Int
+  depreciationMethod String
+  fixedAmount        Decimal?
+  rate               Decimal?
+  nbv                Decimal
+  createdAt          DateTime @default(now())
+}
+
+model CapExConfig {
+  id                     String  @id @default(uuid())
+  autoReinvestEnabled    Boolean @default(false)
+  reinvestFrequency      Int?
+  reinvestAmount         Decimal?
+  reinvestAmountPercent  Decimal?
+}
+
+model LeaseProposal {
+  id          String   @id @default(uuid())
+  name        String
+  rentModel   String
+  createdBy   String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  transition  Json
+  enrollment  Json
+  curriculum  Json
+  staff       Json
+  rentParams  Json
+  otherOpex   Decimal
+  financials  Json?
+  metrics     Json?
+  calculatedAt DateTime?
+}

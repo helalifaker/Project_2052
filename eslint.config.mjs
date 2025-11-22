@@ -13,6 +13,21 @@ const eslintConfig = defineConfig([
     "build/**",
     "next-env.d.ts",
   ]),
+  {
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        {
+          selector: "VariableDeclarator[id.name=/.*(Price|Cost|Revenue|Profit|Income|Tax|Salary|Rent|Amount|Balance|Budget|Forecast|Scenarios).*/] > Literal[value=/^[0-9]+(\\.[0-9]+)?$/]",
+          message: "Do not use plain numbers for financial values. Use Decimal.js instead.",
+        },
+        {
+          selector: "TSNumberKeyword",
+          message: "Avoid 'number' type for financial calculations. Use 'Decimal' from 'decimal.js'.",
+        }
+      ],
+    },
+  }
 ]);
 
 export default eslintConfig;
