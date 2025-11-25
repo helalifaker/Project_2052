@@ -1,0 +1,58 @@
+"use client";
+
+import { ChevronRight } from "lucide-react";
+import Link from "next/link";
+import { cn } from "@/lib/utils";
+
+interface BreadcrumbItem {
+  label: string;
+  href?: string;
+}
+
+interface ContextBarProps {
+  breadcrumbs: BreadcrumbItem[];
+  actions?: React.ReactNode;
+  className?: string;
+}
+
+export function ContextBar({
+  breadcrumbs,
+  actions,
+  className,
+}: ContextBarProps) {
+  return (
+    <div
+      className={cn(
+        "sticky top-0 z-30 flex h-16 items-center justify-between border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 px-6",
+        className,
+      )}
+    >
+      {/* Breadcrumbs */}
+      <nav className="flex items-center space-x-1 text-sm text-muted-foreground">
+        {breadcrumbs.map((item, index) => {
+          const isLast = index === breadcrumbs.length - 1;
+          return (
+            <div key={index} className="flex items-center">
+              {item.href && !isLast ? (
+                <Link
+                  href={item.href}
+                  className="hover:text-foreground transition-colors"
+                >
+                  {item.label}
+                </Link>
+              ) : (
+                <span className={cn(isLast && "font-medium text-foreground")}>
+                  {item.label}
+                </span>
+              )}
+              {!isLast && <ChevronRight className="mx-2 h-4 w-4" />}
+            </div>
+          );
+        })}
+      </nav>
+
+      {/* Actions */}
+      {actions && <div className="flex items-center gap-2">{actions}</div>}
+    </div>
+  );
+}

@@ -1,0 +1,291 @@
+name: CD Pipeline
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy to'
+        required: true
+        default: 'production'
+        type: choice
+        options:
+          - production
+          - staging
+
+# Prevent concurrent deployments
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ inputs.environment || 'production' }}
+  cancel-in-progress: false
+
+env:
+  NODE_VERSION: '18'
+  PNPM_VERSION: '9'
+
+jobs:
+  pre-deployment-checks:
+    name: Pre-Deployment Checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run linter
+        run: pnpm lint
+
+      - name: Build application
+        run: pnpm build
+        env:
+          DATABASE_URL: "postgresql://dummy:dummy@localhost:5432/dummy"
+          DIRECT_URL: "postgresql://dummy:dummy@localhost:5432/dummy"
+          NEXT_PUBLIC_SUPABASE_URL: "https://dummy.supabase.co"
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: "dummy-key"
+
+      - name: Run unit tests
+        run: pnpm test:run
+        env:
+          DATABASE_URL: "postgresql://dummy:dummy@localhost:5432/dummy"
+          DIRECT_URL: "postgresql://dummy:dummy@localhost:5432/dummy"
+
+  deploy-production:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: pre-deployment-checks
+    environment:
+      name: production
+      url: https://project-2052.vercel.app
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Vercel CLI
+        run: npm install -g vercel@latest
+
+      - name: Pull Vercel Environment Information
+        run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
+
+      - name: Build Project Artifacts
+        run: vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
+
+      - name: Deploy to Vercel Production
+        id: deploy
+        run: |
+          DEPLOYMENT_URL=$(vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }})
+          echo "deployment_url=$DEPLOYMENT_URL" >> $GITHUB_OUTPUT
+          echo "Deployed to: $DEPLOYMENT_URL"
+
+      - name: Wait for deployment to be ready
+        run: |
+          echo "Waiting for deployment to be ready..."
+          sleep 30
+
+      - name: Create deployment summary
+        run: |
+          echo "## Deployment Successful! 🚀" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Environment:** Production" >> $GITHUB_STEP_SUMMARY
+          echo "**URL:** ${{ steps.deploy.outputs.deployment_url }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Commit:** ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Branch:** ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Deployed by:** ${{ github.actor }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Next Steps" >> $GITHUB_STEP_SUMMARY
+          echo "1. Monitor error rates in Sentry" >> $GITHUB_STEP_SUMMARY
+          echo "2. Check response times in Vercel Analytics" >> $GITHUB_STEP_SUMMARY
+          echo "3. Verify key user flows" >> $GITHUB_STEP_SUMMARY
+          echo "4. Monitor for at least 30 minutes" >> $GITHUB_STEP_SUMMARY
+
+  smoke-tests:
+    name: Smoke Tests
+    runs-on: ubuntu-latest
+    needs: deploy-production
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Health Check
+        run: |
+          echo "Running health check..."
+          response=$(curl -s -o /dev/null -w "%{http_code}" https://project-2052.vercel.app/healthz)
+          if [ $response -eq 200 ]; then
+            echo "✅ Health check passed (200 OK)"
+          else
+            echo "❌ Health check failed (HTTP $response)"
+            exit 1
+          fi
+
+      - name: API Health Check
+        run: |
+          echo "Checking API health..."
+          response=$(curl -s -o /dev/null -w "%{http_code}" https://project-2052.vercel.app/api/health)
+          if [ $response -eq 200 ]; then
+            echo "✅ API health check passed (200 OK)"
+          else
+            echo "❌ API health check failed (HTTP $response)"
+            exit 1
+          fi
+
+      - name: Database Connectivity Check
+        run: |
+          echo "Checking database connectivity..."
+          response=$(curl -s https://project-2052.vercel.app/api/health)
+          if echo "$response" | grep -q "ok"; then
+            echo "✅ Database connectivity confirmed"
+          else
+            echo "❌ Database connectivity check failed"
+            echo "Response: $response"
+            exit 1
+          fi
+
+      - name: Static Assets Check
+        run: |
+          echo "Checking static assets..."
+          response=$(curl -s -o /dev/null -w "%{http_code}" https://project-2052.vercel.app/_next/static/)
+          if [ $response -eq 200 ] || [ $response -eq 403 ]; then
+            echo "✅ Static assets accessible"
+          else
+            echo "❌ Static assets check failed (HTTP $response)"
+            exit 1
+          fi
+
+  notify-success:
+    name: Notify Success
+    runs-on: ubuntu-latest
+    needs: [deploy-production, smoke-tests]
+    if: success()
+
+    steps:
+      - name: Create success notification
+        run: |
+          echo "## ✅ Deployment Successful" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Production deployment completed successfully!" >> $GITHUB_STEP_SUMMARY
+          echo "All smoke tests passed." >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Monitoring:**" >> $GITHUB_STEP_SUMMARY
+          echo "- Check Sentry for errors: https://sentry.io" >> $GITHUB_STEP_SUMMARY
+          echo "- View Vercel Analytics: https://vercel.com/analytics" >> $GITHUB_STEP_SUMMARY
+          echo "- Monitor uptime: https://uptimerobot.com" >> $GITHUB_STEP_SUMMARY
+
+      # Uncomment and configure for Slack notifications
+      # - name: Notify Slack
+      #   uses: slackapi/slack-github-action@v1
+      #   with:
+      #     webhook-url: ${{ secrets.SLACK_WEBHOOK_URL }}
+      #     payload: |
+      #       {
+      #         "text": "✅ Production deployment successful!",
+      #         "blocks": [
+      #           {
+      #             "type": "section",
+      #             "text": {
+      #               "type": "mrkdwn",
+      #               "text": "*Production Deployment Successful* ✅\n\n*Commit:* ${{ github.sha }}\n*Deployed by:* ${{ github.actor }}\n*URL:* https://project-2052.vercel.app"
+      #             }
+      #           }
+      #         ]
+      #       }
+
+  notify-failure:
+    name: Notify Failure
+    runs-on: ubuntu-latest
+    needs: [deploy-production, smoke-tests]
+    if: failure()
+
+    steps:
+      - name: Create failure notification
+        run: |
+          echo "## ❌ Deployment Failed" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Production deployment or smoke tests failed!" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Action Required:**" >> $GITHUB_STEP_SUMMARY
+          echo "1. Check workflow logs for errors" >> $GITHUB_STEP_SUMMARY
+          echo "2. Consider rolling back to previous deployment" >> $GITHUB_STEP_SUMMARY
+          echo "3. Fix issues and redeploy" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Rollback Instructions:**" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
+          echo "vercel rollback" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+
+      # Uncomment and configure for Slack notifications
+      # - name: Notify Slack
+      #   uses: slackapi/slack-github-action@v1
+      #   with:
+      #     webhook-url: ${{ secrets.SLACK_WEBHOOK_URL }}
+      #     payload: |
+      #       {
+      #         "text": "❌ Production deployment failed!",
+      #         "blocks": [
+      #           {
+      #             "type": "section",
+      #             "text": {
+      #               "type": "mrkdwn",
+      #               "text": "*Production Deployment Failed* ❌\n\n*Commit:* ${{ github.sha }}\n*Triggered by:* ${{ github.actor }}\n\nCheck GitHub Actions for details."
+      #             }
+      #           }
+      #         ]
+      #       }
+
+  deploy-staging:
+    name: Deploy to Staging
+    runs-on: ubuntu-latest
+    if: github.event.inputs.environment == 'staging'
+    environment:
+      name: staging
+      url: https://project-2052-staging.vercel.app
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Vercel CLI
+        run: npm install -g vercel@latest
+
+      - name: Pull Vercel Environment Information
+        run: vercel pull --yes --environment=preview --token=${{ secrets.VERCEL_TOKEN }}
+
+      - name: Build Project Artifacts
+        run: vercel build --token=${{ secrets.VERCEL_TOKEN }}
+
+      - name: Deploy to Vercel Staging
+        id: deploy-staging
+        run: |
+          DEPLOYMENT_URL=$(vercel deploy --prebuilt --token=${{ secrets.VERCEL_TOKEN }})
+          echo "deployment_url=$DEPLOYMENT_URL" >> $GITHUB_OUTPUT
+          echo "Deployed to: $DEPLOYMENT_URL"
+
+      - name: Run staging smoke tests
+        run: |
+          sleep 20
+          echo "Running staging health check..."
+          response=$(curl -s -o /dev/null -w "%{http_code}" ${{ steps.deploy-staging.outputs.deployment_url }}/healthz)
+          if [ $response -eq 200 ]; then
+            echo "✅ Staging health check passed"
+          else
+            echo "❌ Staging health check failed"
+            exit 1
+          fi

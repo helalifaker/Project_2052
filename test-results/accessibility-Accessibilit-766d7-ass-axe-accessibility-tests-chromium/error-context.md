@@ -1,0 +1,60 @@
+# Page snapshot
+
+```yaml
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - generic [ref=e3]:
+      - generic [ref=e4]:
+        - button "Back to Proposals" [ref=e5]:
+          - img
+          - text: Back to Proposals
+        - heading "Create New Proposal" [level=1] [ref=e6]
+        - paragraph [ref=e7]: "Step 1 of 7: Basics"
+      - button "Save Draft" [ref=e8]:
+        - img
+        - text: Save Draft
+    - generic [ref=e9]:
+      - progressbar [ref=e10]
+      - generic [ref=e12]:
+        - generic [ref=e13]: 1. Basics
+        - generic [ref=e14]: 2. Transition Period
+        - generic [ref=e15]: 3. Enrollment
+        - generic [ref=e16]: 4. Curriculum
+        - generic [ref=e17]: 5. Rent Model
+        - generic [ref=e18]: 6. Operating Costs
+        - generic [ref=e19]: 7. Review & Calculate
+    - generic [ref=e22]:
+      - generic [ref=e23]:
+        - heading "Proposal Basics" [level=2] [ref=e24]
+        - paragraph [ref=e25]: Enter the developer name and select the rent model for this proposal
+      - generic [ref=e26]:
+        - generic [ref=e27]:
+          - generic [ref=e28]: Developer Name
+          - textbox "e.g., Developer A, Developer B" [ref=e30]
+          - paragraph [ref=e31]: The name of the developer or organization submitting the proposal
+        - generic [ref=e32]:
+          - text: Rent Model
+          - paragraph [ref=e33]: Choose the rent payment structure for this proposal
+          - generic [ref=e34]:
+            - generic [ref=e36] [cursor=pointer]:
+              - generic [ref=e37]:
+                - radio [ref=e38]
+                - heading "Fixed Rent" [level=3] [ref=e39]
+              - paragraph [ref=e40]: Fixed annual rent with CPI escalation
+            - generic [ref=e42] [cursor=pointer]:
+              - generic [ref=e43]:
+                - radio [ref=e44]
+                - heading "Revenue Share" [level=3] [ref=e45]
+              - paragraph [ref=e46]: Percentage of school revenue
+            - generic [ref=e48] [cursor=pointer]:
+              - generic [ref=e49]:
+                - radio [ref=e50]
+                - heading "Partnership" [level=3] [ref=e51]
+              - paragraph [ref=e52]: Fixed + Revenue Share hybrid
+        - 'button "Next: Transition Period" [ref=e54]':
+          - text: "Next: Transition Period"
+          - img
+  - button "Open Next.js Dev Tools" [ref=e60] [cursor=pointer]:
+    - img [ref=e61]
+  - alert [ref=e64]
+```

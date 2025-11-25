@@ -8,7 +8,7 @@ export const HistoricalDataItemSchema = z.object({
   year: z.number().int().min(2023).max(2024),
   statementType: z.enum(["PL", "BS", "CF"]),
   lineItem: z.string().min(1),
-  amount: z.number().positive(), // Will be converted to Decimal in route
+  amount: z.number().nonnegative(), // Will be converted to Decimal in route
   confirmed: z.boolean().optional().default(false),
 });
 

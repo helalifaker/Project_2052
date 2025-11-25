@@ -1,0 +1,86 @@
+# Page snapshot
+
+```yaml
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - button "Back to Admin" [ref=e4]:
+      - img
+      - text: Back to Admin
+    - generic [ref=e5]:
+      - heading "System Configuration" [level=1] [ref=e6]
+      - paragraph [ref=e7]: Configure global settings that affect all financial calculations
+    - generic [ref=e8]:
+      - generic [ref=e9]:
+        - generic [ref=e10]: Financial Parameters
+        - generic [ref=e11]: These settings will be applied to all proposal calculations
+      - generic [ref=e13]:
+        - generic [ref=e15]:
+          - img [ref=e16]
+          - generic [ref=e18]:
+            - heading "Zakat Rate (GAP 18)" [level=3] [ref=e19]
+            - paragraph [ref=e20]: "The Zakat rate applied to earnings before tax (EBT). Default: 2.5% as per Islamic guidelines."
+            - generic [ref=e21]:
+              - generic [ref=e22]: Zakat Rate
+              - generic [ref=e23]:
+                - spinbutton [ref=e24]: "2.5"
+                - generic [ref=e25]: "%"
+              - paragraph [ref=e26]: Applied to Earnings Before Tax (EBT)
+        - generic [ref=e28]:
+          - img [ref=e29]
+          - generic [ref=e31]:
+            - heading "Debt Interest Rate" [level=3] [ref=e32]
+            - paragraph [ref=e33]: The annual interest rate charged on outstanding debt. Used to calculate interest expense.
+            - generic [ref=e34]:
+              - generic [ref=e35]: Debt Interest Rate
+              - generic [ref=e36]:
+                - spinbutton [ref=e37]: "5"
+                - generic [ref=e38]: "%"
+              - paragraph [ref=e39]: Applied to beginning debt balance
+        - generic [ref=e41]:
+          - img [ref=e42]
+          - generic [ref=e44]:
+            - heading "Deposit Interest Rate (GAP 16)" [level=3] [ref=e45]
+            - paragraph [ref=e46]: The annual interest rate earned on bank deposits when cash balance is positive.
+            - generic [ref=e47]:
+              - generic [ref=e48]: Deposit Interest Rate
+              - generic [ref=e49]:
+                - spinbutton [ref=e50]: "2"
+                - generic [ref=e51]: "%"
+              - paragraph [ref=e52]: Applied to cash balance above minimum
+        - generic [ref=e54]:
+          - img [ref=e55]
+          - generic [ref=e57]:
+            - heading "Minimum Cash Balance (GAP 14)" [level=3] [ref=e58]
+            - paragraph [ref=e59]: The minimum cash balance that must be maintained at all times. Prevents cash from going negative.
+            - generic [ref=e60]:
+              - generic [ref=e61]: Minimum Cash Balance
+              - generic [ref=e62]:
+                - spinbutton [ref=e63]: "1"
+                - generic [ref=e64]: M SAR
+              - paragraph [ref=e65]: Minimum cash the school must maintain (in Millions)
+        - generic [ref=e66]:
+          - button "Reset to Defaults" [ref=e67]
+          - button "Save Configuration" [ref=e68]:
+            - img
+            - text: Save Configuration
+    - generic [ref=e69]:
+      - generic [ref=e70]:
+        - generic [ref=e71]: Current Configuration
+        - generic [ref=e72]: Overview of active system settings
+      - generic [ref=e74]:
+        - generic [ref=e75]:
+          - generic [ref=e76]: "Zakat Rate:"
+          - generic [ref=e77]: 2.5%
+        - generic [ref=e78]:
+          - generic [ref=e79]: "Debt Interest Rate:"
+          - generic [ref=e80]: 5%
+        - generic [ref=e81]:
+          - generic [ref=e82]: "Deposit Interest Rate:"
+          - generic [ref=e83]: 2%
+        - generic [ref=e84]:
+          - generic [ref=e85]: "Minimum Cash Balance:"
+          - generic [ref=e86]: 1 M SAR
+  - button "Open Next.js Dev Tools" [ref=e92] [cursor=pointer]:
+    - img [ref=e93]
+  - alert [ref=e96]
+```

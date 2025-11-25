@@ -53,7 +53,6 @@ export const CreateProposalSchema = z
   .object({
     name: z.string().min(1, "Name is required"),
     rentModel: RentModelSchema,
-    createdBy: z.string().min(1, "CreatedBy is required"),
     transition: z.object({
       year2025: z
         .object({

@@ -1,29 +1,133 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireRole } from "@/middleware/rbac";
+import { authenticateUserWithRole } from "@/middleware/auth";
 import { Role, Prisma } from "@prisma/client";
-import { CreateProposalSchema } from "@/lib/validation/proposal";
+import {
+  CreateProposalSchema,
+  RentModelSchema,
+} from "@/lib/validation/proposal";
 import { z } from "zod";
 
-// Mock user for now (since we don't have full auth yet)
-const mockUser = { role: Role.ADMIN };
+// Constants for pagination limits
+const MIN_PAGE_SIZE = 1;
+const MAX_PAGE_SIZE = 100;
+const DEFAULT_PAGE_SIZE = 10;
 
-export async function GET() {
+// Request size limit (1MB)
+const MAX_REQUEST_SIZE = 1 * 1024 * 1024;
+
+export async function GET(request: Request) {
   // Check auth - allow all authenticated roles to view proposals
-  const authError = requireRole(mockUser.role, [
+  const authResult = await authenticateUserWithRole([
     Role.ADMIN,
     Role.PLANNER,
     Role.VIEWER,
   ]);
-  if (authError) return authError;
+  if (!authResult.success) return authResult.error;
 
   try {
+    const { searchParams } = new URL(request.url);
+
+    // Pagination with limits
+    const page = Math.max(1, parseInt(searchParams.get("page") || "1"));
+    const requestedPageSize = parseInt(
+      searchParams.get("pageSize") || String(DEFAULT_PAGE_SIZE),
+    );
+    const pageSize = Math.min(
+      MAX_PAGE_SIZE,
+      Math.max(MIN_PAGE_SIZE, requestedPageSize),
+    );
+    const skip = (page - 1) * pageSize;
+
+    // Filtering
+    const search = searchParams.get("search");
+    const rentModel = searchParams.get("rentModel");
+    const createdBy = searchParams.get("createdBy");
+    const dateFrom = searchParams.get("dateFrom");
+    const dateTo = searchParams.get("dateTo");
+
+    // Sorting
+    const sortBy = searchParams.get("sortBy") || "createdAt";
+    const sortOrder = (searchParams.get("sortOrder") || "desc") as
+      | "asc"
+      | "desc";
+
+    // Build where clause
+    const where: Prisma.LeaseProposalWhereInput = {};
+
+    if (search) {
+      where.name = {
+        contains: search,
+        mode: "insensitive",
+      };
+    }
+
+    const rentModelValue =
+      rentModel as (typeof RentModelSchema.options)[number];
+    if (rentModel && RentModelSchema.options.includes(rentModelValue)) {
+      where.rentModel = rentModelValue;
+    }
+
+    if (createdBy) {
+      where.createdBy = createdBy;
+    }
+
+    if (dateFrom || dateTo) {
+      where.createdAt = {};
+      if (dateFrom) {
+        where.createdAt.gte = new Date(dateFrom);
+      }
+      if (dateTo) {
+        where.createdAt.lte = new Date(dateTo);
+      }
+    }
+
+    // Get total count for pagination
+    const total = await prisma.leaseProposal.count({ where });
+
+    // PERFORMANCE OPTIMIZATION: Use select to fetch only needed fields
+    // Don't fetch large 'financials' JSON field for list view!
     const proposals = await prisma.leaseProposal.findMany({
+      where,
       orderBy: {
-        createdAt: "desc",
+        [sortBy]: sortOrder,
+      },
+      skip,
+      take: pageSize,
+      select: {
+        id: true,
+        name: true,
+        rentModel: true,
+        developer: true,
+        property: true,
+        status: true,
+        origin: true,
+        negotiationRound: true,
+        createdAt: true,
+        updatedAt: true,
+        calculatedAt: true,
+        // Exclude large fields: financials, transition, enrollment, etc.
+        metrics: true, // Keep metrics for dashboard cards
+        creator: {
+          select: {
+            id: true,
+            email: true,
+            name: true,
+            role: true,
+          },
+        },
       },
     });
-    return NextResponse.json(proposals);
+
+    return NextResponse.json({
+      data: proposals,
+      pagination: {
+        page,
+        pageSize,
+        total,
+        totalPages: Math.ceil(total / pageSize),
+      },
+    });
   } catch (error) {
     console.error("Error fetching proposals:", error);
     return NextResponse.json(
@@ -35,10 +139,24 @@ export async function GET() {
 
 export async function POST(request: Request) {
   // Check auth - only ADMIN and PLANNER can create proposals
-  const authError = requireRole(mockUser.role, [Role.ADMIN, Role.PLANNER]);
-  if (authError) return authError;
+  const authResult = await authenticateUserWithRole([Role.ADMIN, Role.PLANNER]);
+  if (!authResult.success) return authResult.error;
+
+  const { user } = authResult;
 
   try {
+    // Check content-length header for request size limit
+    const contentLength = request.headers.get("content-length");
+    if (contentLength && parseInt(contentLength) > MAX_REQUEST_SIZE) {
+      return NextResponse.json(
+        {
+          error: "Request body too large",
+          maxSize: `${MAX_REQUEST_SIZE / 1024 / 1024}MB`,
+        },
+        { status: 413 },
+      );
+    }
+
     const body = await request.json();
 
     // Validate input
@@ -58,12 +176,12 @@ export async function POST(request: Request) {
     // Convert otherOpex to Prisma.Decimal
     const otherOpexDecimal = new Prisma.Decimal(validatedData.otherOpex);
 
-    // Create proposal
+    // Create proposal (use authenticated user's ID)
     const proposal = await prisma.leaseProposal.create({
       data: {
         name: validatedData.name,
         rentModel: validatedData.rentModel,
-        createdBy: validatedData.createdBy,
+        createdBy: user.id,
         transition: validatedData.transition as Prisma.InputJsonValue,
         enrollment: validatedData.enrollment as Prisma.InputJsonValue,
         curriculum: validatedData.curriculum as Prisma.InputJsonValue,

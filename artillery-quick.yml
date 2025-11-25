@@ -1,0 +1,46 @@
+config:
+  target: "http://localhost:3000"
+  phases:
+    # Quick test: 10 concurrent users for 30 seconds
+    - duration: 30
+      arrivalRate: 10
+      name: "Quick load test"
+
+  # Performance targets (more lenient for CI)
+  ensure:
+    p95: 3000  # 95th percentile < 3 seconds
+    p99: 8000  # 99th percentile < 8 seconds
+    maxErrorRate: 5  # Maximum 5% error rate
+
+  http:
+    timeout: 30
+    extendedMetrics: true
+
+  plugins:
+    expect: {}
+
+scenarios:
+  # Quick test of key endpoints only
+  - name: "Dashboard Metrics"
+    weight: 40
+    flow:
+      - get:
+          url: "/api/dashboard/metrics"
+          expect:
+            - statusCode: 200
+
+  - name: "List Proposals"
+    weight: 40
+    flow:
+      - get:
+          url: "/api/proposals"
+          expect:
+            - statusCode: 200
+
+  - name: "Health Check"
+    weight: 20
+    flow:
+      - get:
+          url: "/api/health"
+          expect:
+            - statusCode: 200

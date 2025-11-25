@@ -7,7 +7,7 @@
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-mono: 'Fira Code', 'Consolas', monospace;
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -37,10 +37,60 @@
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 4px);
+  --radius-sm: 0.25rem;
+  --radius-md: 0.375rem;
+  --radius-lg: 0.5rem;
+  --radius-xl: 0.75rem;
+  /* Financial Colors */
+  --color-financial-positive: var(--financial-positive);
+  --color-financial-negative: var(--financial-negative);
+  --color-financial-warning: var(--financial-warning);
+  --color-financial-neutral: var(--financial-neutral);
+  /* Proposal Colors */
+  --color-proposal-a: var(--proposal-a);
+  --color-proposal-b: var(--proposal-b);
+  --color-proposal-c: var(--proposal-c);
+  /* Primary Colors */
+  --color-primary-900: #1e3a8a;
+  --color-primary-700: #1d4ed8;
+  --color-primary-500: #3b82f6;
+  --color-primary-300: #93c5fd;
+  --color-primary-100: #dbeafe;
+  /* Neutral Colors */
+  --color-neutral-900: #111827;
+  --color-neutral-700: #374151;
+  --color-neutral-500: #6b7280;
+  --color-neutral-300: #d1d5db;
+  --color-neutral-200: #e5e7eb;
+  --color-neutral-100: #f3f4f6;
+  --color-neutral-50: #f9fafb;
+  /* Success Colors */
+  --color-success-700: #15803d;
+  --color-success-500: #22c55e;
+  --color-success-100: #dcfce7;
+  /* Warning Colors */
+  --color-warning-700: #b45309;
+  --color-warning-500: #f59e0b;
+  --color-warning-100: #fef3c7;
+  /* Danger Colors */
+  --color-danger-700: #b91c1c;
+  --color-danger-500: #ef4444;
+  --color-danger-100: #fee2e2;
+  /* Info Colors */
+  --color-info-700: #0e7490;
+  --color-info-500: #06b6d4;
+  --color-info-100: #cffafe;
+  /* Spacing (4px base unit) */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.25rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+  --space-10: 2.5rem;
+  --space-12: 3rem;
+  --space-16: 4rem;
 }
 
 :root {
@@ -51,7 +101,8 @@
   --card-foreground: oklch(0.145 0 0);
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
+  /* Primary (Blue) from UI/UX Spec */
+  --primary: oklch(0.446 0.148 251.45); /* #1d4ed8 - primary-700 */
   --primary-foreground: oklch(0.985 0 0);
   --secondary: oklch(0.97 0 0);
   --secondary-foreground: oklch(0.205 0 0);
@@ -59,23 +110,33 @@
   --muted-foreground: oklch(0.556 0 0);
   --accent: oklch(0.97 0 0);
   --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
+  --destructive: oklch(0.577 0.245 27.325); /* danger-500 */
   --border: oklch(0.922 0 0);
   --input: oklch(0.922 0 0);
   --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.646 0.222 41.116);
-  --chart-2: oklch(0.6 0.118 184.704);
-  --chart-3: oklch(0.398 0.07 227.392);
-  --chart-4: oklch(0.828 0.189 84.429);
-  --chart-5: oklch(0.769 0.188 70.08);
+  /* Chart Colors from UI/UX Spec */
+  --chart-1: oklch(0.588 0.206 250.13); /* #3b82f6 - Primary Blue */
+  --chart-2: oklch(0.646 0.222 41.116); /* #10b981 - Emerald Green */
+  --chart-3: oklch(0.769 0.188 70.08); /* #f59e0b - Amber */
+  --chart-4: oklch(0.577 0.245 27.325); /* #ef4444 - Red */
+  --chart-5: oklch(0.627 0.265 303.9); /* #8b5cf6 - Purple */
   --sidebar: oklch(0.985 0 0);
   --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
+  --sidebar-primary: oklch(0.446 0.148 251.45);
   --sidebar-primary-foreground: oklch(0.985 0 0);
   --sidebar-accent: oklch(0.97 0 0);
   --sidebar-accent-foreground: oklch(0.205 0 0);
   --sidebar-border: oklch(0.922 0 0);
   --sidebar-ring: oklch(0.708 0 0);
+  /* Financial Colors (GAP 8) */
+  --financial-positive: oklch(0.145 0 0); /* Black for positive */
+  --financial-negative: oklch(0.577 0.245 27.325); /* Red for negative */
+  --financial-warning: oklch(0.769 0.188 70.08); /* Amber */
+  --financial-neutral: oklch(0.556 0 0); /* Medium gray */
+  /* Proposal Colors */
+  --proposal-a: oklch(0.588 0.206 250.13); /* Blue */
+  --proposal-b: oklch(0.646 0.222 41.116); /* Green */
+  --proposal-c: oklch(0.769 0.188 70.08); /* Amber */
 }
 
 .dark {
@@ -110,6 +171,15 @@
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.556 0 0);
+  /* Financial Colors (GAP 8 - UI/UX Spec) */
+  --financial-positive: oklch(0.646 0.222 41.116); /* Emerald - gains, savings */
+  --financial-negative: oklch(0.577 0.245 27.325); /* Rose - costs, losses */
+  --financial-warning: oklch(0.828 0.189 84.429); /* Amber - attention needed */
+  --financial-neutral: oklch(0.708 0 0); /* Slate - baseline */
+  /* Proposal Colors (for rent model visualization) */
+  --proposal-a: oklch(0.627 0.265 303.9); /* Violet - Fixed Rent */
+  --proposal-b: oklch(0.696 0.17 162.48); /* Cyan - Revenue Share */
+  --proposal-c: oklch(0.769 0.188 70.08); /* Amber - Partnership */
 }
 
 @layer base {
@@ -118,5 +188,47 @@
   }
   body {
     @apply bg-background text-foreground;
+  }
+}
+
+/* Financial Data Utilities (GAP 8 - Critical for alignment) */
+@layer utilities {
+  .tabular-nums {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum" 1, "lnum" 1;
+  }
+
+  .proportional-nums {
+    font-variant-numeric: proportional-nums;
+  }
+
+  /* Quick financial color utilities */
+  .text-financial-positive {
+    color: var(--financial-positive);
+  }
+
+  .text-financial-negative {
+    color: var(--financial-negative);
+  }
+
+  .text-financial-warning {
+    color: var(--financial-warning);
+  }
+
+  .text-financial-neutral {
+    color: var(--financial-neutral);
+  }
+
+  /* Proposal color utilities */
+  .text-proposal-a {
+    color: var(--proposal-a);
+  }
+
+  .text-proposal-b {
+    color: var(--proposal-b);
+  }
+
+  .text-proposal-c {
+    color: var(--proposal-c);
   }
 }

@@ -6,14 +6,18 @@ datasource db {
   provider = "postgresql"
 }
 
-
-
 model User {
   id        String   @id @default(uuid())
   email     String   @unique
   name      String
   role      Role     @default(VIEWER)
   createdAt DateTime @default(now())
+
+  // Relations
+  proposalsCreated           LeaseProposal[]        @relation("ProposalCreator")
+  configUpdates              SystemConfig[]         @relation("ConfigUpdater")
+  scenariosCreated           Scenario[]             @relation("ScenarioCreator")
+  sensitivityAnalysesCreated SensitivityAnalysis[]  @relation("SensitivityAnalysisCreator")
 }
 
 enum Role {
@@ -22,14 +26,34 @@ enum Role {
   VIEWER
 }
 
+enum ProposalOrigin {
+  OUR_OFFER
+  THEIR_COUNTER
+}
+
+enum ProposalStatus {
+  DRAFT
+  READY_TO_SUBMIT
+  SUBMITTED
+  UNDER_REVIEW
+  COUNTER_RECEIVED
+  EVALUATING_COUNTER
+  ACCEPTED
+  REJECTED
+  NEGOTIATION_CLOSED
+}
+
 model SystemConfig {
-  id                    String  @id @default(uuid())
-  zakatRate             Decimal @default(0.025)
-  debtInterestRate      Decimal @default(0.05)
-  depositInterestRate   Decimal @default(0.02)
-  minCashBalance        Decimal @default(1000000)
-  confirmedAt           DateTime?
-  updatedBy             String?
+  id                  String    @id @default(uuid())
+  zakatRate           Decimal   @default(0.025)
+  debtInterestRate    Decimal   @default(0.05)
+  depositInterestRate Decimal   @default(0.02)
+  minCashBalance      Decimal   @default(1000000)
+  confirmedAt         DateTime?
+  updatedBy           String?
+
+  // Relations
+  updater User? @relation("ConfigUpdater", fields: [updatedBy], references: [id], onDelete: SetNull)
 }
 
 model HistoricalData {
@@ -46,14 +70,14 @@ model HistoricalData {
 }
 
 model WorkingCapitalRatios {
-  id                       String  @id @default(uuid())
-  arPercent                Decimal
-  prepaidPercent           Decimal
-  apPercent                Decimal
-  accruedPercent           Decimal
-  deferredRevenuePercent   Decimal
-  locked                   Boolean @default(true)
-  calculatedFrom2024       DateTime
+  id                     String   @id @default(uuid())
+  arPercent              Decimal
+  prepaidPercent         Decimal
+  apPercent              Decimal
+  accruedPercent         Decimal
+  deferredRevenuePercent Decimal
+  locked                 Boolean  @default(true)
+  calculatedFrom2024     DateTime
 }
 
 model CapExAsset {
@@ -68,30 +92,133 @@ model CapExAsset {
   rate               Decimal?
   nbv                Decimal
   createdAt          DateTime @default(now())
+
+  // Relations
+  proposal LeaseProposal? @relation("ProposalAssets", fields: [proposalId], references: [id], onDelete: SetNull)
 }
 
 model CapExConfig {
-  id                     String  @id @default(uuid())
-  autoReinvestEnabled    Boolean @default(false)
-  reinvestFrequency      Int?
-  reinvestAmount         Decimal?
-  reinvestAmountPercent  Decimal?
+  id                    String   @id @default(uuid())
+  autoReinvestEnabled   Boolean  @default(false)
+  reinvestFrequency     Int?
+  reinvestAmount        Decimal?
+  reinvestAmountPercent Decimal?
+}
+
+model TransitionConfig {
+  id                 String   @id @default(uuid())
+  year2025Students   Int
+  year2025AvgTuition Decimal
+  year2026Students   Int
+  year2026AvgTuition Decimal
+  year2027Students   Int
+  year2027AvgTuition Decimal
+  rentGrowthPercent  Decimal   /// Decimal fraction (e.g., 0.05 = 5%)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+  updatedBy          String?
 }
 
 model LeaseProposal {
-  id          String   @id @default(uuid())
-  name        String
-  rentModel   String
-  createdBy   String
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  transition  Json
-  enrollment  Json
-  curriculum  Json
-  staff       Json
-  rentParams  Json
-  otherOpex   Decimal
-  financials  Json?
-  metrics     Json?
+  id           String    @id @default(uuid())
+  name         String
+  rentModel    String
+  createdBy    String
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  transition   Json
+  enrollment   Json
+  curriculum   Json
+  staff        Json
+  rentParams   Json
+  otherOpex    Decimal
+  financials   Json?
+  metrics      Json?
   calculatedAt DateTime?
+
+  // Negotiation Context (v2.1)
+  developer        String?
+  property         String?
+  negotiationRound Int            @default(1)
+  version          String?
+  origin           ProposalOrigin @default(OUR_OFFER)
+  status           ProposalStatus @default(DRAFT)
+  parentProposalId String?
+
+  // Timeline Tracking (v2.1)
+  submittedDate        DateTime?
+  responseReceivedDate DateTime?
+
+  // Notes & Context (v2.1)
+  negotiationNotes String?
+  boardComments    String?
+
+  // Relations
+  creator              User                   @relation("ProposalCreator", fields: [createdBy], references: [id], onDelete: Restrict)
+  assets               CapExAsset[]           @relation("ProposalAssets")
+  parentProposal       LeaseProposal?         @relation("ProposalVersions", fields: [parentProposalId], references: [id], onDelete: SetNull)
+  childProposals       LeaseProposal[]        @relation("ProposalVersions")
+  scenarios            Scenario[]             @relation("ProposalScenarios")
+  sensitivityAnalyses  SensitivityAnalysis[]  @relation("ProposalSensitivityAnalyses")
+
+  // Indexes for negotiation queries (v2.1)
+  @@index([developer, property, negotiationRound], name: "idx_negotiation_thread")
+  @@index([status], name: "idx_status")
+
+  // PERFORMANCE OPTIMIZATION: Additional indexes for common queries
+  @@index([createdBy], name: "idx_created_by")
+  @@index([createdAt], name: "idx_created_at")
+  @@index([rentModel], name: "idx_rent_model")
+  @@index([createdAt, createdBy], name: "idx_created_composite")
+}
+
+model Scenario {
+  id         String   @id @default(uuid())
+  proposalId String
+  name       String
+  createdAt  DateTime @default(now())
+  createdBy  String
+
+  // Scenario Variables (adjustable sliders)
+  enrollmentPercent     Decimal // % of baseline (e.g., 100 = baseline, 120 = 20% increase)
+  cpiPercent            Decimal // Annual CPI growth % (e.g., 3.0 = 3%)
+  tuitionGrowthPercent  Decimal // Annual tuition growth % (e.g., 5.0 = 5%)
+  rentEscalationPercent Decimal // Annual rent escalation % (e.g., 3.0 = 3%)
+
+  // Calculated Metrics (stored for quick comparison)
+  totalRent   Decimal?
+  npv         Decimal?
+  totalEbitda Decimal?
+  finalCash   Decimal?
+  maxDebt     Decimal?
+
+  // Relations
+  proposal LeaseProposal @relation("ProposalScenarios", fields: [proposalId], references: [id], onDelete: Cascade)
+  creator  User          @relation("ScenarioCreator", fields: [createdBy], references: [id], onDelete: Restrict)
+
+  @@index([proposalId])
+}
+
+model SensitivityAnalysis {
+  id         String   @id @default(uuid())
+  proposalId String
+  name       String?
+  createdAt  DateTime @default(now())
+  createdBy  String
+
+  // Configuration
+  variable     String  // Which variable to test (enrollment, cpi, tuitionGrowth, rentEscalation)
+  rangeMin     Decimal // Minimum value for the range (e.g., -20 for -20%)
+  rangeMax     Decimal // Maximum value for the range (e.g., +20 for +20%)
+  impactMetric String  // Which metric to measure impact on (npv, totalRent, totalEbitda, etc.)
+
+  // Results (stored as JSON for flexibility)
+  dataPoints Json? // Array of {inputValue, outputValue} for tornado chart
+  tornadoData Json? // Processed tornado chart data
+
+  // Relations
+  proposal LeaseProposal @relation("ProposalSensitivityAnalyses", fields: [proposalId], references: [id], onDelete: Cascade)
+  creator  User          @relation("SensitivityAnalysisCreator", fields: [createdBy], references: [id], onDelete: Restrict)
+
+  @@index([proposalId])
 }

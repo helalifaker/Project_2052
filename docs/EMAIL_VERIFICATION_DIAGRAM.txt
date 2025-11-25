@@ -1,0 +1,262 @@
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                    EMAIL VERIFICATION FLOW DIAGRAM                          │
+│                           Project 2052                                      │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────────────────────────┐
+│                          USER REGISTRATION FLOW                          │
+└──────────────────────────────────────────────────────────────────────────┘
+
+    ┌─────────────┐
+    │   Browser   │
+    └──────┬──────┘
+           │
+           │ 1. User visits /register
+           ▼
+    ┌─────────────────────────┐
+    │   Register Page         │
+    │  /src/app/register/     │
+    │       page.tsx          │
+    └───────────┬─────────────┘
+                │
+                │ 2. Submit form (name, email, password)
+                ▼
+         ┌──────────────┐
+         │  Validation  │
+         └──────┬───────┘
+                │
+                │ 3. Valid?
+                ▼
+         ┌──────────────────────┐
+         │  supabase.auth       │
+         │    .signUp()         │
+         └──────┬───────────────┘
+                │
+                │ 4. Create auth user
+                ▼
+         ┌──────────────────────┐
+         │  Supabase sends      │
+         │  verification email  │
+         └──────┬───────────────┘
+                │
+                │ 5. Redirect after 1.5s
+                ▼
+    ┌─────────────────────────┐
+    │  Verify Email Page      │
+    │  /src/app/verify-email/ │
+    │       page.tsx          │
+    └───────────┬─────────────┘
+                │
+                │ 6. Show instructions
+                │    Display email address
+                │    Wait for user action
+                │
+                ├──────────────────────┬──────────────────────┐
+                │                      │                      │
+                ▼                      ▼                      ▼
+    ┌─────────────────┐   ┌──────────────────┐  ┌─────────────────┐
+    │ Click verify    │   │ Click "Resend"   │  │ Navigate away   │
+    │ link in email   │   │ button           │  │ (can return)    │
+    └────────┬────────┘   └────────┬─────────┘  └─────────────────┘
+             │                     │
+             │                     │ 7. supabase.auth.resend()
+             │                     ▼
+             │            ┌──────────────────┐
+             │            │ New email sent   │
+             │            └────────┬─────────┘
+             │                     │
+             │◄────────────────────┘
+             │
+             │ 8. Click verification link
+             ▼
+    ┌────────────────────────────┐
+    │  Auth Callback Handler     │
+    │  /src/app/auth/callback/   │
+    │       route.ts             │
+    └──────────┬─────────────────┘
+               │
+               │ 9. Extract code from URL
+               │    (?code=xxxxx)
+               ▼
+        ┌──────────────────────────┐
+        │ supabase.auth            │
+        │ .exchangeCodeForSession()│
+        └────────┬─────────────────┘
+                 │
+                 │ 10. Create session
+                 ▼
+          ┌──────────────┐
+          │ Valid code?  │
+          └──┬────────┬──┘
+             │        │
+        YES  │        │ NO
+             │        │
+             ▼        ▼
+     ┌───────────┐  ┌─────────────────────┐
+     │ Redirect  │  │ Redirect to /login  │
+     │ to /login │  │ with error message  │
+     │ ?verified │  └─────────────────────┘
+     │   =true   │
+     └─────┬─────┘
+           │
+           │ 11. Show success message
+           ▼
+    ┌─────────────────┐
+    │  Login Page     │
+    │  /src/app/      │
+    │  login/page.tsx │
+    └────────┬────────┘
+             │
+             │ 12. User enters credentials
+             ▼
+      ┌──────────────┐
+      │ Sign in with │
+      │   password   │
+      └──────┬───────┘
+             │
+             │ 13. Successful login
+             ▼
+      ┌──────────────┐
+      │  Dashboard   │
+      └──────────────┘
+
+
+┌──────────────────────────────────────────────────────────────────────────┐
+│                        ERROR HANDLING PATHS                              │
+└──────────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────┐
+│ Expired Link    │
+├─────────────────┤
+│ Auth Callback   │
+│ detects expired │
+│ code            │
+└────────┬────────┘
+         │
+         │ Redirect to /login
+         │ ?error=expired
+         ▼
+  ┌──────────────┐
+  │ Show error   │
+  │ message      │
+  └──────────────┘
+
+┌─────────────────┐
+│ Rate Limit      │
+├─────────────────┤
+│ User clicks     │
+│ resend too many │
+│ times           │
+└────────┬────────┘
+         │
+         │ Show error in UI
+         ▼
+  ┌──────────────────┐
+  │ "Wait X minutes" │
+  └──────────────────┘
+
+┌─────────────────┐
+│ Already Used    │
+├─────────────────┤
+│ User clicks old │
+│ link again      │
+└────────┬────────┘
+         │
+         │ Redirect to /login
+         │ ?error=already_used
+         ▼
+  ┌──────────────────────┐
+  │ Show "already used"  │
+  │ message, suggest     │
+  │ signing in           │
+  └──────────────────────┘
+
+
+┌──────────────────────────────────────────────────────────────────────────┐
+│                        KEY COMPONENTS                                    │
+└──────────────────────────────────────────────────────────────────────────┘
+
+┌───────────────────────────────────────────────────────────────────┐
+│  /src/app/verify-email/page.tsx                                   │
+├───────────────────────────────────────────────────────────────────┤
+│  • Client Component ("use client")                                │
+│  • Shows email verification instructions                          │
+│  • Displays email address from URL param                          │
+│  • Resend verification button                                     │
+│  • Auto-checks if user already verified                           │
+│  • Error/success alerts                                           │
+│  • Links back to login                                            │
+└───────────────────────────────────────────────────────────────────┘
+
+┌───────────────────────────────────────────────────────────────────┐
+│  /src/app/auth/callback/route.ts                                  │
+├───────────────────────────────────────────────────────────────────┤
+│  • API Route Handler (GET)                                        │
+│  • Server-side code exchange                                      │
+│  • Error detection and handling                                   │
+│  • Smart redirect logic                                           │
+│  • Security validations                                           │
+│  • Logging for debugging                                          │
+└───────────────────────────────────────────────────────────────────┘
+
+┌───────────────────────────────────────────────────────────────────┐
+│  /src/app/login/page.tsx (Modified)                               │
+├───────────────────────────────────────────────────────────────────┤
+│  • Reads URL params (?verified, ?error)                           │
+│  • Shows success alert for verified users                         │
+│  • Shows error alerts from callback                               │
+│  • Standard login functionality                                   │
+└───────────────────────────────────────────────────────────────────┘
+
+┌───────────────────────────────────────────────────────────────────┐
+│  /src/app/register/page.tsx (Modified)                            │
+├───────────────────────────────────────────────────────────────────┤
+│  • Redirects to /verify-email after signup                        │
+│  • Passes email as URL parameter                                  │
+│  • Shows success message before redirect                          │
+└───────────────────────────────────────────────────────────────────┘
+
+
+┌──────────────────────────────────────────────────────────────────────────┐
+│                        SUPABASE INTEGRATION                              │
+└──────────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────┐
+│  Client-Side    │
+├─────────────────┤
+│ • signUp()      │
+│ • resend()      │
+│ • getUser()     │
+└─────────────────┘
+
+┌─────────────────────────┐
+│  Server-Side            │
+├─────────────────────────┤
+│ • createClient()        │
+│ • exchangeCodeFor      │
+│   Session()             │
+└─────────────────────────┘
+
+┌─────────────────────────┐
+│  Supabase Automatic     │
+├─────────────────────────┤
+│ • Send verification     │
+│   email                 │
+│ • Generate secure code  │
+│ • Handle expiration     │
+│ • Rate limiting         │
+└─────────────────────────┘
+
+
+┌──────────────────────────────────────────────────────────────────────────┐
+│                        SECURITY MEASURES                                 │
+└──────────────────────────────────────────────────────────────────────────┘
+
+✓ PKCE Flow: Automatic via Supabase
+✓ Server-side code exchange: No client-side secrets
+✓ Same-origin validation: Prevents open redirects
+✓ Rate limiting: Built into Supabase
+✓ Link expiration: 24 hours
+✓ Single-use codes: Can't be reused
+✓ Secure cookies: HttpOnly, Secure, SameSite
+

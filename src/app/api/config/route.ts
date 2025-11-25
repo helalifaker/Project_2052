@@ -1,21 +1,18 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireRole } from "@/middleware/rbac";
+import { authenticateUserWithRole } from "@/middleware/auth";
 import { Role, Prisma } from "@prisma/client";
 import { SystemConfigUpdateSchema } from "@/lib/validation/config";
 import { z } from "zod";
 
-// Mock user for now (since we don't have full auth yet)
-const mockUser = { role: Role.ADMIN };
-
 export async function GET() {
   // Check auth - allow all authenticated roles to view config
-  const authError = requireRole(mockUser.role, [
+  const authResult = await authenticateUserWithRole([
     Role.ADMIN,
     Role.PLANNER,
     Role.VIEWER,
   ]);
-  if (authError) return authError;
+  if (!authResult.success) return authResult.error;
 
   try {
     const config = await prisma.systemConfig.findFirst();
@@ -37,8 +34,8 @@ export async function GET() {
 
 export async function PUT(request: Request) {
   // Check auth - only ADMIN can update config
-  const authError = requireRole(mockUser.role, [Role.ADMIN]);
-  if (authError) return authError;
+  const authResult = await authenticateUserWithRole([Role.ADMIN]);
+  if (!authResult.success) return authResult.error;
 
   try {
     const body = await request.json();

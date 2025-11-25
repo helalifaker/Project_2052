@@ -1,0 +1,218 @@
+config:
+  target: "http://localhost:3000"
+  phases:
+    # Warm-up phase: 5 users/sec for 30 seconds
+    - duration: 30
+      arrivalRate: 5
+      name: "Warm-up"
+
+    # Ramp-up phase: 5 -> 20 users/sec over 60 seconds
+    - duration: 60
+      arrivalRate: 5
+      rampTo: 20
+      name: "Ramp-up"
+
+    # Sustain phase: 50 concurrent users for 120 seconds
+    - duration: 120
+      arrivalRate: 50
+      name: "Sustained load (50 users/sec)"
+
+    # Peak phase: 100 concurrent users for 60 seconds
+    - duration: 60
+      arrivalRate: 100
+      name: "Peak load (100 users/sec)"
+
+    # Cool-down phase: 100 -> 10 users/sec over 30 seconds
+    - duration: 30
+      arrivalRate: 100
+      rampTo: 10
+      name: "Cool-down"
+
+  # Performance targets
+  ensure:
+    p95: 2000  # 95th percentile response time should be < 2 seconds (2000ms)
+    p99: 5000  # 99th percentile response time should be < 5 seconds
+    maxErrorRate: 1  # Maximum 1% error rate
+
+  # HTTP defaults
+  http:
+    timeout: 30  # 30-second timeout for requests
+    extendedMetrics: true
+
+  # Plugins for enhanced reporting
+  plugins:
+    expect: {}
+    metrics-by-endpoint:
+      # This is built-in, no package needed
+      stripQueryString: true
+
+  # Environment variables
+  variables:
+    baseUrl: "http://localhost:3000"
+
+# Test scenarios
+scenarios:
+  # Scenario 1: Dashboard metrics endpoint (fast, cached)
+  - name: "Dashboard Metrics"
+    weight: 30
+    flow:
+      - get:
+          url: "/api/dashboard/metrics"
+          expect:
+            - statusCode: 200
+            - contentType: json
+            - hasProperty: proposals
+          capture:
+            json: "$"
+            as: "metrics"
+
+  # Scenario 2: List proposals (moderate load)
+  - name: "List Proposals"
+    weight: 25
+    flow:
+      - get:
+          url: "/api/proposals"
+          expect:
+            - statusCode: 200
+            - contentType: json
+          capture:
+            json: "$[0].id"
+            as: "proposalId"
+
+  # Scenario 3: Get specific proposal (moderate load)
+  - name: "Get Proposal"
+    weight: 20
+    flow:
+      - get:
+          url: "/api/proposals"
+          capture:
+            json: "$[0].id"
+            as: "proposalId"
+      - get:
+          url: "/api/proposals/{{ proposalId }}"
+          expect:
+            - statusCode: 200
+            - contentType: json
+            - hasProperty: id
+
+  # Scenario 4: Calculate financials (heavy computation)
+  - name: "Calculate Financials"
+    weight: 15
+    flow:
+      - post:
+          url: "/api/proposals/calculate"
+          json:
+            systemConfig:
+              zakatRate: 0.025
+              debtInterestRate: 0.05
+              depositInterestRate: 0.02
+              minCashBalance: 1000000
+            historicalPeriods:
+              - year: 2023
+                immutable: true
+                profitLoss:
+                  revenue: 45000000
+                  rent: 9000000
+                  staffCosts: 18000000
+                  otherOpex: 4500000
+                  depreciation: 1800000
+                  interest: 900000
+                  zakat: 270000
+                balanceSheet:
+                  cash: 4500000
+                  accountsReceivable: 4500000
+                  prepaidExpenses: 1575000
+                  ppe: 27000000
+                  accumulatedDepreciation: 9000000
+                  accountsPayable: 2520000
+                  accruedExpenses: 1575000
+                  deferredRevenue: 6750000
+                  debt: 18000000
+                  equity: 8730000
+              - year: 2024
+                immutable: true
+                profitLoss:
+                  revenue: 50000000
+                  rent: 10000000
+                  staffCosts: 20000000
+                  otherOpex: 5000000
+                  depreciation: 2000000
+                  interest: 1000000
+                  zakat: 300000
+                balanceSheet:
+                  cash: 5000000
+                  accountsReceivable: 5000000
+                  prepaidExpenses: 1750000
+                  ppe: 30000000
+                  accumulatedDepreciation: 10000000
+                  accountsPayable: 2800000
+                  accruedExpenses: 1750000
+                  deferredRevenue: 7500000
+                  debt: 20000000
+                  equity: 9700000
+            transitionPeriods:
+              - year: 2025
+                preFillFromPriorYear: true
+                revenueGrowthRate: 0.10
+              - year: 2026
+                preFillFromPriorYear: true
+                revenueGrowthRate: 0.10
+              - year: 2027
+                preFillFromPriorYear: true
+                revenueGrowthRate: 0.10
+            workingCapitalRatios:
+              arPercent: 0.10
+              prepaidPercent: 0.035
+              apPercent: 0.056
+              accruedPercent: 0.035
+              deferredRevenuePercent: 0.15
+              otherRevenueRatio: 0
+              locked: true
+              calculatedFrom2024: true
+            dynamicPeriodConfig:
+              enrollment:
+                rampUpEnabled: false
+                rampUpStartYear: 2028
+                rampUpEndYear: 2030
+                rampUpTargetStudents: 1200
+                steadyStateStudents: 1200
+                gradeDistribution: [100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100]
+              curriculum:
+                ibProgramEnabled: false
+                ibStartYear: 2028
+                nationalCurriculumFee: 50000
+                ibCurriculumFee: 75000
+                ibStudentPercentage: 0
+              staff:
+                fixedStaffCost: 20000000
+                variableStaffCostPerStudent: 10000
+              otherOpex: 5000000
+              capexConfig:
+                autoReinvestEnabled: false
+                reinvestAmount: 0
+                reinvestFrequency: 5
+                existingAssets: []
+                newAssets: []
+            rentModel: "FIXED_ESCALATION"
+            rentParams:
+              baseRent: 10000000
+              annualEscalation: 0.03
+            capexConfig:
+              autoReinvestEnabled: false
+              reinvestAmount: 0
+              reinvestFrequency: 5
+              existingAssets: []
+              newAssets: []
+          expect:
+            - statusCode: 200
+            - contentType: json
+            - hasProperty: periods
+
+  # Scenario 5: Health check (lightest load)
+  - name: "Health Check"
+    weight: 10
+    flow:
+      - get:
+          url: "/api/health"
+          expect:
+            - statusCode: 200

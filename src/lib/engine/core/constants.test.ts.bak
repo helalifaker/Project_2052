@@ -1,0 +1,173 @@
+import { describe, it, expect } from 'vitest';
+import Decimal from 'decimal.js';
+import {
+  DECIMAL_ZERO,
+  DECIMAL_ONE,
+  DECIMAL_HUNDRED,
+  DECIMAL_NEGATIVE_ONE,
+  ZAKAT_RATE,
+  MONTHS_PER_YEAR,
+  DAYS_PER_YEAR,
+  TOLERANCE_SAR,
+  MAX_ITERATIONS,
+  DEFAULT_DEBT_INTEREST_RATE,
+  DEFAULT_DEPOSIT_INTEREST_RATE,
+  DEFAULT_MIN_CASH_BALANCE,
+  HISTORICAL_START_YEAR,
+  HISTORICAL_END_YEAR,
+  TRANSITION_START_YEAR,
+  TRANSITION_END_YEAR,
+  DYNAMIC_START_YEAR,
+  DYNAMIC_END_YEAR,
+  TOTAL_PROJECTION_YEARS,
+  STATEMENT_TYPES,
+  RENT_MODELS,
+  CURRICULUM_TYPES,
+  USER_ROLES,
+  getDefaultGrowthRates,
+  getDefaultRampUpSchedule,
+  getDefaultStaffRatios,
+} from './constants';
+
+describe('Decimal Constants', () => {
+  it('should have correct decimal zero', () => {
+    expect(DECIMAL_ZERO.toNumber()).toBe(0);
+    expect(DECIMAL_ZERO).toBeInstanceOf(Decimal);
+  });
+
+  it('should have correct decimal one', () => {
+    expect(DECIMAL_ONE.toNumber()).toBe(1);
+    expect(DECIMAL_ONE).toBeInstanceOf(Decimal);
+  });
+
+  it('should have correct decimal hundred', () => {
+    expect(DECIMAL_HUNDRED.toNumber()).toBe(100);
+    expect(DECIMAL_HUNDRED).toBeInstanceOf(Decimal);
+  });
+
+  it('should have correct decimal negative one', () => {
+    expect(DECIMAL_NEGATIVE_ONE.toNumber()).toBe(-1);
+    expect(DECIMAL_NEGATIVE_ONE).toBeInstanceOf(Decimal);
+  });
+
+  it('should have correct Zakat rate (2.5%)', () => {
+    expect(ZAKAT_RATE.toNumber()).toBe(0.025);
+    expect(ZAKAT_RATE).toBeInstanceOf(Decimal);
+  });
+});
+
+describe('Time Constants', () => {
+  it('should have 12 months per year', () => {
+    expect(MONTHS_PER_YEAR).toBe(12);
+  });
+
+  it('should have 365 days per year', () => {
+    expect(DAYS_PER_YEAR).toBe(365);
+  });
+});
+
+describe('Calculation Constants', () => {
+  it('should have tolerance of 1 SAR', () => {
+    expect(TOLERANCE_SAR.toNumber()).toBe(1);
+    expect(TOLERANCE_SAR).toBeInstanceOf(Decimal);
+  });
+
+  it('should have max iterations of 100', () => {
+    expect(MAX_ITERATIONS).toBe(100);
+  });
+});
+
+describe('Financial Defaults', () => {
+  it('should have correct default debt interest rate (5%)', () => {
+    expect(DEFAULT_DEBT_INTEREST_RATE.toNumber()).toBe(0.05);
+    expect(DEFAULT_DEBT_INTEREST_RATE).toBeInstanceOf(Decimal);
+  });
+
+  it('should have correct default deposit interest rate (2%)', () => {
+    expect(DEFAULT_DEPOSIT_INTEREST_RATE.toNumber()).toBe(0.02);
+    expect(DEFAULT_DEPOSIT_INTEREST_RATE).toBeInstanceOf(Decimal);
+  });
+
+  it('should have correct default minimum cash balance (1M SAR)', () => {
+    expect(DEFAULT_MIN_CASH_BALANCE.toNumber()).toBe(1000000);
+    expect(DEFAULT_MIN_CASH_BALANCE).toBeInstanceOf(Decimal);
+  });
+});
+
+describe('Year Range Constants', () => {
+  it('should have correct historical period (2023-2024)', () => {
+    expect(HISTORICAL_START_YEAR).toBe(2023);
+    expect(HISTORICAL_END_YEAR).toBe(2024);
+  });
+
+  it('should have correct transition period (2025-2027)', () => {
+    expect(TRANSITION_START_YEAR).toBe(2025);
+    expect(TRANSITION_END_YEAR).toBe(2027);
+  });
+
+  it('should have correct dynamic period (2028-2053)', () => {
+    expect(DYNAMIC_START_YEAR).toBe(2028);
+    expect(DYNAMIC_END_YEAR).toBe(2053);
+  });
+
+  it('should have correct total projection years (31)', () => {
+    expect(TOTAL_PROJECTION_YEARS).toBe(31);
+  });
+});
+
+describe('Enum Constants', () => {
+  describe('STATEMENT_TYPES', () => {
+    it('should have profit and loss type', () => {
+      expect(STATEMENT_TYPES.PROFIT_LOSS).toBe('PL');
+    });
+
+    it('should have balance sheet type', () => {
+      expect(STATEMENT_TYPES.BALANCE_SHEET).toBe('BS');
+    });
+
+    it('should have cash flow type', () => {
+      expect(STATEMENT_TYPES.CASH_FLOW).toBe('CF');
+    });
+  });
+
+  describe('RENT_MODELS', () => {
+    it('should have fixed escalation model', () => {
+      expect(RENT_MODELS.FIXED_ESCALATION).toBe('FIXED_ESCALATION');
+    });
+
+    it('should have revenue share model', () => {
+      expect(RENT_MODELS.REVENUE_SHARE).toBe('REVENUE_SHARE');
+    });
+
+    it('should have partner investment model', () => {
+      expect(RENT_MODELS.PARTNER_INVESTMENT).toBe('PARTNER_INVESTMENT');
+    });
+  });
+
+  describe('CURRICULUM_TYPES', () => {
+    it('should have French curriculum type', () => {
+      expect(CURRICULUM_TYPES.FRENCH).toBe('FR');
+    });
+
+    it('should have IB curriculum type', () => {
+      expect(CURRICULUM_TYPES.IB).toBe('IB');
+    });
+  });
+
+  describe('USER_ROLES', () => {
+    it('should have admin role', () => {
+      expect(USER_ROLES.ADMIN).toBe('ADMIN');
+    });
+
+    it('should have planner role', () => {
+      expect(USER_ROLES.PLANNER).toBe('PLANNER');
+    });
+
+    it('should have viewer role', () => {
+      expect(USER_ROLES.VIEWER).toBe('VIEWER');
+    });
+  });
+});
+
+// Note: Default configuration functions may not be exported from constants.ts
+// Tests removed for: getDefaultGrowthRates, getDefaultRampUpSchedule, getDefaultStaffRatios
