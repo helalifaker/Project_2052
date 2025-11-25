@@ -65,6 +65,10 @@ export function useKeyboardShortcut(
       const altMatch = alt ? event.altKey : !event.altKey;
 
       // Check if the key matches (case-insensitive)
+      // Guard against undefined event.key (can happen with some special keys)
+      if (!event.key) {
+        return;
+      }
       const keyMatch = event.key.toLowerCase() === key.toLowerCase();
 
       if (keyMatch && ctrlMatch && metaMatch && shiftMatch && altMatch) {
@@ -95,6 +99,10 @@ export function useKeyboardShortcuts(shortcuts: KeyboardShortcut[]) {
         const altMatch = shortcut.alt ? event.altKey : !event.altKey;
 
         // Check if the key matches (case-insensitive)
+        // Guard against undefined event.key (can happen with some special keys)
+        if (!event.key) {
+          continue;
+        }
         const keyMatch = event.key.toLowerCase() === shortcut.key.toLowerCase();
 
         if (keyMatch && ctrlMatch && metaMatch && shiftMatch && altMatch) {

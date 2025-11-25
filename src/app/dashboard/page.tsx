@@ -148,9 +148,19 @@ export default function DashboardPage() {
         setLoading(true);
         const response = await fetch(
           `/api/dashboard/metrics?status=${statusFilter}`,
+          {
+            credentials: "include", // Ensure cookies are sent with the request
+          },
         );
 
         if (!response.ok) {
+          // Handle authentication errors by redirecting to login
+          if (response.status === 401) {
+            const redirectTo = encodeURIComponent(window.location.pathname);
+            router.push(`/login?redirectTo=${redirectTo}`);
+            return;
+          }
+
           let errorMessage = "Failed to fetch dashboard data";
           try {
             const errorData = await response.json();
@@ -173,7 +183,7 @@ export default function DashboardPage() {
       }
     };
     fetchDashboardData();
-  }, [statusFilter]);
+  }, [statusFilter, router]);
 
   // Loading State
   if (loading) {
