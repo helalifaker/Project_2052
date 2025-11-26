@@ -4,6 +4,14 @@ import { Prisma } from "@prisma/client";
 
 export async function POST() {
   try {
+    // Security: Only allow seeding in development environment
+    if (process.env.NODE_ENV === "production") {
+      return NextResponse.json(
+        { error: "Seed endpoint is disabled in production" },
+        { status: 403 },
+      );
+    }
+
     // Check if already seeded
     const existingConfig = await prisma.systemConfig.findFirst();
     if (existingConfig) {

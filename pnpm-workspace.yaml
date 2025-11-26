@@ -1,0 +1,11 @@
+ignoredBuiltDependencies:
+  - '@playwright/browser-chromium'
+  - '@prisma/engines'
+  - '@sentry/cli'
+  - core-js
+  - esbuild
+  - prisma
+  - protobufjs
+  - sharp
+  - unix-dgram
+  - unrs-resolver

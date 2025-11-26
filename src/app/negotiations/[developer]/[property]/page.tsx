@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Loader2, ArrowLeft, Clock3 } from "lucide-react";
 import { StatusBadge } from "@/components/negotiations/StatusBadge";
 import { formatDistanceToNow } from "date-fns";
-import { ProposalOrigin, ProposalStatus } from "@prisma/client";
+import { ProposalOrigin, ProposalStatus } from "@/lib/types/roles";
 import { formatMillions } from "@/lib/utils/financial";
 
 type TimelineEntry = {

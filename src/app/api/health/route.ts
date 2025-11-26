@@ -50,12 +50,14 @@ export async function GET() {
 
   try {
     // Initialize health check response
+    // Security: Don't expose detailed environment info in production
+    const isProduction = process.env.NODE_ENV === "production";
     const healthCheck: HealthCheckResponse = {
       status: "ok",
       timestamp: new Date().toISOString(),
       uptime: process.uptime(),
-      environment: process.env.NODE_ENV || "development",
-      version: process.env.NEXT_PUBLIC_APP_VERSION || "1.0.0",
+      environment: isProduction ? "production" : "development",
+      version: "1.0.0", // Don't expose actual version in production
       checks: {
         database: {
           status: "ok",

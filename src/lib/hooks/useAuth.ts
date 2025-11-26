@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { Role } from "@prisma/client";
+import { Role } from "@/lib/types/roles";
 
 /**
  * Authenticated User Data

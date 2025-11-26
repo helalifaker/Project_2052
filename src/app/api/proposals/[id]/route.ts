@@ -81,6 +81,15 @@ export async function PATCH(
   if (!authResult.success) return authResult.error;
 
   try {
+    // Validate request size (1MB limit)
+    const contentLength = request.headers.get("content-length");
+    if (contentLength && parseInt(contentLength) > 1024 * 1024) {
+      return NextResponse.json(
+        { error: "Request body too large (max 1MB)" },
+        { status: 413 },
+      );
+    }
+
     const { id } = await params;
     const body = await request.json();
 
@@ -103,6 +112,15 @@ export async function PATCH(
       return NextResponse.json(
         { error: "Proposal not found" },
         { status: 404 },
+      );
+    }
+
+    // Row-level security: Only allow update if user is ADMIN or the creator
+    const user = authResult.user;
+    if (user.role !== Role.ADMIN && existingProposal.createdBy !== user.id) {
+      return NextResponse.json(
+        { error: "You can only modify proposals you created" },
+        { status: 403 },
       );
     }
 
@@ -199,6 +217,15 @@ export async function DELETE(
       return NextResponse.json(
         { error: "Proposal not found" },
         { status: 404 },
+      );
+    }
+
+    // Row-level security: Only allow delete if user is ADMIN or the creator
+    const user = authResult.user;
+    if (user.role !== Role.ADMIN && existingProposal.createdBy !== user.id) {
+      return NextResponse.json(
+        { error: "You can only delete proposals you created" },
+        { status: 403 },
       );
     }
 

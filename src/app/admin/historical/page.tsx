@@ -16,7 +16,7 @@ import { Form } from "@/components/ui/form";
 import { InputField } from "@/components/forms/FormField";
 import { useProposalForm } from "@/lib/hooks/useProposalForm";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
-import { Role } from "@prisma/client";
+import { Role } from "@/lib/types/roles";
 import { AlertCircle, CheckCircle2, Lock, Save, ArrowLeft } from "lucide-react";
 import { z } from "zod";
 import { toast } from "sonner";
