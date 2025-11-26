@@ -10,9 +10,33 @@
  */
 
 import { describe, it, expect, vi } from "vitest";
+
+// Define Role enum locally to avoid Prisma client dependency in tests
+enum Role {
+  ADMIN = "ADMIN",
+  PLANNER = "PLANNER",
+  VIEWER = "VIEWER",
+}
+
+// Mock @prisma/client before importing route
+vi.mock("@prisma/client", () => ({
+  Role: {
+    ADMIN: "ADMIN",
+    PLANNER: "PLANNER",
+    VIEWER: "VIEWER",
+  },
+  Prisma: {
+    Decimal: class {
+      constructor(value: string | number) {
+        return value;
+      }
+    },
+  },
+  PrismaClient: vi.fn(),
+}));
+
 import { POST } from "./route";
 import { RentModel } from "@/lib/engine/core/types";
-import { Role } from "@prisma/client";
 
 // ============================================================================
 // MOCK AUTHENTICATION MIDDLEWARE

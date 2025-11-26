@@ -278,6 +278,15 @@ export async function DELETE(
       );
     }
 
+    // Row-level security: Only allow delete if user is ADMIN or the creator
+    const user = authResult.user;
+    if (user.role !== Role.ADMIN && scenario.createdBy !== user.id) {
+      return NextResponse.json(
+        { error: "You can only delete scenarios you created" },
+        { status: 403 },
+      );
+    }
+
     // Delete scenario
     await prisma.scenario.delete({
       where: { id: scenarioId },

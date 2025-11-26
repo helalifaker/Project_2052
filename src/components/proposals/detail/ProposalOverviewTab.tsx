@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/hooks/useAuth";
-import { Role } from "@prisma/client";
+import { Role } from "@/lib/types/roles";
 import {
   Edit,
   Copy,

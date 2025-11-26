@@ -12,7 +12,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/lib/hooks/useAuth";
-import { Role } from "@prisma/client";
+import { Role } from "@/lib/types/roles";
 import {
   DropdownMenu,
   DropdownMenuContent,

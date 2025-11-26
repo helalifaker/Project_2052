@@ -11,7 +11,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
-import { Role } from "@prisma/client";
+import { Role } from "@/lib/types/roles";
 import {
   Database,
   Settings,

@@ -8,7 +8,7 @@ import React, {
   useCallback,
 } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { Role } from "@prisma/client";
+import { Role } from "@/lib/types/roles";
 import { useRouter } from "next/navigation";
 
 /**

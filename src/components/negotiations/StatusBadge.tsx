@@ -1,4 +1,4 @@
-import { ProposalOrigin, ProposalStatus } from "@prisma/client";
+import { ProposalOrigin, ProposalStatus } from "@/lib/types/roles";
 import { cn } from "@/lib/utils";
 
 interface StatusBadgeProps {
