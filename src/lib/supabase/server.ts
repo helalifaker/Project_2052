@@ -68,20 +68,15 @@ export async function createClient() {
 /**
  * Create an admin client with service role key (bypasses RLS)
  *
- * ⚠️ LEGACY KEY USAGE: This function uses SUPABASE_SERVICE_ROLE_KEY (legacy).
- * This is kept for compatibility during migration. Once all admin operations
- * are migrated to use NEW admin keys, this should be updated.
- *
- * Use with caution - only for admin operations that require bypassing RLS.
- *
- * Migration path: Replace with NEW admin secret key when available.
+ * Uses the new SUPABASE_SECRET_KEY when available. Falls back to
+ * SUPABASE_SERVICE_ROLE_KEY for legacy compatibility (should be phased out).
  */
 export function createAdminClient() {
   const url = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
 
-  // ⚠️ LEGACY: Using service_role key for compatibility
-  // TODO: Migrate to NEW admin secret key when available
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  // Prefer the new admin secret; fallback to service_role only if secret missing
+  const key =
+    process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
 
   if (!url) {
     throw new Error(
@@ -91,8 +86,7 @@ export function createAdminClient() {
 
   if (!key) {
     throw new Error(
-      "Missing SUPABASE_SERVICE_ROLE_KEY environment variable. " +
-        "⚠️ This is a LEGACY key. Consider migrating to NEW admin secret key.",
+      "Missing SUPABASE_SECRET_KEY (preferred) or SUPABASE_SERVICE_ROLE_KEY (legacy) environment variable.",
     );
   }
 

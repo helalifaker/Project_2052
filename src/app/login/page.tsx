@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, FormEvent, useEffect, Suspense } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import {
   Card,
@@ -19,7 +19,6 @@ import { createClient } from "@/lib/supabase/client";
 import { Loader2, LogIn, AlertCircle, CheckCircle2 } from "lucide-react";
 
 function LoginForm() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -71,9 +70,24 @@ function LoginForm() {
         throw new Error("Failed to create session");
       }
 
+      // Wait a moment for cookies to be set
+      await new Promise((resolve) => setTimeout(resolve, 100));
+
+      // Verify session is available
+      const {
+        data: { user: currentUser },
+        error: verifyError,
+      } = await supabase.auth.getUser();
+
+      if (verifyError || !currentUser) {
+        console.warn("Session verification failed:", verifyError);
+        // Still proceed - cookies might be set but not immediately readable
+      }
+
       // Successful login - redirect to dashboard
-      router.push("/dashboard");
-      router.refresh();
+      // Use window.location for a full page reload to ensure cookies are sent
+      const redirectTo = searchParams.get("redirectTo") || "/dashboard";
+      window.location.href = redirectTo;
     } catch (err) {
       console.error("Login error:", err);
 

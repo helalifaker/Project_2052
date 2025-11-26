@@ -75,19 +75,44 @@ export async function middleware(request: NextRequest) {
     },
   );
 
-  // Refresh session if needed (this also updates cookies automatically)
-  const {
-    data: { user },
-    error,
-  } = await supabase.auth.getUser();
-
   // Allow access to public routes regardless of auth status
   if (isPublicRoute(pathname)) {
     return supabaseResponse;
   }
 
+  // Try to get the user - this will refresh the session if needed
+  const {
+    data: { user },
+    error,
+  } = await supabase.auth.getUser();
+
+  // If there's an error, check if it's a transient "session missing" error
+  // This can happen during session refresh, so we should allow the request through
+  // and let the API routes handle authentication
+  if (error) {
+    // "Auth session missing!" is a transient error that can occur during session refresh
+    // We'll allow the request through and let API routes handle auth
+    if (error.message === "Auth session missing!") {
+      // For API routes, return 401 so they can handle it
+      if (pathname.startsWith("/api/")) {
+        return NextResponse.json(
+          { error: "Unauthorized - Authentication required" },
+          { status: 401 },
+        );
+      }
+      // For page routes, redirect to login
+      const loginUrl = new URL("/login", request.url);
+      loginUrl.searchParams.set("redirectTo", pathname);
+      return NextResponse.redirect(loginUrl);
+    }
+    // For other errors, also redirect to login
+    const loginUrl = new URL("/login", request.url);
+    loginUrl.searchParams.set("redirectTo", pathname);
+    return NextResponse.redirect(loginUrl);
+  }
+
   // Redirect unauthenticated users to login
-  if (error || !user) {
+  if (!user) {
     const loginUrl = new URL("/login", request.url);
     // Preserve the original URL as a redirect parameter
     loginUrl.searchParams.set("redirectTo", pathname);

@@ -11,10 +11,43 @@
 
 import { test, expect } from "@playwright/test";
 
+type Role = "admin" | "planner" | "viewer";
+
+const roleEnv: Record<Role, { email?: string; password?: string }> = {
+  admin: {
+    email: process.env.E2E_ADMIN_EMAIL,
+    password: process.env.E2E_ADMIN_PASSWORD,
+  },
+  planner: {
+    email: process.env.E2E_PLANNER_EMAIL,
+    password: process.env.E2E_PLANNER_PASSWORD,
+  },
+  viewer: {
+    email: process.env.E2E_VIEWER_EMAIL,
+    password: process.env.E2E_VIEWER_PASSWORD,
+  },
+};
+
+async function loginAsRole(
+  page: Parameters<typeof test>[0]["page"],
+  role: Role,
+) {
+  const creds = roleEnv[role];
+  if (!creds.email || !creds.password) {
+    test.skip(`Missing credentials for role: ${role}`);
+  }
+
+  await page.goto("/login");
+  await page.fill('input[type="email"]', creds.email as string);
+  await page.fill('input[type="password"]', creds.password as string);
+  await page.getByRole("button", { name: /sign in/i }).click();
+  await page.waitForURL(/dashboard|admin|proposals/, { timeout: 10_000 });
+}
+
 test.describe("RBAC Security Tests", () => {
   test.describe("Admin Role", () => {
     test("should allow admin to access admin dashboard", async ({ page }) => {
-      // TODO: Set up admin authentication
+      await loginAsRole(page, "admin");
       await page.goto("/admin");
 
       // Admin should see admin dashboard
@@ -23,16 +56,19 @@ test.describe("RBAC Security Tests", () => {
     });
 
     test("should allow admin to access configuration", async ({ page }) => {
+      await loginAsRole(page, "admin");
       await page.goto("/admin/config");
       await expect(page).toHaveURL(/\/admin\/config/);
     });
 
     test("should allow admin to access historical data", async ({ page }) => {
+      await loginAsRole(page, "admin");
       await page.goto("/admin/historical");
       await expect(page).toHaveURL(/\/admin\/historical/);
     });
 
     test("should allow admin to access CapEx management", async ({ page }) => {
+      await loginAsRole(page, "admin");
       await page.goto("/admin/capex");
       await expect(page).toHaveURL(/\/admin\/capex/);
     });
@@ -40,7 +76,7 @@ test.describe("RBAC Security Tests", () => {
 
   test.describe("Planner Role", () => {
     test("should allow planner to create proposals", async ({ page }) => {
-      // TODO: Set up planner authentication
+      await loginAsRole(page, "planner");
       await page.goto("/proposals/new");
 
       // Planner should see proposal creation form
@@ -51,6 +87,7 @@ test.describe("RBAC Security Tests", () => {
     test("should allow planner to edit their own proposals", async ({
       page,
     }) => {
+      await loginAsRole(page, "planner");
       await page.goto("/proposals");
 
       // Should see proposals list
@@ -66,6 +103,7 @@ test.describe("RBAC Security Tests", () => {
     });
 
     test("should NOT allow planner to access admin pages", async ({ page }) => {
+      await loginAsRole(page, "planner");
       await page.goto("/admin");
 
       // Should be redirected or see access denied
@@ -75,7 +113,7 @@ test.describe("RBAC Security Tests", () => {
 
   test.describe("Viewer Role", () => {
     test("should allow viewer to view proposals", async ({ page }) => {
-      // TODO: Set up viewer authentication
+      await loginAsRole(page, "viewer");
       await page.goto("/proposals");
 
       // Viewer should see proposals list
@@ -84,6 +122,7 @@ test.describe("RBAC Security Tests", () => {
     });
 
     test("should allow viewer to view proposal details", async ({ page }) => {
+      await loginAsRole(page, "viewer");
       await page.goto("/proposals");
       await page.locator('[data-testid="proposal-card"]').first().click();
 
@@ -92,6 +131,7 @@ test.describe("RBAC Security Tests", () => {
     });
 
     test("should NOT allow viewer to create proposals", async ({ page }) => {
+      await loginAsRole(page, "viewer");
       await page.goto("/proposals/new");
 
       // Should be redirected or see access denied
@@ -99,6 +139,7 @@ test.describe("RBAC Security Tests", () => {
     });
 
     test("should NOT allow viewer to edit proposals", async ({ page }) => {
+      await loginAsRole(page, "viewer");
       await page.goto("/proposals");
       await page.locator('[data-testid="proposal-card"]').first().click();
 
@@ -107,6 +148,7 @@ test.describe("RBAC Security Tests", () => {
     });
 
     test("should NOT allow viewer to delete proposals", async ({ page }) => {
+      await loginAsRole(page, "viewer");
       await page.goto("/proposals");
 
       // Delete button should not be visible
@@ -114,6 +156,7 @@ test.describe("RBAC Security Tests", () => {
     });
 
     test("should NOT allow viewer to access admin pages", async ({ page }) => {
+      await loginAsRole(page, "viewer");
       await page.goto("/admin");
 
       // Should be redirected or see access denied

@@ -369,6 +369,24 @@ export async function POST(request: Request) {
         orderBy: { updatedAt: "desc" },
       });
 
+      const toDecimalOrUndefined = (
+        value?: Decimal | Prisma.Decimal | number | string | null | undefined,
+      ): Decimal | undefined => {
+        if (value === null || value === undefined) return undefined;
+        if (Decimal.isDecimal(value)) return value;
+        if (
+          typeof value === "object" &&
+          "toNumber" in value &&
+          typeof value.toNumber === "function"
+        ) {
+          return new Decimal(value.toNumber());
+        }
+        if (typeof value === "number" || typeof value === "string") {
+          return new Decimal(value);
+        }
+        return undefined;
+      };
+
       // Historical periods (required) - fetch minimal placeholders if missing
       const historicalPeriods = body.historicalPeriods || [
         {
@@ -430,25 +448,25 @@ export async function POST(request: Request) {
           body.transition?.year2025?.students ??
           body.transition2025Students,
         year2025AvgTuition:
-          transitionConfig?.year2025AvgTuition?.toNumber() ??
-          body.transition?.year2025?.avgTuition ??
-          body.transition2025AvgTuition,
+          toDecimalOrUndefined(transitionConfig?.year2025AvgTuition) ??
+          toDecimalOrUndefined(body.transition?.year2025?.avgTuition) ??
+          toDecimalOrUndefined(body.transition2025AvgTuition),
         year2026Students:
           transitionConfig?.year2026Students ??
           body.transition?.year2026?.students ??
           body.transition2026Students,
         year2026AvgTuition:
-          transitionConfig?.year2026AvgTuition?.toNumber() ??
-          body.transition?.year2026?.avgTuition ??
-          body.transition2026AvgTuition,
+          toDecimalOrUndefined(transitionConfig?.year2026AvgTuition) ??
+          toDecimalOrUndefined(body.transition?.year2026?.avgTuition) ??
+          toDecimalOrUndefined(body.transition2026AvgTuition),
         year2027Students:
           transitionConfig?.year2027Students ??
           body.transition?.year2027?.students ??
           body.transition2027Students,
         year2027AvgTuition:
-          transitionConfig?.year2027AvgTuition?.toNumber() ??
-          body.transition?.year2027?.avgTuition ??
-          body.transition2027AvgTuition,
+          toDecimalOrUndefined(transitionConfig?.year2027AvgTuition) ??
+          toDecimalOrUndefined(body.transition?.year2027?.avgTuition) ??
+          toDecimalOrUndefined(body.transition2027AvgTuition),
         rentGrowthPercent:
           transitionConfig?.rentGrowthPercent ??
           (body.transition?.rentGrowthPercent
@@ -459,13 +477,12 @@ export async function POST(request: Request) {
       const makeTransition = (
         year: number,
         students?: number,
-        tuition?: number,
+        tuition?: Decimal,
       ) => ({
         year,
         preFillFromPriorYear: false,
         numberOfStudents: students,
-        averageTuitionPerStudent:
-          tuition !== undefined ? new Decimal(tuition) : undefined,
+        averageTuitionPerStudent: tuition,
         rentGrowthPercent: transitionInputs.rentGrowthPercent,
       });
 
@@ -768,7 +785,7 @@ export async function POST(request: Request) {
       cacheHit = true;
       console.log("⚡ Using cached calculation result");
     } else {
-      // Execute calculation engine
+      // Execute calculation engine in-process
       result = await calculateFinancialProjections(input);
 
       // Store result in cache for future requests
@@ -776,7 +793,8 @@ export async function POST(request: Request) {
     }
 
     // Log calculation success
-    const calculationTimeMs = performance.now() - startTime;
+    const endTime = performance.now();
+    const calculationTimeMs = endTime - startTime;
     console.log(
       `✅ Calculation completed in ${calculationTimeMs.toFixed(2)}ms: ${result.periods.length} periods, ${result.validation.allPeriodsBalanced ? "balanced" : "UNBALANCED"}`,
     );
@@ -831,6 +849,19 @@ export async function POST(request: Request) {
     );
   } catch (error) {
     console.error("❌ Calculation failed:", error);
+
+    if (
+      error instanceof Error &&
+      error.message.includes("Invalid enrollment config")
+    ) {
+      return NextResponse.json(
+        {
+          error: "Validation failed",
+          message: error.message,
+        },
+        { status: 400 },
+      );
+    }
 
     // Handle Zod validation errors
     if (error instanceof z.ZodError) {

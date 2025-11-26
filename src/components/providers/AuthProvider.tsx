@@ -54,22 +54,36 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   /**
    * Fetch user data from database
+   * Uses /api/auth/session which handles authentication gracefully
+   * @param _authUserId - Not used, kept for backward compatibility
    */
-  const fetchUserData = useCallback(async (authUserId: string) => {
+  const fetchUserData = useCallback(async (_authUserId?: string) => {
     try {
-      const response = await fetch(`/api/users/${authUserId}`);
+      const response = await fetch(`/api/auth/session`, {
+        credentials: "include", // Ensure cookies are sent
+      });
 
       if (!response.ok) {
-        console.error("Failed to fetch user details");
+        // If 401, user is not authenticated - this is expected
+        if (response.status === 401) {
+          return null;
+        }
+        console.error("Failed to fetch user details:", response.status);
         return null;
       }
 
-      const userData = await response.json();
+      const data = await response.json();
+
+      // /api/auth/session returns { user: {...} } or { user: null }
+      if (!data.user) {
+        return null;
+      }
+
       return {
-        id: userData.id,
-        email: userData.email,
-        role: userData.role as Role,
-        name: userData.name,
+        id: data.user.id,
+        email: data.user.email,
+        role: data.user.role as Role,
+        name: data.user.name,
       };
     } catch (error) {
       console.error("Error fetching user data:", error);

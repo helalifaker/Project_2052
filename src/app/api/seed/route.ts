@@ -1,8 +1,13 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { Prisma } from "@prisma/client";
+import { Prisma, Role } from "@prisma/client";
+import { authenticateUserWithRole } from "@/middleware/auth";
 
 export async function POST() {
+  // Protect seeding: only admins may seed
+  const authResult = await authenticateUserWithRole([Role.ADMIN]);
+  if (!authResult.success) return authResult.error;
+
   try {
     // Security: Only allow seeding in development environment
     if (process.env.NODE_ENV === "production") {

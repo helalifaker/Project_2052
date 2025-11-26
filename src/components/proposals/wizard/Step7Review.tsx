@@ -7,6 +7,8 @@ import { Card } from "@/components/ui/card";
 import { ArrowLeft, Calculator, CheckCircle, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Role } from "@prisma/client";
+import { useAuth } from "@/lib/hooks/useAuth";
 import type { ProposalFormData } from "./types";
 
 /**
@@ -26,10 +28,19 @@ export interface Step7ReviewProps {
 }
 
 export function Step7Review({ data, onPrevious }: Step7ReviewProps) {
+  const { hasRole } = useAuth();
+  const canCalculate = hasRole([Role.ADMIN, Role.PLANNER]);
   const router = useRouter();
   const [isCalculating, setIsCalculating] = useState(false);
 
   const handleCalculate = async () => {
+    if (!canCalculate) {
+      toast.error(
+        "Only Admin or Planner users can run the 30-year calculation. Request an elevated role to proceed.",
+      );
+      return;
+    }
+
     try {
       setIsCalculating(true);
 
@@ -466,7 +477,7 @@ export function Step7Review({ data, onPrevious }: Step7ReviewProps) {
         <Button
           onClick={handleCalculate}
           size="lg"
-          disabled={isCalculating}
+          disabled={isCalculating || !canCalculate}
           className="min-w-[200px]"
         >
           {isCalculating ? (
@@ -482,6 +493,13 @@ export function Step7Review({ data, onPrevious }: Step7ReviewProps) {
           )}
         </Button>
       </div>
+
+      {!canCalculate && (
+        <p className="text-sm text-destructive text-center mt-2">
+          Calculations require Admin or Planner permissions. Ask your
+          administrator to update your role if this is a mistake.
+        </p>
+      )}
 
       {/* Performance Note */}
       <p className="text-xs text-muted-foreground text-center">
