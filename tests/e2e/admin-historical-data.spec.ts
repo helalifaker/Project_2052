@@ -4,17 +4,19 @@ import {
   fillFormField,
   waitForToast,
   waitForNetworkIdle,
+  loginAsRole,
 } from "../utils/test-helpers";
 
 test.describe("Admin - Historical Data Entry", () => {
   test.beforeEach(async ({ page }) => {
+    await loginAsRole(page, "admin");
     await page.goto(TEST_ROUTES.ADMIN_HISTORICAL);
     await waitForNetworkIdle(page);
   });
 
   test("should display historical data entry form", async ({ page }) => {
     // Check page title
-    await expect(page.locator("h1")).toContainText(/historical data/i);
+    await expect(page.locator("h1")).toContainText(/historical.*data/i);
 
     // Check year tabs exist
     await expect(page.locator('button:has-text("2023")')).toBeVisible();

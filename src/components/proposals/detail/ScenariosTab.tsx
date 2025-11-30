@@ -1,39 +1,55 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import { Card } from "@/components/ui/card";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
-import { Save, RotateCcw, Loader2, Download, FolderOpen } from "lucide-react";
+import { RotateCcw, Loader2, Info, TrendingUp, DollarSign } from "lucide-react";
 import { toast } from "sonner";
 import { debounce } from "lodash";
+import { ScenarioCashFlowChart, ScenarioRentChart } from "./charts";
+import {
+  ExecutiveCard,
+  ExecutiveCardContent,
+  ExecutiveCardHeader,
+  ExecutiveCardTitle,
+} from "@/components/ui/executive-card";
 
 /**
  * Tab 5: Scenarios (Interactive Sliders - GAP 6)
  *
- * Allows user to adjust key variables with sliders:
- * - Enrollment %
- * - CPI %
- * - Tuition Growth %
- * - Rent Escalation %
+ * REDESIGNED LAYOUT:
+ * - Top: Two side-by-side charts (Cash Flow + Rent over 30 years)
+ * - Bottom: Sliders (left) + Metrics comparison (right)
  *
- * Shows real-time metric updates (<200ms target)
- * Metric comparison table (Baseline vs Current vs Change %)
- * Save/Load/Delete scenarios
+ * KEY FIXES:
+ * - Baseline values extracted from actual proposal configuration
+ * - All sliders show absolute values
+ * - Enrollment = % of max capacity (50-100%)
+ * - Rent escalation disabled for REVENUE_SHARE model
  */
 
 interface ScenariosTabProps {
-  proposal: any;
+  proposal: {
+    id: string;
+    rentModel: string;
+    [key: string]: unknown;
+  };
 }
 
-interface ScenarioMetrics {
-  totalRent: string;
-  npv: string;
-  totalEbitda: string;
-  finalCash: string;
-  maxDebt: string;
+interface BaselineSliderValues {
+  enrollment: number;
+  cpi: number;
+  tuitionGrowth: number;
+  rentEscalation: number;
+}
+
+interface TimeSeriesDataPoint {
+  year: number;
+  baselineCashFlow: number;
+  scenarioCashFlow: number;
+  baselineRent: number;
+  scenarioRent: number;
 }
 
 interface MetricComparison {
@@ -44,60 +60,101 @@ interface MetricComparison {
 }
 
 export function ScenariosTab({ proposal }: ScenariosTabProps) {
-  // Baseline values (from proposal)
-  const baseline = {
+  // ==========================================================================
+  // STATE
+  // ==========================================================================
+
+  // Baseline values - fetched from API on mount
+  const [baseline, setBaseline] = useState<BaselineSliderValues>({
     enrollment: 100,
     cpi: 3.0,
     tuitionGrowth: 5.0,
     rentEscalation: 3.0,
-  };
+  });
 
-  const [enrollmentPercent, setEnrollmentPercent] = useState(
-    baseline.enrollment,
-  );
-  const [cpiPercent, setCpiPercent] = useState(baseline.cpi);
-  const [tuitionGrowthPercent, setTuitionGrowthPercent] = useState(
-    baseline.tuitionGrowth,
-  );
-  const [rentEscalationPercent, setRentEscalationPercent] = useState(
-    baseline.rentEscalation,
+  // Current slider values
+  const [enrollmentPercent, setEnrollmentPercent] = useState(100);
+  const [cpiPercent, setCpiPercent] = useState(3.0);
+  const [tuitionGrowthPercent, setTuitionGrowthPercent] = useState(5.0);
+  const [rentEscalationPercent, setRentEscalationPercent] = useState(3.0);
+
+  // Chart data
+  const [timeSeriesData, setTimeSeriesData] = useState<TimeSeriesDataPoint[]>(
+    [],
   );
 
+  // UI state
+  const [isLoading, setIsLoading] = useState(true);
   const [isCalculating, setIsCalculating] = useState(false);
-  const [calculationTime, setCalculationTime] = useState<number | null>(null);
-  const [currentMetrics, setCurrentMetrics] = useState<ScenarioMetrics | null>(
-    null,
-  );
+  const [rentModel, setRentModel] = useState<string>(proposal.rentModel || "");
   const [comparison, setComparison] = useState<Record<
     string,
     MetricComparison
   > | null>(null);
-  const [savedScenarios, setSavedScenarios] = useState<any[]>([]);
-  const [scenarioName, setScenarioName] = useState("");
-  const [showSaveDialog, setShowSaveDialog] = useState(false);
+  const [calculationTime, setCalculationTime] = useState<number | null>(null);
 
-  // Fetch saved scenarios on mount
+  // ==========================================================================
+  // FETCH BASELINE ON MOUNT
+  // ==========================================================================
+
   useEffect(() => {
-    fetchSavedScenarios();
+    const fetchBaseline = async () => {
+      try {
+        const response = await fetch(
+          `/api/proposals/${proposal.id}/scenarios`,
+        );
+        if (response.ok) {
+          const data = await response.json();
+
+          if (data.baselineSliderValues) {
+            setBaseline(data.baselineSliderValues);
+            setEnrollmentPercent(data.baselineSliderValues.enrollment);
+            setCpiPercent(data.baselineSliderValues.cpi);
+            setTuitionGrowthPercent(data.baselineSliderValues.tuitionGrowth);
+            setRentEscalationPercent(data.baselineSliderValues.rentEscalation);
+          }
+
+          if (data.rentModel) {
+            setRentModel(data.rentModel);
+          }
+
+          // Initialize chart with baseline data
+          if (data.baselineTimeSeries) {
+            setTimeSeriesData(
+              data.baselineTimeSeries.map(
+                (d: { year: number; cashFlow: number; rent: number }) => ({
+                  year: d.year,
+                  baselineCashFlow: d.cashFlow,
+                  scenarioCashFlow: d.cashFlow, // Same as baseline initially
+                  baselineRent: d.rent,
+                  scenarioRent: d.rent,
+                }),
+              ),
+            );
+          }
+        }
+      } catch (error) {
+        console.error("Error fetching baseline:", error);
+        toast.error("Failed to load baseline values");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchBaseline();
   }, [proposal.id]);
 
-  const fetchSavedScenarios = async () => {
-    try {
-      const response = await fetch(
-        `/api/proposals/${proposal.id}/scenarios/saved`,
-      );
-      if (response.ok) {
-        const data = await response.json();
-        setSavedScenarios(data.scenarios);
-      }
-    } catch (error) {
-      console.error("Error fetching saved scenarios:", error);
-    }
-  };
+  // ==========================================================================
+  // DEBOUNCED CALCULATION
+  // ==========================================================================
 
-  // Debounced calculation function
   const calculateScenario = useCallback(
-    debounce(async (variables: any) => {
+    debounce(async (variables: {
+      enrollmentPercent: number;
+      cpiPercent: number;
+      tuitionGrowthPercent: number;
+      rentEscalationPercent: number;
+    }) => {
       setIsCalculating(true);
 
       try {
@@ -110,42 +167,53 @@ export function ScenariosTab({ proposal }: ScenariosTabProps) {
           },
         );
 
-        if (!response.ok) {
-          throw new Error("Calculation failed");
-        }
-
         const data = await response.json();
 
-        setCurrentMetrics(data.metrics);
+        if (!response.ok) {
+          throw new Error(data.message || data.error || "Calculation failed");
+        }
+
+        // Update time series for charts
+        if (data.timeSeriesData) {
+          setTimeSeriesData(data.timeSeriesData);
+        }
+
         setComparison(data.comparison);
-        setCalculationTime(data.performance.totalTimeMs);
+        setCalculationTime(data.performance?.totalTimeMs ?? null);
       } catch (error) {
         console.error("Error calculating scenario:", error);
-        toast.error("Failed to calculate scenario");
+        const message =
+          error instanceof Error ? error.message : "Failed to calculate";
+        toast.error(message);
       } finally {
         setIsCalculating(false);
       }
-    }, 300), // 300ms debounce
+    }, 300),
     [proposal.id],
   );
 
   // Trigger calculation when sliders change
   useEffect(() => {
-    const variables = {
+    if (isLoading) return; // Don't calculate while loading baseline
+
+    calculateScenario({
       enrollmentPercent,
       cpiPercent,
       tuitionGrowthPercent,
       rentEscalationPercent,
-    };
-
-    calculateScenario(variables);
+    });
   }, [
     enrollmentPercent,
     cpiPercent,
     tuitionGrowthPercent,
     rentEscalationPercent,
     calculateScenario,
+    isLoading,
   ]);
+
+  // ==========================================================================
+  // HANDLERS
+  // ==========================================================================
 
   const handleReset = () => {
     setEnrollmentPercent(baseline.enrollment);
@@ -155,88 +223,70 @@ export function ScenariosTab({ proposal }: ScenariosTabProps) {
     toast.success("Reset to baseline values");
   };
 
-  const handleSaveScenario = async () => {
-    if (!scenarioName.trim()) {
-      toast.error("Please enter a scenario name");
-      return;
-    }
+  // ==========================================================================
+  // DERIVED DATA FOR CHARTS
+  // ==========================================================================
 
-    if (!currentMetrics) {
-      toast.error("No scenario calculated to save");
-      return;
-    }
+  const cashFlowChartData = useMemo(
+    () =>
+      timeSeriesData.map((d) => ({
+        year: d.year,
+        baseline: d.baselineCashFlow,
+        scenario: d.scenarioCashFlow,
+      })),
+    [timeSeriesData],
+  );
 
-    try {
-      const response = await fetch(
-        `/api/proposals/${proposal.id}/scenarios/saved`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            name: scenarioName,
-            enrollmentPercent,
-            cpiPercent,
-            tuitionGrowthPercent,
-            rentEscalationPercent,
-            metrics: currentMetrics,
-          }),
-        },
-      );
+  const rentChartData = useMemo(
+    () =>
+      timeSeriesData.map((d) => ({
+        year: d.year,
+        baseline: d.baselineRent,
+        scenario: d.scenarioRent,
+      })),
+    [timeSeriesData],
+  );
 
-      if (!response.ok) {
-        throw new Error("Failed to save scenario");
-      }
+  // Is rent escalation slider applicable?
+  const isRentEscalationDisabled = rentModel === "REVENUE_SHARE";
 
-      toast.success("Scenario saved successfully");
-      setScenarioName("");
-      setShowSaveDialog(false);
-      fetchSavedScenarios();
-    } catch (error) {
-      console.error("Error saving scenario:", error);
-      toast.error("Failed to save scenario");
-    }
-  };
-
-  const handleLoadScenario = (scenario: any) => {
-    setEnrollmentPercent(scenario.variables.enrollmentPercent);
-    setCpiPercent(scenario.variables.cpiPercent);
-    setTuitionGrowthPercent(scenario.variables.tuitionGrowthPercent);
-    setRentEscalationPercent(scenario.variables.rentEscalationPercent);
-    toast.success(`Loaded scenario: ${scenario.name}`);
-  };
-
-  const handleDeleteScenario = async (scenarioId: string) => {
-    try {
-      const response = await fetch(
-        `/api/proposals/${proposal.id}/scenarios/saved?scenarioId=${scenarioId}`,
-        { method: "DELETE" },
-      );
-
-      if (!response.ok) {
-        throw new Error("Failed to delete scenario");
-      }
-
-      toast.success("Scenario deleted");
-      fetchSavedScenarios();
-    } catch (error) {
-      console.error("Error deleting scenario:", error);
-      toast.error("Failed to delete scenario");
-    }
-  };
+  // ==========================================================================
+  // FORMAT HELPERS
+  // ==========================================================================
 
   const formatCurrency = (value: string) => {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: "SAR",
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(parseFloat(value));
+    const num = parseFloat(value);
+    const millions = num / 1_000_000;
+    return `${millions.toFixed(1)}M SAR`;
   };
 
   const formatPercent = (value: string) => {
     const num = parseFloat(value);
-    return `${num >= 0 ? "+" : ""}${num.toFixed(2)}%`;
+    return `${num >= 0 ? "+" : ""}${num.toFixed(1)}%`;
   };
+
+  const formatMetricName = (metric: string): string => {
+    const names: Record<string, string> = {
+      totalRent: "Total Rent (30Y)",
+      npv: "Net Present Value",
+      totalEbitda: "Total EBITDA (30Y)",
+      finalCash: "Final Cash",
+      maxDebt: "Max Debt",
+    };
+    return names[metric] || metric;
+  };
+
+  // ==========================================================================
+  // RENDER
+  // ==========================================================================
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-96">
+        <Loader2 className="h-8 w-8 animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -245,262 +295,231 @@ export function ScenariosTab({ proposal }: ScenariosTabProps) {
         <div>
           <h2 className="text-2xl font-bold">Scenario Analysis</h2>
           <p className="text-muted-foreground mt-1">
-            Adjust key variables and see real-time impact on metrics
+            Adjust variables and see real-time impact on 30-year projections
           </p>
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={handleReset}>
-            <RotateCcw className="h-4 w-4 mr-2" />
-            Reset to Baseline
-          </Button>
-          <Button
-            size="sm"
-            onClick={() => setShowSaveDialog(!showSaveDialog)}
-            disabled={!currentMetrics}
-          >
-            <Save className="h-4 w-4 mr-2" />
-            Save Scenario
-          </Button>
-        </div>
+        <Button variant="outline" size="sm" onClick={handleReset}>
+          <RotateCcw className="h-4 w-4 mr-2" />
+          Reset to Baseline
+        </Button>
       </div>
 
-      {/* Interactive Sliders */}
-      <Card className="p-6">
-        <h3 className="text-lg font-semibold mb-6">Adjust Variables</h3>
-        <div className="space-y-8">
-          {/* Enrollment % Slider */}
-          <div className="space-y-2">
-            <div className="flex justify-between items-center">
-              <Label>Enrollment Capacity (%)</Label>
-              <span className="text-sm font-mono font-semibold">
-                {enrollmentPercent}%
-              </span>
-            </div>
-            <Slider
-              value={[enrollmentPercent]}
-              onValueChange={(value) => setEnrollmentPercent(value[0])}
-              min={50}
-              max={150}
-              step={5}
-              className="w-full"
+      {/* Charts Row - Side by Side */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <ExecutiveCard>
+          <ExecutiveCardHeader>
+            <ExecutiveCardTitle className="flex items-center gap-2">
+              <TrendingUp className="h-5 w-5 text-primary" />
+              Cash Flow Over 30 Years
+            </ExecutiveCardTitle>
+          </ExecutiveCardHeader>
+          <ExecutiveCardContent>
+            <ScenarioCashFlowChart
+              data={cashFlowChartData}
+              isLoading={isCalculating}
             />
-            <p className="text-xs text-muted-foreground">
-              Range: 50% to 150% of baseline capacity
-            </p>
-          </div>
+          </ExecutiveCardContent>
+        </ExecutiveCard>
 
-          {/* CPI % Slider */}
-          <div className="space-y-2">
-            <div className="flex justify-between items-center">
-              <Label>Consumer Price Index (CPI) Growth (%)</Label>
-              <span className="text-sm font-mono font-semibold">
-                {cpiPercent.toFixed(1)}%
-              </span>
-            </div>
-            <Slider
-              value={[cpiPercent]}
-              onValueChange={(value) => setCpiPercent(value[0])}
-              min={0}
-              max={10}
-              step={0.5}
-              className="w-full"
-            />
-            <p className="text-xs text-muted-foreground">
-              Range: 0% to 10% annual CPI growth
-            </p>
-          </div>
+        <ExecutiveCard>
+          <ExecutiveCardHeader>
+            <ExecutiveCardTitle className="flex items-center gap-2">
+              <DollarSign className="h-5 w-5 text-primary" />
+              Rent Over 30 Years
+            </ExecutiveCardTitle>
+          </ExecutiveCardHeader>
+          <ExecutiveCardContent>
+            <ScenarioRentChart data={rentChartData} isLoading={isCalculating} />
+          </ExecutiveCardContent>
+        </ExecutiveCard>
+      </div>
 
-          {/* Tuition Growth % Slider */}
-          <div className="space-y-2">
-            <div className="flex justify-between items-center">
-              <Label>Tuition Growth Rate (%)</Label>
-              <span className="text-sm font-mono font-semibold">
-                {tuitionGrowthPercent.toFixed(1)}%
-              </span>
-            </div>
-            <Slider
-              value={[tuitionGrowthPercent]}
-              onValueChange={(value) => setTuitionGrowthPercent(value[0])}
-              min={0}
-              max={15}
-              step={0.5}
-              className="w-full"
-            />
-            <p className="text-xs text-muted-foreground">
-              Range: 0% to 15% annual tuition growth
-            </p>
-          </div>
-
-          {/* Rent Escalation % Slider */}
-          <div className="space-y-2">
-            <div className="flex justify-between items-center">
-              <Label>Rent Escalation Rate (%)</Label>
-              <span className="text-sm font-mono font-semibold">
-                {rentEscalationPercent.toFixed(1)}%
-              </span>
-            </div>
-            <Slider
-              value={[rentEscalationPercent]}
-              onValueChange={(value) => setRentEscalationPercent(value[0])}
-              min={0}
-              max={10}
-              step={0.5}
-              className="w-full"
-            />
-            <p className="text-xs text-muted-foreground">
-              Range: 0% to 10% annual rent escalation
-            </p>
-          </div>
-        </div>
-      </Card>
-
-      {/* Metric Comparison Table */}
-      <Card className="p-6">
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <h3 className="text-lg font-semibold">Metric Comparison</h3>
-            {calculationTime && (
-              <p className="text-xs text-muted-foreground mt-1">
-                Calculated in {calculationTime.toFixed(0)}ms
-              </p>
-            )}
-          </div>
-          {isCalculating && (
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Loader2 className="h-4 w-4 animate-spin" />
-              Calculating...
-            </div>
-          )}
-        </div>
-
-        {comparison ? (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b">
-                  <th className="text-left py-3 px-4 font-semibold">Metric</th>
-                  <th className="text-right py-3 px-4 font-semibold">
-                    Baseline
-                  </th>
-                  <th className="text-right py-3 px-4 font-semibold">
-                    Current
-                  </th>
-                  <th className="text-right py-3 px-4 font-semibold">
-                    Absolute Change
-                  </th>
-                  <th className="text-right py-3 px-4 font-semibold">
-                    % Change
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {Object.entries(comparison).map(([metric, data]) => (
-                  <tr key={metric} className="border-b hover:bg-muted/50">
-                    <td className="py-3 px-4 font-medium">
-                      {metric === "totalRent" && "Total Rent (30Y)"}
-                      {metric === "npv" && "Net Present Value"}
-                      {metric === "totalEbitda" && "Total EBITDA (30Y)"}
-                      {metric === "finalCash" && "Final Cash Balance"}
-                      {metric === "maxDebt" && "Maximum Debt"}
-                    </td>
-                    <td className="text-right py-3 px-4">
-                      {formatCurrency(data.baseline)}
-                    </td>
-                    <td className="text-right py-3 px-4 font-semibold">
-                      {formatCurrency(data.current)}
-                    </td>
-                    <td className="text-right py-3 px-4">
-                      {formatCurrency(data.absoluteChange)}
-                    </td>
-                    <td
-                      className={`text-right py-3 px-4 font-semibold ${
-                        parseFloat(data.percentChange) > 0
-                          ? "text-green-600"
-                          : parseFloat(data.percentChange) < 0
-                            ? "text-red-600"
-                            : ""
-                      }`}
-                    >
-                      {formatPercent(data.percentChange)}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        ) : (
-          <div className="text-center py-8 text-muted-foreground">
-            <Loader2 className="h-8 w-8 animate-spin mx-auto mb-2" />
-            <p className="text-sm">Calculating initial scenario...</p>
-          </div>
-        )}
-      </Card>
-
-      {/* Saved Scenarios */}
-      {savedScenarios.length > 0 && (
-        <Card className="p-6">
-          <h3 className="text-lg font-semibold mb-4">Saved Scenarios</h3>
-          <div className="space-y-2">
-            {savedScenarios.map((scenario) => (
-              <div
-                key={scenario.id}
-                className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50"
-              >
-                <div>
-                  <p className="font-medium">{scenario.name}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {new Date(scenario.createdAt).toLocaleString()}
-                  </p>
-                </div>
-                <div className="flex gap-2">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => handleLoadScenario(scenario)}
-                  >
-                    <FolderOpen className="h-4 w-4 mr-1" />
-                    Load
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="destructive"
-                    onClick={() => handleDeleteScenario(scenario.id)}
-                  >
-                    Delete
-                  </Button>
-                </div>
+      {/* Bottom Row - Sliders and Metrics Side by Side */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Sliders Card */}
+        <ExecutiveCard>
+          <ExecutiveCardHeader className="border-b pb-4">
+            <ExecutiveCardTitle>Adjust Variables</ExecutiveCardTitle>
+          </ExecutiveCardHeader>
+          <ExecutiveCardContent className="pt-6 space-y-8">
+            {/* Enrollment Slider */}
+            <div className="space-y-4">
+              <div className="flex justify-between items-center">
+                <Label className="text-base">Capacity Utilization</Label>
+                <span className="text-sm font-mono font-semibold bg-primary/10 px-2 py-1 rounded text-primary">
+                  {enrollmentPercent}%
+                </span>
               </div>
-            ))}
-          </div>
-        </Card>
-      )}
-
-      {/* Save Dialog */}
-      {showSaveDialog && (
-        <Card className="p-6 border-2 border-primary">
-          <h3 className="text-lg font-semibold mb-4">Save Current Scenario</h3>
-          <div className="space-y-4">
-            <div>
-              <Label htmlFor="scenarioName">Scenario Name</Label>
-              <Input
-                id="scenarioName"
-                placeholder="e.g., High Growth Scenario"
-                value={scenarioName}
-                onChange={(e) => setScenarioName(e.target.value)}
+              <Slider
+                value={[enrollmentPercent]}
+                onValueChange={(value) => setEnrollmentPercent(value[0])}
+                min={50}
+                max={100}
+                step={5}
+                className="py-2"
               />
+              <p className="text-xs text-muted-foreground">
+                Baseline: {baseline.enrollment}% | Range: 50% to 100% of max
+                capacity
+              </p>
             </div>
-            <div className="flex gap-2">
-              <Button onClick={handleSaveScenario}>Save Scenario</Button>
-              <Button
-                variant="outline"
-                onClick={() => setShowSaveDialog(false)}
-              >
-                Cancel
-              </Button>
+
+            {/* CPI Slider */}
+            <div className="space-y-4">
+              <div className="flex justify-between items-center">
+                <Label className="text-base">CPI Growth Rate</Label>
+                <span className="text-sm font-mono font-semibold bg-primary/10 px-2 py-1 rounded text-primary">
+                  {cpiPercent.toFixed(1)}%
+                </span>
+              </div>
+              <Slider
+                value={[cpiPercent]}
+                onValueChange={(value) => setCpiPercent(value[0])}
+                min={0}
+                max={10}
+                step={0.5}
+                className="py-2"
+              />
+              <p className="text-xs text-muted-foreground">
+                Baseline: {baseline.cpi.toFixed(1)}% | Range: 0% to 10%
+              </p>
             </div>
-          </div>
-        </Card>
-      )}
+
+            {/* Tuition Growth Slider */}
+            <div className="space-y-4">
+              <div className="flex justify-between items-center">
+                <Label className="text-base">Tuition Growth Rate</Label>
+                <span className="text-sm font-mono font-semibold bg-primary/10 px-2 py-1 rounded text-primary">
+                  {tuitionGrowthPercent.toFixed(1)}%
+                </span>
+              </div>
+              <Slider
+                value={[tuitionGrowthPercent]}
+                onValueChange={(value) => setTuitionGrowthPercent(value[0])}
+                min={0}
+                max={15}
+                step={0.5}
+                className="py-2"
+              />
+              <p className="text-xs text-muted-foreground">
+                Baseline: {baseline.tuitionGrowth.toFixed(1)}% | Range: 0% to
+                15%
+              </p>
+            </div>
+
+            {/* Rent Escalation Slider */}
+            <div className="space-y-4">
+              <div className="flex justify-between items-center">
+                <Label
+                  className={`text-base ${isRentEscalationDisabled ? "text-muted-foreground" : ""
+                    }`}
+                >
+                  Rent Escalation Rate
+                </Label>
+                <span className="text-sm font-mono font-semibold bg-primary/10 px-2 py-1 rounded text-primary">
+                  {rentEscalationPercent.toFixed(1)}%
+                </span>
+              </div>
+              <Slider
+                value={[rentEscalationPercent]}
+                onValueChange={(value) => setRentEscalationPercent(value[0])}
+                min={0}
+                max={10}
+                step={0.5}
+                disabled={isRentEscalationDisabled}
+                className={`py-2 ${isRentEscalationDisabled ? "opacity-50" : ""}`}
+              />
+              {isRentEscalationDisabled ? (
+                <p className="text-xs text-muted-foreground flex items-center gap-1">
+                  <Info className="h-3 w-3" />
+                  Not applicable for Revenue Share model (rent scales with
+                  revenue)
+                </p>
+              ) : (
+                <p className="text-xs text-muted-foreground">
+                  Baseline: {baseline.rentEscalation.toFixed(1)}% | Range: 0% to
+                  10%
+                </p>
+              )}
+            </div>
+          </ExecutiveCardContent>
+        </ExecutiveCard>
+
+        {/* Metrics Comparison Card */}
+        <ExecutiveCard>
+          <ExecutiveCardHeader className="border-b pb-4">
+            <div className="flex items-center justify-between">
+              <ExecutiveCardTitle>Metric Comparison</ExecutiveCardTitle>
+              <div className="flex items-center gap-2">
+                {calculationTime && (
+                  <span className="text-xs text-muted-foreground">
+                    {calculationTime.toFixed(0)}ms
+                  </span>
+                )}
+                {isCalculating && (
+                  <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                )}
+              </div>
+            </div>
+          </ExecutiveCardHeader>
+
+          <ExecutiveCardContent className="pt-6">
+            {comparison ? (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b">
+                      <th className="text-left py-2 font-semibold text-muted-foreground uppercase tracking-wider text-xs">Metric</th>
+                      <th className="text-right py-2 font-semibold text-muted-foreground uppercase tracking-wider text-xs">Baseline</th>
+                      <th className="text-right py-2 font-semibold text-muted-foreground uppercase tracking-wider text-xs">Scenario</th>
+                      <th className="text-right py-2 font-semibold text-muted-foreground uppercase tracking-wider text-xs">Change</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {Object.entries(comparison).map(([metric, data]) => (
+                      <tr key={metric} className="border-b hover:bg-muted/50 transition-colors">
+                        <td className="py-3 font-medium">
+                          {formatMetricName(metric)}
+                        </td>
+                        <td className="text-right py-3 text-muted-foreground font-mono">
+                          {formatCurrency(data.baseline)}
+                        </td>
+                        <td className="text-right py-3 font-semibold font-mono">
+                          {formatCurrency(data.current)}
+                        </td>
+                        <td
+                          className={`text-right py-3 font-semibold font-mono ${parseFloat(data.percentChange) > 0
+                              ? "text-green-600"
+                              : parseFloat(data.percentChange) < 0
+                                ? "text-red-600"
+                                : ""
+                            }`}
+                        >
+                          {formatPercent(data.percentChange)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div className="flex items-center justify-center h-48">
+                <Loader2 className="h-6 w-6 animate-spin" />
+              </div>
+            )}
+
+            {/* Interpretation Helper */}
+            <div className="mt-6 pt-4 border-t">
+              <p className="text-xs text-muted-foreground">
+                <span className="text-green-600 font-medium">Green</span> =
+                favorable change |{" "}
+                <span className="text-red-600 font-medium">Red</span> = unfavorable
+                change
+              </p>
+            </div>
+          </ExecutiveCardContent>
+        </ExecutiveCard>
+      </div>
     </div>
   );
 }

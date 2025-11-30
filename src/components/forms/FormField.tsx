@@ -19,6 +19,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
+import { FieldStatusIcon } from "@/components/proposals/wizard/ValidationFeedback";
+import { useFieldValidation } from "@/lib/hooks/useDebouncedValidation";
 
 interface BaseFieldProps {
   name: string;
@@ -33,6 +35,8 @@ interface InputFieldProps extends BaseFieldProps {
   suffix?: string;
   prefix?: string;
   disabled?: boolean;
+  showValidation?: boolean;
+  required?: boolean;
 }
 
 export function InputField({
@@ -45,6 +49,8 @@ export function InputField({
   prefix,
   className,
   disabled,
+  showValidation = true,
+  required = false,
 }: InputFieldProps) {
   const form = useFormContext();
 
@@ -52,48 +58,75 @@ export function InputField({
     <ShadcnFormField
       control={form.control}
       name={name}
-      render={({ field }) => (
-        <FormItem className={className}>
-          {label && <FormLabel>{label}</FormLabel>}
-          <FormControl>
-            <div className="relative">
-              {prefix && (
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
-                  {prefix}
-                </span>
-              )}
-              <Input
-                type={type}
-                placeholder={placeholder}
-                disabled={disabled}
-                className={cn(
-                  prefix && "pl-8",
-                  suffix && "pr-12",
-                  type === "number" && "tabular-nums",
+      render={({ field, fieldState }) => {
+        const { isValidating } = useFieldValidation(field.value);
+        const hasError = !!fieldState.error;
+        const isValid = !hasError && fieldState.isDirty && !isValidating;
+
+        return (
+          <FormItem className={className}>
+            {label && (
+              <FormLabel>
+                {label}
+                {required && <span className="text-destructive ml-1" aria-label="required">*</span>}
+              </FormLabel>
+            )}
+            <FormControl>
+              <div className="relative">
+                {prefix && (
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
+                    {prefix}
+                  </span>
                 )}
-                {...field}
-                value={field.value ?? ""}
-                onChange={(e) => {
-                  if (type === "number") {
-                    const value =
-                      e.target.value === "" ? "" : Number(e.target.value);
-                    field.onChange(value);
-                  } else {
-                    field.onChange(e);
-                  }
-                }}
-              />
-              {suffix && (
-                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
-                  {suffix}
-                </span>
-              )}
-            </div>
-          </FormControl>
-          {description && <FormDescription>{description}</FormDescription>}
-          <FormMessage />
-        </FormItem>
-      )}
+                <Input
+                  type={type}
+                  placeholder={placeholder}
+                  disabled={disabled}
+                  aria-invalid={hasError}
+                  aria-describedby={description ? `${name}-description` : undefined}
+                  aria-required={required}
+                  className={cn(
+                    prefix && "pl-8",
+                    (suffix || showValidation) && "pr-12",
+                    type === "number" && "tabular-nums",
+                    hasError && "border-financial-negative focus-visible:ring-financial-negative",
+                    isValid && "border-financial-positive focus-visible:ring-financial-positive"
+                  )}
+                  {...field}
+                  value={field.value ?? ""}
+                  onChange={(e) => {
+                    if (type === "number") {
+                      const value =
+                        e.target.value === "" ? "" : Number(e.target.value);
+                      field.onChange(value);
+                    } else {
+                      field.onChange(e);
+                    }
+                  }}
+                />
+                {showValidation && (
+                  <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                    <FieldStatusIcon
+                      error={fieldState.error?.message}
+                      isValid={isValid}
+                      isValidating={isValidating}
+                    />
+                  </div>
+                )}
+                {suffix && !showValidation && (
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
+                    {suffix}
+                  </span>
+                )}
+              </div>
+            </FormControl>
+            {description && (
+              <FormDescription id={`${name}-description`}>{description}</FormDescription>
+            )}
+            <FormMessage className="text-financial-negative" />
+          </FormItem>
+        );
+      }}
     />
   );
 }

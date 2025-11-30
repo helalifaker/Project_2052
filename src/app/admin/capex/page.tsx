@@ -15,6 +15,8 @@ import { InputField } from "@/components/forms/FormField";
 import { useProposalForm } from "@/lib/hooks/useProposalForm";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { Role } from "@/lib/types/roles";
+import { BackButton } from "@/components/navigation/BackButton";
+import { Breadcrumbs } from "@/components/navigation/Breadcrumbs";
 import {
   Table,
   TableBody,
@@ -35,8 +37,6 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import {
-  ArrowLeft,
-  Save,
   Plus,
   Trash2,
   Edit,
@@ -45,19 +45,19 @@ import {
 } from "lucide-react";
 import { z } from "zod";
 import { toast } from "sonner";
-import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { formatMillions } from "@/lib/utils/financial";
-
-// Auto Reinvestment Schema
-const autoReinvestmentSchema = z.object({
-  enabled: z.boolean(),
-  frequency: z.number().min(1, "Frequency must be at least 1 year"),
-  amountType: z.enum(["fixed", "percentage"]),
-  fixedAmount: z.number().min(0).optional(),
-  percentageOfRevenue: z.number().min(0).max(100).optional(),
-});
+import {
+  CategoryManager,
+  type CapExCategory,
+} from "@/components/admin/capex/CategoryManager";
 
 // Manual CapEx Item Schema
 const manualCapExSchema = z.object({
@@ -75,27 +75,22 @@ interface ManualCapExItem {
   usefulLife: number;
   depreciationMethod: "OLD" | "NEW";
   nbv: number;
+  categoryId: string | null;
+  categoryName: string | null;
 }
 
 function CapExModulePageContent() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-
-  // Auto Reinvestment Form
-  const autoForm = useProposalForm(autoReinvestmentSchema, {
-    enabled: false,
-    frequency: 5,
-    amountType: "fixed",
-    fixedAmount: 10.0,
-    percentageOfRevenue: 5.0,
-  });
-
-  const isAutoReinvestmentEnabled = autoForm.watch("enabled");
-  const amountType = autoForm.watch("amountType");
 
   // Manual CapEx Items
   const [manualItems, setManualItems] = useState<ManualCapExItem[]>([]);
+
+  // Categories for per-category reinvestment
+  const [categories, setCategories] = useState<CapExCategory[]>([]);
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(
+    null
+  );
 
   // Add Manual Item Form
   const manualForm = useProposalForm(manualCapExSchema, {
@@ -116,27 +111,14 @@ function CapExModulePageContent() {
 
       const data = await response.json();
 
-      // Populate auto-reinvestment form
-      if (data.config) {
-        autoForm.setValue("enabled", data.config.autoReinvestEnabled);
-        if (data.config.reinvestFrequency) {
-          autoForm.setValue("frequency", data.config.reinvestFrequency);
-        }
-        if (data.config.reinvestAmount !== null) {
-          autoForm.setValue("amountType", "fixed");
-          autoForm.setValue("fixedAmount", data.config.reinvestAmount);
-        } else if (data.config.reinvestAmountPercent !== null) {
-          autoForm.setValue("amountType", "percentage");
-          autoForm.setValue(
-            "percentageOfRevenue",
-            data.config.reinvestAmountPercent,
-          );
-        }
-      }
-
       // Populate manual items
       if (data.manualItems) {
         setManualItems(data.manualItems);
+      }
+
+      // Populate categories for per-category reinvestment
+      if (data.categories) {
+        setCategories(data.categories);
       }
     } catch (error) {
       console.error("Failed to load CapEx data:", error);
@@ -144,7 +126,7 @@ function CapExModulePageContent() {
     } finally {
       setLoading(false);
     }
-  }, [autoForm]);
+  }, []);
 
   useEffect(() => {
     loadCapExData();
@@ -164,44 +146,6 @@ function CapExModulePageContent() {
 
   const summary = calculateSummary();
 
-  const handleSaveAutoReinvestment = async () => {
-    try {
-      setSaving(true);
-      const data = autoForm.getValues();
-
-      const payload = {
-        autoReinvestEnabled: data.enabled,
-        reinvestFrequency: data.enabled ? data.frequency : null,
-        reinvestAmountType: data.amountType,
-        reinvestAmount: data.amountType === "fixed" ? data.fixedAmount : null,
-        reinvestAmountPercent:
-          data.amountType === "percentage" ? data.percentageOfRevenue : null,
-      };
-
-      const response = await fetch("/api/capex", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || "Failed to save configuration");
-      }
-
-      toast.success("Auto-reinvestment configuration saved");
-    } catch (error) {
-      console.error("Failed to save auto-reinvestment:", error);
-      toast.error(
-        error instanceof Error
-          ? error.message
-          : "Failed to save auto-reinvestment configuration",
-      );
-    } finally {
-      setSaving(false);
-    }
-  };
-
   const handleAddManualItem = manualForm.handleSubmit(async (data) => {
     try {
       const response = await fetch("/api/capex/items", {
@@ -212,6 +156,7 @@ function CapExModulePageContent() {
           assetName: data.name,
           amount: data.amount,
           usefulLife: data.usefulLife,
+          categoryId: selectedCategoryId,
         }),
       });
 
@@ -225,6 +170,7 @@ function CapExModulePageContent() {
       toast.success("CapEx item added successfully");
       setShowAddDialog(false);
       manualForm.reset();
+      setSelectedCategoryId(null);
     } catch (error) {
       console.error("Failed to add CapEx item:", error);
       toast.error(
@@ -264,12 +210,14 @@ function CapExModulePageContent() {
 
   return (
     <div className="container mx-auto py-8 space-y-6">
-      {/* Header */}
-      <div className="flex items-center gap-4">
-        <Button variant="ghost" size="sm" onClick={() => router.push("/admin")}>
-          <ArrowLeft className="h-4 w-4 mr-2" />
-          Back to Admin
-        </Button>
+      {/* Navigation */}
+      <div className="space-y-4">
+        <BackButton href="/admin" label="Back to Admin" />
+        <Breadcrumbs items={[
+          { label: "Dashboard", href: "/dashboard" },
+          { label: "Admin", href: "/admin" },
+          { label: "CapEx Management" }
+        ]} />
       </div>
 
       <div>
@@ -315,117 +263,11 @@ function CapExModulePageContent() {
         </Card>
       </div>
 
-      {/* Auto Reinvestment Configuration */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Auto Reinvestment Configuration</CardTitle>
-          <CardDescription>
-            Set up recurring CapEx investments that occur automatically every N
-            years
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Form {...autoForm}>
-            <form className="space-y-6">
-              {/* Enable/Disable Toggle */}
-              <div className="flex items-center justify-between p-4 rounded-lg border">
-                <div className="space-y-0.5">
-                  <Label
-                    htmlFor="auto-reinvestment-toggle"
-                    className="text-base font-medium"
-                  >
-                    Enable Auto-Reinvestment
-                  </Label>
-                  <p className="text-sm text-muted-foreground">
-                    Automatically schedule CapEx investments at regular
-                    intervals
-                  </p>
-                </div>
-                <Switch
-                  id="auto-reinvestment-toggle"
-                  checked={isAutoReinvestmentEnabled}
-                  onCheckedChange={(checked) =>
-                    autoForm.setValue("enabled", checked)
-                  }
-                />
-              </div>
-
-              {/* Configuration Fields (shown when enabled) */}
-              {isAutoReinvestmentEnabled && (
-                <div className="space-y-4 p-4 rounded-lg border bg-muted/30">
-                  <InputField
-                    name="frequency"
-                    label="Frequency (Years)"
-                    type="number"
-                    description="How often (in years) the reinvestment occurs"
-                  />
-
-                  {/* Amount Type Radio Group */}
-                  <div className="space-y-3">
-                    <Label>Amount Type</Label>
-                    <RadioGroup
-                      value={amountType}
-                      onValueChange={(value) =>
-                        autoForm.setValue(
-                          "amountType",
-                          value as "fixed" | "percentage",
-                        )
-                      }
-                    >
-                      <div className="flex items-center space-x-2">
-                        <RadioGroupItem value="fixed" id="fixed" />
-                        <Label htmlFor="fixed" className="font-normal">
-                          Fixed Amount (SAR)
-                        </Label>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <RadioGroupItem value="percentage" id="percentage" />
-                        <Label htmlFor="percentage" className="font-normal">
-                          Percentage of Revenue
-                        </Label>
-                      </div>
-                    </RadioGroup>
-                  </div>
-
-                  {/* Conditional Input based on amount type */}
-                  {amountType === "fixed" ? (
-                    <InputField
-                      name="fixedAmount"
-                      label="Fixed Amount"
-                      type="number"
-                      suffix="M SAR"
-                      description="Fixed SAR amount to invest each cycle"
-                    />
-                  ) : (
-                    <InputField
-                      name="percentageOfRevenue"
-                      label="Percentage of Revenue"
-                      type="number"
-                      suffix="%"
-                      description="Percentage of annual revenue to invest each cycle"
-                    />
-                  )}
-                </div>
-              )}
-
-              <div className="flex justify-end">
-                <Button
-                  type="button"
-                  onClick={handleSaveAutoReinvestment}
-                  disabled={saving}
-                >
-                  {saving ? (
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  ) : (
-                    <Save className="h-4 w-4 mr-2" />
-                  )}
-                  {saving ? "Saving..." : "Save Auto-Reinvestment"}
-                </Button>
-              </div>
-            </form>
-          </Form>
-        </CardContent>
-      </Card>
+      {/* Category Manager - per-category reinvestment settings */}
+      <CategoryManager
+        categories={categories}
+        onCategoriesChange={loadCapExData}
+      />
 
       {/* Manual CapEx Items */}
       <Card>
@@ -480,6 +322,34 @@ function CapExModulePageContent() {
                         suffix="years"
                         description="Number of years to depreciate over"
                       />
+                      {categories.length > 0 && (
+                        <div className="space-y-2">
+                          <Label>Category (Optional)</Label>
+                          <Select
+                            value={selectedCategoryId ?? "none"}
+                            onValueChange={(value) =>
+                              setSelectedCategoryId(
+                                value === "none" ? null : value
+                              )
+                            }
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select a category" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="none">No category</SelectItem>
+                              {categories.map((cat) => (
+                                <SelectItem key={cat.id} value={cat.id}>
+                                  {cat.name} ({cat.usefulLife} yrs)
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <p className="text-xs text-muted-foreground">
+                            Assigning a category enables per-category tracking
+                          </p>
+                        </div>
+                      )}
                     </div>
                     <AlertDialogFooter>
                       <AlertDialogCancel type="button">
@@ -499,6 +369,7 @@ function CapExModulePageContent() {
               <TableRow>
                 <TableHead>Year</TableHead>
                 <TableHead>Item Name</TableHead>
+                <TableHead>Category</TableHead>
                 <TableHead className="text-right">Amount (M SAR)</TableHead>
                 <TableHead className="text-right">Useful Life</TableHead>
                 <TableHead>Method</TableHead>
@@ -510,7 +381,7 @@ function CapExModulePageContent() {
               {manualItems.length === 0 ? (
                 <TableRow>
                   <TableCell
-                    colSpan={7}
+                    colSpan={8}
                     className="text-center text-muted-foreground"
                   >
                     No manual CapEx items yet. Click &quot;Add Item&quot; to
@@ -522,6 +393,15 @@ function CapExModulePageContent() {
                   <TableRow key={item.id}>
                     <TableCell className="font-mono">{item.year}</TableCell>
                     <TableCell>{item.assetName}</TableCell>
+                    <TableCell>
+                      {item.categoryName ? (
+                        <span className="px-2 py-1 rounded-full text-xs font-medium bg-muted">
+                          {item.categoryName}
+                        </span>
+                      ) : (
+                        <span className="text-muted-foreground">—</span>
+                      )}
+                    </TableCell>
                     <TableCell className="text-right font-mono">
                       {formatMillions(item.amount)}
                     </TableCell>

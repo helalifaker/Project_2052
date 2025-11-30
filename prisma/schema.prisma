@@ -43,11 +43,19 @@ enum ProposalStatus {
   NEGOTIATION_CLOSED
 }
 
+enum CapExCategoryType {
+  IT_EQUIPMENT
+  FURNITURE
+  EDUCATIONAL_EQUIPMENT
+  BUILDING
+}
+
 model SystemConfig {
   id                  String    @id @default(uuid())
   zakatRate           Decimal   @default(0.025)
   debtInterestRate    Decimal   @default(0.05)
   depositInterestRate Decimal   @default(0.02)
+  discountRate        Decimal   @default(0.08)  // NPV discount rate (WACC/hurdle rate)
   minCashBalance      Decimal   @default(1000000)
   confirmedAt         DateTime?
   updatedBy           String?
@@ -81,28 +89,65 @@ model WorkingCapitalRatios {
 }
 
 model CapExAsset {
-  id                 String   @id @default(uuid())
-  proposalId         String?
-  year               Int
-  assetName          String
-  amount             Decimal
-  usefulLife         Int
-  depreciationMethod String
-  fixedAmount        Decimal?
-  rate               Decimal?
-  nbv                Decimal
-  createdAt          DateTime @default(now())
+  id              String            @id @default(uuid())
+  proposalId      String?
+  categoryId      String
+  purchaseYear    Int               /// 2025 or later (NEW investments only)
+  purchaseAmount  Decimal           @db.Decimal(18, 2)
+  usefulLife      Int               /// Copied from category at time of creation
+  createdAt       DateTime          @default(now())
 
   // Relations
   proposal LeaseProposal? @relation("ProposalAssets", fields: [proposalId], references: [id], onDelete: SetNull)
+  category CapExCategory  @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+
+  @@index([categoryId])
+  @@index([proposalId])
+}
+
+model CapExCategory {
+  id                String            @id @default(uuid())
+  type              CapExCategoryType @unique /// Fixed category type (IT_EQUIPMENT, FURNITURE, etc.)
+  name              String            /// Display name for the category
+  usefulLife        Int               /// Years for straight-line depreciation of NEW assets
+  reinvestFrequency Int?              /// Years between auto-reinvestments (null = no reinvestment)
+  reinvestAmount    Decimal?          @db.Decimal(18, 2) /// Fixed SAR amount per reinvestment cycle
+  reinvestStartYear Int?              /// Year when auto-reinvestment begins (e.g., 2029). Null = starts from 2028
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  // Relations
+  assets            CapExAsset[]
+  transitionData    CapExTransition[]
+
+  @@index([type])
+}
+
+model CapExTransition {
+  id          String        @id @default(uuid())
+  proposalId  String
+  categoryId  String
+  year        Int           /// 2025, 2026, or 2027
+  amount      Decimal       @db.Decimal(18, 2)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  // Relations
+  proposal LeaseProposal @relation("ProposalTransitionCapex", fields: [proposalId], references: [id], onDelete: Cascade)
+  category CapExCategory @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+
+  @@unique([proposalId, categoryId, year])
+  @@index([proposalId])
+  @@index([categoryId])
 }
 
 model CapExConfig {
-  id                    String   @id @default(uuid())
-  autoReinvestEnabled   Boolean  @default(false)
-  reinvestFrequency     Int?
-  reinvestAmount        Decimal?
-  reinvestAmountPercent Decimal?
+  id                      String   @id @default(uuid())
+  autoReinvestEnabled     Boolean  @default(false)
+  reinvestFrequency       Int?
+  reinvestAmount          Decimal?
+  reinvestAmountPercent   Decimal?
+  useCategoryReinvestment Boolean  @default(false) /// When true, use per-category reinvestment instead of global
 }
 
 model TransitionConfig {
@@ -126,15 +171,18 @@ model LeaseProposal {
   createdBy    String
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
-  transition   Json
   enrollment   Json
   curriculum   Json
   staff        Json
   rentParams   Json
-  otherOpex    Decimal
+  otherOpexPercent Decimal  /// % of revenue as decimal (e.g., 0.31 = 31%)
   financials   Json?
   metrics      Json?
   calculatedAt DateTime?
+  transitionConfigUpdatedAt DateTime? @map("transition_config_updated_at") /// Audit trail for which TransitionConfig was used
+
+  // Contract Period Configuration
+  contractPeriodYears Int @default(30) @db.Integer /// Dynamic period length: 25 years (2028-2052) or 30 years (2028-2057)
 
   // Negotiation Context (v2.1)
   developer        String?
@@ -156,6 +204,7 @@ model LeaseProposal {
   // Relations
   creator              User                   @relation("ProposalCreator", fields: [createdBy], references: [id], onDelete: Restrict)
   assets               CapExAsset[]           @relation("ProposalAssets")
+  transitionCapex      CapExTransition[]      @relation("ProposalTransitionCapex")
   parentProposal       LeaseProposal?         @relation("ProposalVersions", fields: [parentProposalId], references: [id], onDelete: SetNull)
   childProposals       LeaseProposal[]        @relation("ProposalVersions")
   scenarios            Scenario[]             @relation("ProposalScenarios")

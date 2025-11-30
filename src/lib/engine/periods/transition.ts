@@ -27,6 +27,9 @@ import type {
   FixedRentParams,
   RevenueShareParams,
   PartnerInvestmentParams,
+  CapExConfiguration,
+  HistoricalDepreciationState,
+  CapExVirtualAsset,
 } from "../core/types";
 import { PeriodType } from "../core/types";
 import {
@@ -46,7 +49,11 @@ import {
   max,
   min,
 } from "../core/decimal-utils";
-import type Decimal from "decimal.js";
+import Decimal from "decimal.js";
+import {
+  calculateCapexYearResult,
+  updateHistoricalDepreciationState,
+} from "../capex/capex-calculator";
 
 // ============================================================================
 // MAIN TRANSITION PERIOD CALCULATOR
@@ -64,6 +71,9 @@ import type Decimal from "decimal.js";
  * @param workingCapitalRatios Working capital ratios from 2024
  * @param rentModel Rent model to use
  * @param rentParams Parameters for the selected rent model
+ * @param capexConfig CAPEX configuration (optional for backward compatibility)
+ * @param historicalDepreciationState Historical depreciation state (optional for backward compatibility)
+ * @param virtualAssets Virtual assets accumulated from prior periods (optional for backward compatibility)
  * @returns Complete financial period
  */
 export function calculateTransitionPeriod(
@@ -73,6 +83,9 @@ export function calculateTransitionPeriod(
   workingCapitalRatios: WorkingCapitalRatios,
   _rentModel: RentModel,
   _rentParams: FixedRentParams | RevenueShareParams | PartnerInvestmentParams,
+  capexConfig?: CapExConfiguration,
+  historicalDepreciationState?: HistoricalDepreciationState,
+  virtualAssets?: CapExVirtualAsset[],
 ): FinancialPeriod {
   const startTime = performance.now();
 
@@ -81,6 +94,30 @@ export function calculateTransitionPeriod(
   // ==========================================================================
 
   const projectedData = applyPreFillLogic(input, previousPeriod);
+
+  // ==========================================================================
+  // CAPEX CALCULATION (moved before P&L to avoid scope issues)
+  // ==========================================================================
+
+  let depreciation = previousPeriod.profitLoss.depreciation;
+  let capexYearResult = undefined;
+
+  if (capexConfig && historicalDepreciationState) {
+    const priorGrossPPE = previousPeriod.balanceSheet.grossPPE;
+    const priorAccumulatedDepr = previousPeriod.balanceSheet.accumulatedDepreciation;
+
+    capexYearResult = calculateCapexYearResult(
+      input.year,
+      capexConfig,
+      "transition",
+      priorGrossPPE,
+      priorAccumulatedDepr,
+      historicalDepreciationState,
+    );
+
+    // Use depreciation from CAPEX calculation
+    depreciation = capexYearResult.totalDepreciation;
+  }
 
   // ==========================================================================
   // PROFIT & LOSS STATEMENT
@@ -92,6 +129,7 @@ export function calculateTransitionPeriod(
     systemConfig,
     previousPeriod,
     workingCapitalRatios,
+    depreciation,
   );
 
   // ==========================================================================
@@ -104,6 +142,7 @@ export function calculateTransitionPeriod(
     profitLoss,
     previousPeriod,
     workingCapitalRatios,
+    capexYearResult,
   );
 
   // ==========================================================================
@@ -116,6 +155,7 @@ export function calculateTransitionPeriod(
     previousPeriod,
     workingCapitalRatios,
     cashFlowChanges.endingCash,
+    capexYearResult,
   );
 
   // ==========================================================================
@@ -165,7 +205,8 @@ export function calculateTransitionPeriod(
   const endTime = performance.now();
   const calculationTime = endTime - startTime;
 
-  return {
+  // Store CAPEX result on period for engine to accumulate assets
+  const returnPeriod = {
     year: input.year,
     periodType: PeriodType.TRANSITION,
     profitLoss,
@@ -176,7 +217,10 @@ export function calculateTransitionPeriod(
     converged: true,
     balanceSheetBalanced,
     cashFlowReconciled,
-  };
+    ...(capexYearResult && { capexResult: capexYearResult }),
+  } as any;
+
+  return returnPeriod;
 }
 
 // ============================================================================
@@ -216,7 +260,8 @@ function applyPreFillLogic(
         priorTotalRevenue,
         ZERO,
       );
-      const otherOpex = input.otherOpex || previousPeriod.profitLoss.otherOpex;
+      // Carry forward Other OpEx from previous period
+      const otherOpex = previousPeriod.profitLoss.otherOpex;
 
       return {
         revenue,
@@ -241,8 +286,8 @@ function applyPreFillLogic(
       ZERO,
     );
 
-    // Other OpEx from prior year (or input override)
-    const otherOpex = input.otherOpex || previousPeriod.profitLoss.otherOpex;
+    // Carry forward Other OpEx from previous period
+    const otherOpex = previousPeriod.profitLoss.otherOpex;
 
     console.log(
       `  ✓ Revenue: ${revenue.toFixed(2)} (Growth: ${growthRate.times(100).toFixed(2)}%)`,
@@ -272,7 +317,8 @@ function applyPreFillLogic(
           priorTotalRevenue,
           ZERO,
         );
-      const otherOpex = input.otherOpex || previousPeriod.profitLoss.otherOpex;
+      // Carry forward Other OpEx from previous period
+      const otherOpex = previousPeriod.profitLoss.otherOpex;
 
       return {
         revenue,
@@ -291,7 +337,8 @@ function applyPreFillLogic(
       input.staffCostsRatio ||
       divideSafe(previousPeriod.profitLoss.staffCosts, priorTotalRevenue, ZERO);
 
-    const otherOpex = input.otherOpex || previousPeriod.profitLoss.otherOpex;
+    // Carry forward Other OpEx from previous period
+    const otherOpex = previousPeriod.profitLoss.otherOpex;
 
     return {
       revenue,
@@ -314,6 +361,7 @@ function calculateProfitLoss(
   systemConfig: SystemConfiguration,
   previousPeriod: FinancialPeriod,
   workingCapitalRatios: WorkingCapitalRatios,
+  depreciation: Decimal,
 ): ProfitLossStatement {
   // ==========================================================================
   // REVENUE
@@ -361,12 +409,11 @@ function calculateProfitLoss(
   const ebitda = subtract(totalRevenue, totalOpex);
 
   // ==========================================================================
-  // DEPRECIATION (simplified for now - will enhance with CapEx module)
+  // DEPRECIATION (passed as parameter from main function)
   // ==========================================================================
 
-  // For now, use prior year depreciation as baseline
-  // This will be replaced with proper CapEx module in Week 3
-  const depreciation = previousPeriod.profitLoss.depreciation;
+  // depreciation is passed as parameter from main function
+  // It's either from CAPEX calculation or carried forward from prior year
 
   // ==========================================================================
   // EBIT
@@ -385,12 +432,12 @@ function calculateProfitLoss(
     systemConfig.debtInterestRate,
   );
 
-  // Interest income on excess cash (simplified)
-  const excessCash = max(
-    subtract(previousPeriod.balanceSheet.cash, systemConfig.minCashBalance),
-    ZERO,
+  // Interest income on cash (simplified)
+  // Aligned with dynamic period logic (no minCashBalance subtraction)
+  const interestIncome = multiply(
+    previousPeriod.balanceSheet.cash,
+    systemConfig.depositInterestRate,
   );
-  const interestIncome = multiply(excessCash, systemConfig.depositInterestRate);
 
   const netInterest = subtract(interestIncome, interestExpense);
 
@@ -401,10 +448,31 @@ function calculateProfitLoss(
   const ebt = add(ebit, netInterest);
 
   // ==========================================================================
-  // ZAKAT
+  // ZAKAT (Saudi Arabian Formula - 3-Tier Approach)
   // ==========================================================================
 
-  const zakatExpense = max(multiply(ebt, systemConfig.zakatRate), ZERO);
+  // Tier 1: Try asset-based calculation (Equity - Non-Current Assets) × 2.5%
+  // Tier 2: If Tier 1 ≤ 0, use profit-based calculation (EBT × 2.5%)
+  // Tier 3: If both negative, Zakat = 0
+  //
+  // Using previous period's balance sheet as approximation (until circular solver integration)
+  const prevEquity = previousPeriod.balanceSheet.totalEquity;
+  const prevNonCurrentAssets = previousPeriod.balanceSheet.totalNonCurrentAssets;
+  const zakatBase = subtract(prevEquity, prevNonCurrentAssets);
+
+  let zakatExpense: Decimal;
+  if (zakatBase.greaterThan(ZERO)) {
+    // Tier 1: Positive net assets
+    zakatExpense = multiply(zakatBase, systemConfig.zakatRate);
+  } else {
+    // Tier 2: Negative net assets, check profitability
+    if (ebt.greaterThan(ZERO)) {
+      zakatExpense = multiply(ebt, systemConfig.zakatRate);
+    } else {
+      // Tier 3: Both negative
+      zakatExpense = ZERO;
+    }
+  }
 
   // ==========================================================================
   // NET INCOME
@@ -480,6 +548,7 @@ function calculateCashFlowChanges(
   profitLoss: ProfitLossStatement,
   previousPeriod: FinancialPeriod,
   workingCapitalRatios: WorkingCapitalRatios,
+  capexYearResult?: any,
 ): CashFlowChanges {
   // ==========================================================================
   // PROJECTED BALANCE SHEET ITEMS (using WC ratios)
@@ -544,11 +613,17 @@ function calculateCashFlowChanges(
   // CASH FLOW FROM INVESTING
   // ==========================================================================
 
-  // CapEx = Change in Gross PP&E
-  // For transition period, assume no new capital expenditures
-  const capex = ZERO;
+  // CapEx = Change in Gross PP&E (negative cash outflow)
+  let capex: Decimal;
+  if (capexYearResult) {
+    // Use CAPEX spending from CAPEX calculation
+    capex = multiply(capexYearResult.spending, new Decimal(-1));
+  } else {
+    // Legacy path: no new capital expenditures
+    capex = ZERO;
+  }
 
-  const cashFlowFromInvesting = multiply(capex, ZERO.minus(ONE)); // = 0
+  const cashFlowFromInvesting = capex;
 
   // ==========================================================================
   // CASH FLOW FROM FINANCING (Debt changes)
@@ -562,10 +637,9 @@ function calculateCashFlowChanges(
   );
 
   // Calculate Net PP&E for debt calculation
-  // Historical period stores NET PP&E, so we need to calculate GROSS first
-  const priorNetPPE = prevBS.propertyPlantEquipment;
+  // Prior period now stores grossPPE directly
+  const priorGrossPPE = prevBS.grossPPE;
   const priorAccumDepreciation = prevBS.accumulatedDepreciation;
-  const priorGrossPPE = add(priorNetPPE, priorAccumDepreciation);
 
   // No new CapEx in transition period
   const currentGrossPPE = priorGrossPPE;
@@ -677,6 +751,7 @@ function calculateBalanceSheet(
   previousPeriod: FinancialPeriod,
   workingCapitalRatios: WorkingCapitalRatios,
   endingCash: Decimal,
+  capexYearResult?: any,
 ): BalanceSheet {
   // ==========================================================================
   // CURRENT ASSETS (using WC ratios)
@@ -707,31 +782,35 @@ function calculateBalanceSheet(
   // ==========================================================================
 
   // PP&E accounting:
-  // Historical period stores NET PP&E in propertyPlantEquipment field
-  // We need to calculate GROSS PP&E first, then apply the correct formula
+  let grossPPE: Decimal;
+  let accumulatedDepreciation: Decimal;
+  let propertyPlantEquipment: Decimal;
 
-  // Calculate prior Gross PP&E = Prior Net PP&E + Prior Accumulated Depreciation
-  const priorNetPPE = previousPeriod.balanceSheet.propertyPlantEquipment;
-  const priorAccumDepreciation =
-    previousPeriod.balanceSheet.accumulatedDepreciation;
-  const priorGrossPPE = add(priorNetPPE, priorAccumDepreciation);
+  if (capexYearResult) {
+    // Use PPE from CAPEX calculation (already includes this year's CAPEX and depreciation)
+    grossPPE = capexYearResult.grossPPE;
+    accumulatedDepreciation = capexYearResult.accumulatedDepreciation;
+    propertyPlantEquipment = capexYearResult.netPPE;
+  } else {
+    // Legacy path: no CAPEX config provided
+    const priorGrossPPE = previousPeriod.balanceSheet.grossPPE;
+    const priorAccumDepreciation =
+      previousPeriod.balanceSheet.accumulatedDepreciation;
 
-  // For transition period, assume no new CapEx
-  const capexSpending = ZERO;
-  const currentGrossPPE = add(priorGrossPPE, capexSpending);
+    // For transition period without CAPEX config, assume no new CapEx
+    const capexSpending = ZERO;
+    grossPPE = add(priorGrossPPE, capexSpending);
 
-  // Accumulated Depreciation grows each period
-  const accumulatedDepreciation = add(
-    priorAccumDepreciation,
-    profitLoss.depreciation,
-  );
+    // Accumulated Depreciation grows each period
+    accumulatedDepreciation = add(
+      priorAccumDepreciation,
+      profitLoss.depreciation,
+    );
 
-  // Net PP&E = Gross PP&E - Accumulated Depreciation
-  const netPPE = subtract(currentGrossPPE, accumulatedDepreciation);
-
-  // Store NET PP&E (to maintain consistency with historical period)
-  const propertyPlantEquipment = netPPE;
-  const totalNonCurrentAssets = netPPE;
+    // Net PP&E = Gross PP&E - Accumulated Depreciation
+    propertyPlantEquipment = subtract(grossPPE, accumulatedDepreciation);
+  }
+  const totalNonCurrentAssets = propertyPlantEquipment;
 
   const totalAssets = add(totalCurrentAssets, totalNonCurrentAssets);
 
@@ -802,8 +881,9 @@ function calculateBalanceSheet(
     accountsReceivable,
     prepaidExpenses,
     totalCurrentAssets,
-    propertyPlantEquipment,
+    grossPPE,
     accumulatedDepreciation,
+    propertyPlantEquipment,
     totalNonCurrentAssets,
     totalAssets,
     accountsPayable,

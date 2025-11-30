@@ -131,8 +131,6 @@ export async function PATCH(
     if (body.rentModel !== undefined) updateData.rentModel = body.rentModel;
     if (body.developer !== undefined) updateData.developer = body.developer;
     if (body.property !== undefined) updateData.property = body.property;
-    if (body.transition !== undefined)
-      updateData.transition = body.transition as Prisma.InputJsonValue;
     if (body.enrollment !== undefined)
       updateData.enrollment = body.enrollment as Prisma.InputJsonValue;
     if (body.curriculum !== undefined)
@@ -141,8 +139,8 @@ export async function PATCH(
       updateData.staff = body.staff as Prisma.InputJsonValue;
     if (body.rentParams !== undefined)
       updateData.rentParams = body.rentParams as Prisma.InputJsonValue;
-    if (body.otherOpex !== undefined)
-      updateData.otherOpex = new Prisma.Decimal(body.otherOpex);
+    if (body.otherOpexPercent !== undefined)
+      updateData.otherOpexPercent = new Prisma.Decimal(body.otherOpexPercent);
     if (body.financials !== undefined)
       updateData.financials = body.financials as Prisma.InputJsonValue;
     if (body.metrics !== undefined)

@@ -2,18 +2,8 @@
 
 import { memo, useMemo } from "react";
 import { Card } from "@/components/ui/card";
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
-  type TooltipProps,
-} from "recharts";
-import type { Payload } from "recharts/types/component/DefaultTooltipContent";
+import { BaseBarChart } from "@/components/charts/BaseBarChart";
+import { chartColorMappings } from "@/lib/design-tokens/chart-colors";
 import { formatMillions } from "@/lib/utils/financial";
 
 interface CostBreakdownData {
@@ -22,7 +12,7 @@ interface CostBreakdownData {
   developer: string;
   rent: string;
   staff: string;
-  otherOpex: string;
+  otherOpexPercent: string;
 }
 
 interface CostBreakdownChartProps {
@@ -37,61 +27,18 @@ type CostBreakdownDatum = {
   "Other OpEx": number;
 };
 
-const toNumber = (value: unknown): number => Number(value ?? 0);
-
-type ChartTooltipProps = TooltipProps<number, string> & {
-  payload?: Payload<number, string>[];
-  label?: string | number;
-};
-
-const CustomTooltip = ({ active, payload, label }: ChartTooltipProps) => {
-  if (active && payload && payload.length) {
-    const total = payload.reduce(
-      (sum: number, entry: Payload<number, string>) =>
-        sum + toNumber(entry.value),
-      0,
-    );
-    return (
-      <div className="bg-background border rounded-lg p-3 shadow-lg">
-        <p className="font-semibold mb-2">{label}</p>
-        {payload.map((entry, index) => (
-          <div
-            key={String(entry.dataKey ?? entry.name ?? index)}
-            className="flex items-center justify-between gap-4 text-sm"
-          >
-            <div className="flex items-center gap-2">
-              <div
-                className="w-3 h-3 rounded-full"
-                style={{ backgroundColor: entry.color }}
-              />
-              <span>{entry.name}:</span>
-            </div>
-            <span className="font-medium">
-              {formatMillions(toNumber(entry.value) * 1_000_000)}
-            </span>
-          </div>
-        ))}
-        <div className="border-t mt-2 pt-2 flex justify-between text-sm font-semibold">
-          <span>Total:</span>
-          <span>{formatMillions(total * 1_000_000)}</span>
-        </div>
-      </div>
-    );
-  }
-  return null;
-};
-
 /**
  * Chart 2: Cost Breakdown
  *
  * Stacked bar chart showing breakdown of costs:
- * - Rent
- * - Staff Costs
- * - Other OpEx
+ * - Rent (Copper)
+ * - Staff Costs (Sage)
+ * - Other OpEx (Blue-gray)
  *
  * PERFORMANCE OPTIMIZATION:
  * - React.memo() to prevent re-renders
  * - useMemo() for expensive chart data transformation
+ * - Uses BaseBarChart with design tokens for consistency
  */
 export const CostBreakdownChart = memo(function CostBreakdownChart({
   data,
@@ -105,9 +52,21 @@ export const CostBreakdownChart = memo(function CostBreakdownChart({
       developer: proposal.developer,
       Rent: parseFloat(proposal.rent) / 1_000_000,
       Staff: parseFloat(proposal.staff) / 1_000_000,
-      "Other OpEx": parseFloat(proposal.otherOpex) / 1_000_000,
+      "Other OpEx": parseFloat(proposal.otherOpexPercent) / 1_000_000,
     }));
   }, [data]);
+
+  // PERFORMANCE: Memoize summary statistics
+  const summaryStats = useMemo(() => {
+    if (chartData.length === 0) return { rent: 0, staff: 0, otherOpex: 0 };
+
+    return {
+      rent: chartData.reduce((sum, d) => sum + d.Rent, 0) * 1_000_000,
+      staff: chartData.reduce((sum, d) => sum + d.Staff, 0) * 1_000_000,
+      otherOpex:
+        chartData.reduce((sum, d) => sum + d["Other OpEx"], 0) * 1_000_000,
+    };
+  }, [chartData]);
 
   if (!data || data.length === 0) {
     return (
@@ -123,82 +82,80 @@ export const CostBreakdownChart = memo(function CostBreakdownChart({
   }
 
   return (
-    <Card className="p-6">
-      <div className="space-y-4">
-        <div>
-          <h3 className="text-lg font-semibold">Cost Breakdown by Proposal</h3>
-          <p className="text-sm text-muted-foreground">
-            Total 30-year costs split by category (Rent, Staff, Other OpEx)
+    <div className="flex flex-col h-full gap-4">
+      <div className="flex-1 min-h-[300px]">
+        <BaseBarChart
+          data={chartData}
+          series={[
+            {
+              dataKey: "Rent",
+              name: "Rent",
+              color: chartColorMappings.costBreakdown.rent,
+              stackId: "a",
+            },
+            {
+              dataKey: "Staff",
+              name: "Staff",
+              color: chartColorMappings.costBreakdown.staff,
+              stackId: "a",
+            },
+            {
+              dataKey: "Other OpEx",
+              name: "Other OpEx",
+              color: chartColorMappings.costBreakdown.otherOpex,
+              stackId: "a",
+            },
+          ]}
+          xAxisKey="name"
+          yAxisFormatter={(value: number) => `${value.toFixed(0)}M`}
+          tooltipFormat="millions"
+          showLegend={true}
+          showGrid={true}
+          height={300}
+        />
+      </div>
+
+      {/* Summary Statistics with design token colors */}
+      <div className="grid grid-cols-3 gap-4 pt-4 border-t border-border shrink-0">
+        <div className="text-center">
+          <div className="flex items-center justify-center gap-2 mb-1">
+            <div
+              className="w-3 h-3 rounded-full"
+              style={{ backgroundColor: chartColorMappings.costBreakdown.rent }}
+            />
+            <span className="text-sm font-medium">Rent</span>
+          </div>
+          <p className="text-lg font-bold tabular-nums">
+            {formatMillions(summaryStats.rent)}
           </p>
         </div>
-
-        <div className="h-[400px]">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={chartData}>
-              <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-              <XAxis
-                dataKey="name"
-                angle={-45}
-                textAnchor="end"
-                height={100}
-                className="text-xs"
-              />
-              <YAxis
-                label={{
-                  value: "Cost (Millions SAR)",
-                  angle: -90,
-                  position: "insideLeft",
-                }}
-                className="text-xs"
-                tickFormatter={(value) => `${value.toFixed(0)}M`}
-              />
-              <Tooltip content={<CustomTooltip />} />
-              <Legend wrapperStyle={{ paddingTop: "20px" }} />
-              <Bar dataKey="Rent" stackId="a" fill="#3b82f6" />
-              <Bar dataKey="Staff" stackId="a" fill="#10b981" />
-              <Bar dataKey="Other OpEx" stackId="a" fill="#f59e0b" />
-            </BarChart>
-          </ResponsiveContainer>
+        <div className="text-center">
+          <div className="flex items-center justify-center gap-2 mb-1">
+            <div
+              className="w-3 h-3 rounded-full"
+              style={{ backgroundColor: chartColorMappings.costBreakdown.staff }}
+            />
+            <span className="text-sm font-medium">Staff</span>
+          </div>
+          <p className="text-lg font-bold tabular-nums">
+            {formatMillions(summaryStats.staff)}
+          </p>
         </div>
-
-        {/* Summary Statistics */}
-        <div className="grid grid-cols-3 gap-4 pt-2 border-t">
-          <div className="text-center">
-            <div className="flex items-center justify-center gap-2 mb-1">
-              <div className="w-3 h-3 rounded-full bg-[#3b82f6]" />
-              <span className="text-sm font-medium">Rent</span>
-            </div>
-            <p className="text-lg font-bold">
-              {formatMillions(
-                chartData.reduce((sum, d) => sum + d.Rent, 0) * 1_000_000,
-              )}
-            </p>
+        <div className="text-center">
+          <div className="flex items-center justify-center gap-2 mb-1">
+            <div
+              className="w-3 h-3 rounded-full"
+              style={{
+                backgroundColor: chartColorMappings.costBreakdown.otherOpex,
+              }}
+            />
+            <span className="text-sm font-medium">Other OpEx</span>
           </div>
-          <div className="text-center">
-            <div className="flex items-center justify-center gap-2 mb-1">
-              <div className="w-3 h-3 rounded-full bg-[#10b981]" />
-              <span className="text-sm font-medium">Staff</span>
-            </div>
-            <p className="text-lg font-bold">
-              {formatMillions(
-                chartData.reduce((sum, d) => sum + d.Staff, 0) * 1_000_000,
-              )}
-            </p>
-          </div>
-          <div className="text-center">
-            <div className="flex items-center justify-center gap-2 mb-1">
-              <div className="w-3 h-3 rounded-full bg-[#f59e0b]" />
-              <span className="text-sm font-medium">Other OpEx</span>
-            </div>
-            <p className="text-lg font-bold">
-              {formatMillions(
-                chartData.reduce((sum, d) => sum + d["Other OpEx"], 0) *
-                  1_000_000,
-              )}
-            </p>
-          </div>
+          <p className="text-lg font-bold tabular-nums">
+            {formatMillions(summaryStats.otherOpex)}
+          </p>
         </div>
       </div>
-    </Card>
+    </div>
   );
 });

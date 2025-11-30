@@ -15,6 +15,8 @@ import {
 } from "recharts";
 import type { Payload } from "recharts/types/component/DefaultTooltipContent";
 import { formatMillions } from "@/lib/utils/financial";
+import { getProposalColor, chartColors } from "@/lib/design-tokens/chart-colors";
+import { getAxisProps, getGridProps } from "@/lib/design-tokens/chart-config";
 
 interface CashFlowData {
   proposalId: string;
@@ -45,24 +47,27 @@ type ChartTooltipProps = TooltipProps<number, string> & {
 const CustomTooltip = ({ active, payload, label }: ChartTooltipProps) => {
   if (active && payload && payload.length) {
     return (
-      <div className="bg-background border rounded-lg p-3 shadow-lg">
-        <p className="font-semibold mb-2">Year {label}</p>
+      <div className="executive-tooltip">
+        <p className="executive-tooltip-label">Year {label}</p>
         {payload.map((entry, index) => {
           const value = toNumber(entry.value);
           const isPositive = value >= 0;
           return (
             <div
               key={String(entry.dataKey ?? entry.name ?? index)}
-              className="flex items-center gap-2 text-sm"
+              className="flex items-center gap-2 text-sm mb-1"
             >
               <div
                 className="w-3 h-3 rounded-full"
                 style={{ backgroundColor: entry.color }}
               />
-              <span className="font-medium">
+              <span className="text-muted-foreground">
                 {(entry.name ?? entry.dataKey ?? "Value").toString()}:
               </span>
-              <span className={isPositive ? "text-green-600" : "text-red-600"}>
+              <span
+                className="font-medium tabular-nums"
+                style={{ color: isPositive ? chartColors.positive : chartColors.negative }}
+              >
                 {formatMillions(value * 1_000_000)}
               </span>
             </div>
@@ -115,31 +120,15 @@ export function CumulativeCashFlowChart({
     return point;
   });
 
-  // Colors for different proposals
-  const colors = [
-    { stroke: "#3b82f6", fill: "#3b82f6" }, // blue
-    { stroke: "#ef4444", fill: "#ef4444" }, // red
-    { stroke: "#10b981", fill: "#10b981" }, // green
-    { stroke: "#f59e0b", fill: "#f59e0b" }, // amber
-    { stroke: "#8b5cf6", fill: "#8b5cf6" }, // violet
-  ];
-
   return (
-    <Card className="p-6">
-      <div className="space-y-4">
-        <div>
-          <h3 className="text-lg font-semibold">Cumulative Cash Flow</h3>
-          <p className="text-sm text-muted-foreground">
-            Cumulative cash position over 30 years (positive = surplus, negative
-            = deficit)
-          </p>
-        </div>
-
-        <div className="h-[400px]">
-          <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={chartData}>
-              <defs>
-                {data.map((proposal, index) => (
+    <div className="flex flex-col h-full gap-4">
+      <div className="flex-1 min-h-[300px]">
+        <ResponsiveContainer width="100%" height="100%">
+          <AreaChart data={chartData}>
+            <defs>
+              {data.map((proposal, index) => {
+                const color = getProposalColor(index);
+                return (
                   <linearGradient
                     key={`gradient-${proposal.proposalId}`}
                     id={`gradient-${proposal.proposalId}`}
@@ -150,114 +139,114 @@ export function CumulativeCashFlowChart({
                   >
                     <stop
                       offset="5%"
-                      stopColor={colors[index % colors.length].fill}
-                      stopOpacity={0.3}
+                      stopColor={color}
+                      stopOpacity={0.4}
                     />
                     <stop
                       offset="95%"
-                      stopColor={colors[index % colors.length].fill}
+                      stopColor={color}
                       stopOpacity={0.05}
                     />
                   </linearGradient>
-                ))}
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-              <XAxis
-                dataKey="year"
-                label={{ value: "Year", position: "insideBottom", offset: -5 }}
-                className="text-xs"
-              />
-              <YAxis
-                label={{
-                  value: "Cumulative Cash (Millions SAR)",
-                  angle: -90,
-                  position: "insideLeft",
-                }}
-                className="text-xs"
-                tickFormatter={(value) => `${value.toFixed(0)}M`}
-              />
-              <Tooltip content={<CustomTooltip />} />
-              <Legend
-                wrapperStyle={{ paddingTop: "20px" }}
-                formatter={(value) => {
-                  const proposal = data.find((p) => p.proposalId === value);
-                  return proposal ? proposal.proposalName : value;
-                }}
-              />
-              <ReferenceLine
-                y={0}
-                stroke="#64748b"
-                strokeDasharray="5 5"
-                strokeWidth={2}
-                label={{ value: "Break-even", position: "right" }}
-              />
-              {data.map((proposal, index) => (
-                <Area
-                  key={proposal.proposalId}
-                  type="monotone"
-                  dataKey={proposal.proposalId}
-                  stroke={colors[index % colors.length].stroke}
-                  strokeWidth={2}
-                  fill={`url(#gradient-${proposal.proposalId})`}
-                  name={proposal.proposalName}
-                />
-              ))}
-            </AreaChart>
-          </ResponsiveContainer>
-        </div>
-
-        {/* Legend */}
-        <div className="flex flex-wrap gap-3 pt-2 border-t">
-          {data.map((proposal, index) => {
-            const finalCash =
-              proposal.data[proposal.data.length - 1]?.cumulative || 0;
-            const isPositive = finalCash >= 0;
-            return (
-              <div
+                );
+              })}
+            </defs>
+            {/* Minimal horizontal grid */}
+            <CartesianGrid {...getGridProps()} />
+            <XAxis
+              {...getAxisProps("x")}
+              dataKey="year"
+              tickFormatter={(value) => value.toString()}
+            />
+            <YAxis
+              {...getAxisProps("y")}
+              tickFormatter={(value) => `${value.toFixed(0)}M`}
+            />
+            <Tooltip content={<CustomTooltip />} />
+            <Legend
+              wrapperStyle={{ paddingTop: "20px" }}
+              formatter={(value) => {
+                const proposal = data.find((p) => p.proposalId === value);
+                return <span className="text-sm text-foreground">{proposal ? proposal.proposalName : value}</span>;
+              }}
+            />
+            <ReferenceLine
+              y={0}
+              stroke={chartColors.axis}
+              strokeDasharray="5 5"
+              strokeWidth={2}
+              label={{
+                value: "Break-even",
+                position: "right",
+                fill: "hsl(var(--muted-foreground))",
+                fontSize: 12,
+              }}
+            />
+            {data.map((proposal, index) => (
+              <Area
                 key={proposal.proposalId}
-                className="flex items-center gap-2"
-              >
-                <div
-                  className="w-3 h-3 rounded-full"
-                  style={{
-                    backgroundColor: colors[index % colors.length].stroke,
-                  }}
-                />
-                <span className="text-sm">
-                  {proposal.proposalName}:{" "}
-                  <span
-                    className={`font-medium ${
-                      isPositive ? "text-green-600" : "text-red-600"
-                    }`}
-                  >
-                    {formatMillions(finalCash)}
-                  </span>
-                </span>
-              </div>
-            );
-          })}
-        </div>
-
-        {/* Info Box */}
-        <div className="bg-muted/50 rounded-lg p-4">
-          <h4 className="font-semibold text-sm mb-2">Interpretation:</h4>
-          <ul className="text-xs text-muted-foreground space-y-1">
-            <li>
-              <span className="text-green-600 font-semibold">
-                Positive values
-              </span>
-              : Cash surplus (good financial health)
-            </li>
-            <li>
-              <span className="text-red-600 font-semibold">
-                Negative values
-              </span>
-              : Cash deficit (requires external financing)
-            </li>
-            <li>The break-even line shows when proposals turn cash-positive</li>
-          </ul>
-        </div>
+                type="monotone"
+                dataKey={proposal.proposalId}
+                stroke={getProposalColor(index)}
+                strokeWidth={2}
+                fill={`url(#gradient-${proposal.proposalId})`}
+                name={proposal.proposalName}
+              />
+            ))}
+          </AreaChart>
+        </ResponsiveContainer>
       </div>
-    </Card>
+
+      {/* Legend with theme colors */}
+      <div className="flex flex-wrap gap-4 pt-4 border-t border-border shrink-0">
+        {data.map((proposal, index) => {
+          const finalCash =
+            proposal.data[proposal.data.length - 1]?.cumulative || 0;
+          const isPositive = finalCash >= 0;
+          return (
+            <div
+              key={proposal.proposalId}
+              className="flex items-center gap-2"
+            >
+              <div
+                className="w-3 h-3 rounded-full"
+                style={{
+                  backgroundColor: getProposalColor(index),
+                }}
+              />
+              <span className="text-sm">
+                {proposal.proposalName}:{" "}
+                <span
+                  className="font-medium tabular-nums"
+                  style={{ color: isPositive ? chartColors.positive : chartColors.negative }}
+                >
+                  {formatMillions(finalCash)}
+                </span>
+              </span>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Info Box with theme colors */}
+      <div className="bg-accent/50 rounded-xl p-4 border border-border shrink-0">
+        <h4 className="font-semibold text-sm mb-2">Interpretation:</h4>
+        <ul className="text-xs text-muted-foreground space-y-1">
+          <li>
+            <span style={{ color: chartColors.positive }} className="font-semibold">
+              Positive values
+            </span>
+            : Cash surplus (good financial health)
+          </li>
+          <li>
+            <span style={{ color: chartColors.negative }} className="font-semibold">
+              Negative values
+            </span>
+            : Cash deficit (requires external financing)
+          </li>
+          <li>The break-even line shows when proposals turn cash-positive</li>
+        </ul>
+      </div>
+    </div>
   );
 }

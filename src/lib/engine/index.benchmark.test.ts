@@ -56,6 +56,7 @@ function createHistoricalPeriods(): HistoricalPeriodInput[] {
     cash: new Decimal(4500000), // 4.5M SAR
     accountsReceivable: new Decimal(4500000), // 10% of revenue
     prepaidExpenses: new Decimal(1575000), // 5% of opex
+    grossPPE: new Decimal(36000000), // 36M SAR (gross = net + accDep)
     ppe: new Decimal(27000000), // 27M SAR (net)
     accumulatedDepreciation: new Decimal(9000000), // 9M SAR
     accountsPayable: new Decimal(2520000), // 8% of opex
@@ -79,6 +80,7 @@ function createHistoricalPeriods(): HistoricalPeriodInput[] {
     cash: new Decimal(5000000), // 5M SAR
     accountsReceivable: new Decimal(5000000), // 10% of revenue
     prepaidExpenses: new Decimal(1750000), // 5% of opex
+    grossPPE: new Decimal(40000000), // 40M SAR (gross = net + accDep)
     ppe: new Decimal(30000000), // 30M SAR (net)
     accumulatedDepreciation: new Decimal(10000000), // 10M SAR
     accountsPayable: new Decimal(2800000), // 8% of opex
@@ -194,23 +196,51 @@ function createBenchmarkInput(rentModel: RentModel): CalculationEngineInput {
     },
     rentModel,
     rentParams,
-    otherOpex: new Decimal(5000000), // 5M SAR
+    otherOpexPercent: new Decimal(0.10), // 10% of revenue
     capexConfig: {
-      autoReinvestEnabled: true,
-      reinvestAmount: new Decimal(2500000), // 2.5M SAR per reinvestment
-      reinvestFrequency: 1, // Every year
-      existingAssets: [], // Simplified for benchmarks
-      newAssets: [],
+      categories: [
+        {
+          id: "cat-building",
+          type: "BUILDING" as const,
+          name: "Building",
+          usefulLife: 20,
+          reinvestFrequency: 1,
+          reinvestAmount: new Decimal(2500000),
+          reinvestStartYear: 2028,
+        },
+      ],
+      historicalState: {
+        grossPPE2024: new Decimal(40000000),
+        accumulatedDepreciation2024: new Decimal(10000000),
+        annualDepreciation: new Decimal(1000000),
+        remainingToDepreciate: new Decimal(30000000),
+      },
+      transitionCapex: [],
+      virtualAssets: [],
     },
   };
 
   // CapEx configuration
   const capexConfig = {
-    autoReinvestEnabled: true,
-    reinvestAmount: new Decimal(2500000),
-    reinvestFrequency: 1,
-    existingAssets: [],
-    newAssets: [],
+    categories: [
+      {
+        id: "cat-building",
+        type: "BUILDING" as const,
+        name: "Building",
+        usefulLife: 20,
+        reinvestFrequency: 1,
+        reinvestAmount: new Decimal(2500000),
+        reinvestStartYear: 2028,
+      },
+    ],
+    historicalState: {
+      grossPPE2024: new Decimal(40000000),
+      accumulatedDepreciation2024: new Decimal(10000000),
+      annualDepreciation: new Decimal(1000000),
+      remainingToDepreciate: new Decimal(30000000),
+    },
+    transitionCapex: [],
+    virtualAssets: [],
   };
 
   const circularSolverConfig = {

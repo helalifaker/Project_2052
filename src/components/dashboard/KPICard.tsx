@@ -6,7 +6,7 @@ import { LucideIcon } from "lucide-react";
 
 interface KPICardProps {
   title: string;
-  value: string;
+  value: string | React.ReactNode;
   subtitle?: string;
   icon: LucideIcon;
   trend?: {

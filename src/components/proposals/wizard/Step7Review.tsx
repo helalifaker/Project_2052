@@ -7,8 +7,8 @@ import { Card } from "@/components/ui/card";
 import { ArrowLeft, Calculator, CheckCircle, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Role } from "@prisma/client";
 import { useAuth } from "@/lib/hooks/useAuth";
+import { Role } from "@/lib/types/roles";
 import type { ProposalFormData } from "./types";
 
 /**
@@ -49,53 +49,37 @@ export function Step7Review({ data, onPrevious }: Step7ReviewProps) {
         name: `${data.developerName} - ${data.rentModel}`,
         developer: data.developerName,
         rentModel: data.rentModel,
+        contractPeriodYears: data.contractPeriodYears || 30, // Add contract period (default 30)
 
-        // Transition data (Steps 2)
-        transition: {
-          year2025: {
-            students: data.transition2025Students,
-            avgTuition: data.transition2025AvgTuition,
-          },
-          year2026: {
-            students: data.transition2026Students,
-            avgTuition: data.transition2026AvgTuition,
-          },
-          year2027: {
-            students: data.transition2027Students,
-            avgTuition: data.transition2027AvgTuition,
-          },
-          rentGrowthPercent: data.transitionRentGrowthPercent,
-        },
-
-        // Enrollment data (Step 3)
+        // Enrollment data (Step 2 - previously Step 3)
         enrollment: {
           frenchCapacity: data.frenchCapacity,
           ibCapacity: data.ibCapacity,
           totalCapacity: (data.frenchCapacity || 0) + (data.ibCapacity || 0),
-          rampUpFRYear1Percentage: data.rampUpFRYear1Percentage,
-          rampUpFRYear2Percentage: data.rampUpFRYear2Percentage,
-          rampUpFRYear3Percentage: data.rampUpFRYear3Percentage,
-          rampUpFRYear4Percentage: data.rampUpFRYear4Percentage,
-          rampUpFRYear5Percentage: data.rampUpFRYear5Percentage,
-          rampUpIBYear1Percentage: data.rampUpIBYear1Percentage,
-          rampUpIBYear2Percentage: data.rampUpIBYear2Percentage,
-          rampUpIBYear3Percentage: data.rampUpIBYear3Percentage,
-          rampUpIBYear4Percentage: data.rampUpIBYear4Percentage,
-          rampUpIBYear5Percentage: data.rampUpIBYear5Percentage,
+          rampUpFRYear1Percentage: (data.rampUpFRYear1Percentage || 0) / 100, // Convert percentage to decimal
+          rampUpFRYear2Percentage: (data.rampUpFRYear2Percentage || 0) / 100, // Convert percentage to decimal
+          rampUpFRYear3Percentage: (data.rampUpFRYear3Percentage || 0) / 100, // Convert percentage to decimal
+          rampUpFRYear4Percentage: (data.rampUpFRYear4Percentage || 0) / 100, // Convert percentage to decimal
+          rampUpFRYear5Percentage: (data.rampUpFRYear5Percentage || 0) / 100, // Convert percentage to decimal
+          rampUpIBYear1Percentage: (data.rampUpIBYear1Percentage || 0) / 100, // Convert percentage to decimal
+          rampUpIBYear2Percentage: (data.rampUpIBYear2Percentage || 0) / 100, // Convert percentage to decimal
+          rampUpIBYear3Percentage: (data.rampUpIBYear3Percentage || 0) / 100, // Convert percentage to decimal
+          rampUpIBYear4Percentage: (data.rampUpIBYear4Percentage || 0) / 100, // Convert percentage to decimal
+          rampUpIBYear5Percentage: (data.rampUpIBYear5Percentage || 0) / 100, // Convert percentage to decimal
         },
 
         // Curriculum data (Step 4)
         curriculum: {
           frenchProgramEnabled: data.frenchProgramEnabled,
-          frenchProgramPercentage: data.frenchProgramPercentage,
+          frenchProgramPercentage: (data.frenchProgramPercentage || 0) / 100, // Convert percentage to decimal
           ibProgramEnabled: data.ibProgramEnabled,
-          ibProgramPercentage: data.ibProgramPercentage,
+          ibProgramPercentage: (data.ibProgramPercentage || 0) / 100, // Convert percentage to decimal
           frenchBaseTuition2028: data.frenchBaseTuition2028,
           ibBaseTuition2028: data.ibBaseTuition2028,
           ibStartYear: data.ibStartYear,
-          frenchTuitionGrowthRate: data.frenchTuitionGrowthRate,
+          frenchTuitionGrowthRate: (data.frenchTuitionGrowthRate || 0) / 100, // Convert percentage to decimal
           frenchTuitionGrowthFrequency: data.frenchTuitionGrowthFrequency,
-          ibTuitionGrowthRate: data.ibTuitionGrowthRate,
+          ibTuitionGrowthRate: (data.ibTuitionGrowthRate || 0) / 100, // Convert percentage to decimal
           ibTuitionGrowthFrequency: data.ibTuitionGrowthFrequency,
         },
 
@@ -108,10 +92,10 @@ export function Step7Review({ data, onPrevious }: Step7ReviewProps) {
           studentsPerNonTeacher: data.studentsPerNonTeacher,
           avgTeacherSalary: data.avgTeacherSalary,
           avgAdminSalary: data.avgAdminSalary,
-          cpiRate: data.cpiRate,
+          cpiRate: (data.cpiRate || 0) / 100, // Convert percentage to decimal
           cpiFrequency: data.cpiFrequency,
         },
-        otherOpex: data.otherOpexPercent,
+        otherOpexPercent: (data.otherOpexPercent || 0) / 100, // Convert percentage to decimal
       };
 
       console.log("Calculating proposal with payload:", payload);
@@ -124,8 +108,32 @@ export function Step7Review({ data, onPrevious }: Step7ReviewProps) {
       });
 
       if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || "Calculation failed");
+        const error = await response.json().catch(() => ({
+          error: "Network error",
+        }));
+        console.error("API Error:", error);
+
+        // Provide user-friendly error messages
+        let errorMessage = "Calculation failed";
+        if (response.status >= 500) {
+          errorMessage =
+            "Server error occurred. Please try again or contact support if the issue persists.";
+        } else if (response.status === 400) {
+          errorMessage =
+            error.error ||
+            "Invalid input data. Please review your entries and try again.";
+        } else if (response.status === 401 || response.status === 403) {
+          errorMessage =
+            "You don't have permission to perform this calculation. Please contact your administrator.";
+        } else {
+          errorMessage = error.error || errorMessage;
+        }
+
+        const errorDetails = error.details
+          ? ` Details: ${JSON.stringify(error.details)}`
+          : "";
+
+        throw new Error(errorMessage + errorDetails);
       }
 
       const result = await response.json();
@@ -139,9 +147,19 @@ export function Step7Review({ data, onPrevious }: Step7ReviewProps) {
       }, 500);
     } catch (error) {
       console.error("Calculation error:", error);
-      toast.error(
-        error instanceof Error ? error.message : "Failed to calculate proposal",
-      );
+
+      // Handle network errors specifically
+      if (error instanceof TypeError && error.message.includes("fetch")) {
+        toast.error(
+          "Network error. Please check your connection and try again.",
+          { duration: 5000 }
+        );
+      } else {
+        toast.error(
+          error instanceof Error ? error.message : "Failed to calculate proposal",
+          { duration: 5000 }
+        );
+      }
     } finally {
       setIsCalculating(false);
     }
@@ -153,12 +171,12 @@ export function Step7Review({ data, onPrevious }: Step7ReviewProps) {
       case "Fixed":
         return {
           baseRent: data.baseRent,
-          growthRate: data.rentGrowthRate,
+          growthRate: (data.rentGrowthRate || 0) / 100, // Convert percentage to decimal
           frequency: data.rentFrequency,
         };
       case "RevShare":
         return {
-          revenueSharePercent: data.revenueSharePercent,
+          revenueSharePercent: (data.revenueSharePercent || 0) / 100, // Convert percentage to decimal
         };
       case "Partner":
         return {
@@ -166,8 +184,8 @@ export function Step7Review({ data, onPrevious }: Step7ReviewProps) {
           landPricePerSqm: data.partnerLandPricePerSqm,
           buaSize: data.partnerBuaSize,
           constructionCostPerSqm: data.partnerConstructionCostPerSqm,
-          yieldRate: data.partnerYieldRate,
-          growthRate: data.partnerGrowthRate,
+          yieldRate: (data.partnerYieldRate || 0) / 100, // Convert percentage to decimal
+          growthRate: (data.partnerGrowthRate || 0) / 100, // Convert percentage to decimal
           frequency: data.partnerFrequency,
         };
       default:
@@ -226,55 +244,11 @@ export function Step7Review({ data, onPrevious }: Step7ReviewProps) {
         </div>
       </Card>
 
-      {/* Step 2: Transition Period */}
+      {/* Step 2: Enrollment */}
       <Card className="p-6">
         <h3 className="font-semibold text-lg mb-4 flex items-center gap-2">
           <span className="flex items-center justify-center w-6 h-6 rounded-full bg-primary text-primary-foreground text-sm">
             2
-          </span>
-          Transition Period (2025-2027)
-        </h3>
-        <div className="grid gap-3 text-sm">
-          {[
-            {
-              year: 2025,
-              students: data.transition2025Students,
-              tuition: data.transition2025AvgTuition,
-            },
-            {
-              year: 2026,
-              students: data.transition2026Students,
-              tuition: data.transition2026AvgTuition,
-            },
-            {
-              year: 2027,
-              students: data.transition2027Students,
-              tuition: data.transition2027AvgTuition,
-            },
-          ].map((row) => (
-            <div key={row.year} className="flex justify-between py-2 border-b">
-              <span className="text-muted-foreground">{row.year}:</span>
-              <span className="font-mono">
-                {row.students ?? "N/A"} students @ {formatCurrency(row.tuition)}
-              </span>
-            </div>
-          ))}
-          <div className="flex justify-between py-2">
-            <span className="text-muted-foreground">
-              Rent Growth % from 2024:
-            </span>
-            <span className="font-mono">
-              {formatPercent(data.transitionRentGrowthPercent)}
-            </span>
-          </div>
-        </div>
-      </Card>
-
-      {/* Step 3: Enrollment */}
-      <Card className="p-6">
-        <h3 className="font-semibold text-lg mb-4 flex items-center gap-2">
-          <span className="flex items-center justify-center w-6 h-6 rounded-full bg-primary text-primary-foreground text-sm">
-            3
           </span>
           Enrollment & Capacity
         </h3>
@@ -311,11 +285,11 @@ export function Step7Review({ data, onPrevious }: Step7ReviewProps) {
         </div>
       </Card>
 
-      {/* Step 4: Curriculum */}
+      {/* Step 3: Curriculum */}
       <Card className="p-6">
         <h3 className="font-semibold text-lg mb-4 flex items-center gap-2">
           <span className="flex items-center justify-center w-6 h-6 rounded-full bg-primary text-primary-foreground text-sm">
-            4
+            3
           </span>
           Curriculum Configuration
         </h3>
@@ -342,11 +316,11 @@ export function Step7Review({ data, onPrevious }: Step7ReviewProps) {
         </div>
       </Card>
 
-      {/* Step 5: Rent Model Parameters */}
+      {/* Step 4: Rent Model Parameters */}
       <Card className="p-6">
         <h3 className="font-semibold text-lg mb-4 flex items-center gap-2">
           <span className="flex items-center justify-center w-6 h-6 rounded-full bg-primary text-primary-foreground text-sm">
-            5
+            4
           </span>
           Rent Model Parameters
         </h3>
@@ -431,11 +405,11 @@ export function Step7Review({ data, onPrevious }: Step7ReviewProps) {
         </div>
       </Card>
 
-      {/* Step 6: Operating Costs */}
+      {/* Step 5: Operating Costs */}
       <Card className="p-6">
         <h3 className="font-semibold text-lg mb-4 flex items-center gap-2">
           <span className="flex items-center justify-center w-6 h-6 rounded-full bg-primary text-primary-foreground text-sm">
-            6
+            5
           </span>
           Operating Costs
         </h3>

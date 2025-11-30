@@ -25,6 +25,7 @@ export interface ProposalMetrics {
   name: string;
   developer?: string;
   rentModel: string;
+  contractPeriodYears?: number; // 25 or 30
   metrics?: {
     totalRent?: number;
     npv?: number;
@@ -35,6 +36,12 @@ export interface ProposalMetrics {
     peakDebt?: number;
     irr?: number;
     paybackPeriod?: number;
+    // NAV & Annualized Metrics
+    contractEbitdaNPV?: number;
+    contractNetTenantSurplus?: number;
+    contractAnnualizedEbitda?: number;
+    contractAnnualizedRent?: number;
+    contractNAV?: number;
   };
 }
 
@@ -56,16 +63,22 @@ export function ComparisonMetricsTable({
   proposals,
   className,
 }: ComparisonMetricsTableProps) {
+  // Calculate baseline period for labels
+  const baselinePeriod = proposals.length > 0
+    ? (proposals[0].contractPeriodYears || 30)
+    : 30;
+  const finalYear = 2028 + baselinePeriod - 1;
+
   // Define metrics to compare
   const metricDefinitions: MetricDefinition[] = useMemo(
     () => [
       {
         id: "totalRent",
-        label: "Total Rent (30 Years)",
+        label: `Total Rent (${baselinePeriod} Years)`,
         getValue: (p) => p.metrics?.totalRent ?? null,
         format: (v) => formatMillions(v),
         higherIsBetter: false, // Lower rent is better for school
-        description: "Total rent paid over 30 years",
+        description: `Total rent paid over ${baselinePeriod} years`,
       },
       {
         id: "npv",
@@ -76,12 +89,52 @@ export function ComparisonMetricsTable({
         description: "Net Present Value of the deal",
       },
       {
+        id: "contractNAV",
+        label: "Net Annualized Value (NAV) ⭐",
+        getValue: (p) => p.metrics?.contractNAV ?? null,
+        format: (v) => formatMillions(v),
+        higherIsBetter: true,
+        description: "Annual EBITDA - Annual Rent (Key Decision Metric)",
+      },
+      {
+        id: "contractEbitdaNPV",
+        label: "EBITDA NPV",
+        getValue: (p) => p.metrics?.contractEbitdaNPV ?? null,
+        format: (v) => formatMillions(v),
+        higherIsBetter: true,
+        description: "Present Value of EBITDA over contract period",
+      },
+      {
+        id: "contractNetTenantSurplus",
+        label: "Net Tenant Surplus",
+        getValue: (p) => p.metrics?.contractNetTenantSurplus ?? null,
+        format: (v) => formatMillions(v),
+        higherIsBetter: true,
+        description: "EBITDA NPV - Rent NPV",
+      },
+      {
+        id: "contractAnnualizedEbitda",
+        label: "Annualized EBITDA",
+        getValue: (p) => p.metrics?.contractAnnualizedEbitda ?? null,
+        format: (v) => formatMillions(v),
+        higherIsBetter: true,
+        description: "Equivalent annual value of EBITDA NPV",
+      },
+      {
+        id: "contractAnnualizedRent",
+        label: "Annualized Rent",
+        getValue: (p) => p.metrics?.contractAnnualizedRent ?? null,
+        format: (v) => formatMillions(v),
+        higherIsBetter: false,
+        description: "Equivalent annual value of Rent NPV",
+      },
+      {
         id: "avgEbitda",
         label: "Avg EBITDA",
         getValue: (p) => p.metrics?.avgEbitda ?? p.metrics?.totalEbitda ?? null,
         format: (v) => formatMillions(v),
         higherIsBetter: true,
-        description: "Average EBITDA over 30 years",
+        description: `Average EBITDA over ${baselinePeriod} years`,
       },
       {
         id: "finalCash",
@@ -89,7 +142,7 @@ export function ComparisonMetricsTable({
         getValue: (p) => p.metrics?.finalCash ?? null,
         format: (v) => formatMillions(v),
         higherIsBetter: true,
-        description: "Cash balance at end of Year 30",
+        description: `Cash balance at end of Year ${finalYear}`,
       },
       {
         id: "maxDebt",
@@ -116,7 +169,7 @@ export function ComparisonMetricsTable({
         description: "Years until initial investment is recovered",
       },
     ],
-    [],
+    [baselinePeriod, finalYear],
   );
 
   // Calculate winners for each metric

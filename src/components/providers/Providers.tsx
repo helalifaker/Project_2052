@@ -6,6 +6,7 @@ import { CommandPalette } from "@/components/layout/CommandPalette";
 import { KeyboardShortcutsDialog } from "@/components/layout/KeyboardShortcutsDialog";
 import { useGlobalKeyboardShortcuts } from "@/lib/hooks/useKeyboardShortcuts";
 import { AuthProvider } from "@/components/providers/AuthProvider";
+import { ThemeProvider } from "@/components/providers/ThemeProvider";
 
 interface ProvidersProps {
   children: React.ReactNode;
@@ -60,8 +61,15 @@ function GlobalProviders({ children }: ProvidersProps) {
 
 export function Providers({ children }: ProvidersProps) {
   return (
-    <AuthProvider>
-      <GlobalProviders>{children}</GlobalProviders>
-    </AuthProvider>
+    <ThemeProvider
+      attribute="class"
+      defaultTheme="dark"
+      enableSystem
+      disableTransitionOnChange
+    >
+      <AuthProvider>
+        <GlobalProviders>{children}</GlobalProviders>
+      </AuthProvider>
+    </ThemeProvider>
   );
 }

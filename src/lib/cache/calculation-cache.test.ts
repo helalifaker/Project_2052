@@ -41,6 +41,7 @@ const createMockInput = (id: string): CalculationEngineInput => ({
         cash: new Decimal(5000000),
         accountsReceivable: new Decimal(1000000),
         prepaidExpenses: new Decimal(500000),
+        grossPPE: new Decimal(8000000), // Gross = Net + AccDep (10M + (-2M) = 8M)
         ppe: new Decimal(10000000),
         accumulatedDepreciation: new Decimal(-2000000),
         accountsPayable: new Decimal(800000),
@@ -102,7 +103,7 @@ const createMockInput = (id: string): CalculationEngineInput => ({
       growthRate: new Decimal(0.03),
       frequency: 1,
     },
-    otherOpex: new Decimal(1000000),
+    otherOpexPercent: new Decimal(0.10), // 10% of revenue
     capexConfig: {
       autoReinvestEnabled: false,
       reinvestAmount: new Decimal(0),
@@ -129,11 +130,20 @@ const createMockOutput = (id: string) => ({
   periods: [],
   metrics: {
     totalNetIncome: new Decimal(10000000),
+    totalRent: new Decimal(60000000),
+    totalEbitda: new Decimal(150000000),
     averageROE: new Decimal(0.15),
     peakDebt: new Decimal(5000000),
+    maxDebt: new Decimal(5000000),
     finalCash: new Decimal(10000000),
     npv: new Decimal(50000000),
     irr: new Decimal(0.12),
+    // Contract period metrics
+    contractTotalRent: new Decimal(48000000), // Slightly less than total (25 years vs 30)
+    contractTotalEbitda: new Decimal(125000000),
+    contractRentNPV: new Decimal(35000000),
+    contractFinalCash: new Decimal(10000000),
+    contractEndYear: 2052,
   },
   validation: {
     allPeriodsBalanced: true,

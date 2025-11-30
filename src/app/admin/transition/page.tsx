@@ -13,7 +13,10 @@ import {
 import { Button } from "@/components/ui/button";
 import { Form } from "@/components/ui/form";
 import { InputField } from "@/components/forms/FormField";
-import { ArrowLeft, Info, Save } from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { BackButton } from "@/components/navigation/BackButton";
+import { Breadcrumbs } from "@/components/navigation/Breadcrumbs";
+import { Info, Save, AlertCircle } from "lucide-react";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { Role } from "@/lib/types/roles";
 import { useProposalForm } from "@/lib/hooks/useProposalForm";
@@ -92,21 +95,35 @@ function TransitionConfigPageContent() {
 
   return (
     <div className="container mx-auto py-8 space-y-6">
-      <div className="flex items-center gap-4">
-        <Button variant="ghost" size="sm" onClick={() => router.push("/admin")}>
-          <ArrowLeft className="h-4 w-4 mr-2" />
-          Back to Admin
-        </Button>
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">
-            Transition Configuration
-          </h1>
-          <p className="text-muted-foreground mt-2">
-            Admin-only setup for 2025-2027 transition assumptions (students,
-            tuition, rent growth).
-          </p>
-        </div>
+      {/* Navigation */}
+      <div className="space-y-4">
+        <BackButton href="/admin" label="Back to Admin" />
+        <Breadcrumbs items={[
+          { label: "Dashboard", href: "/dashboard" },
+          { label: "Admin", href: "/admin" },
+          { label: "Transition Setup" }
+        ]} />
       </div>
+
+      <div>
+        <h1 className="text-3xl font-bold tracking-tight">
+          Transition Configuration
+        </h1>
+        <p className="text-muted-foreground mt-2">
+          Admin-only setup for 2025-2027 transition assumptions (students,
+          tuition, rent growth).
+        </p>
+      </div>
+
+      <Alert variant="destructive">
+        <AlertCircle className="h-4 w-4" />
+        <AlertTitle>Global Impact Warning</AlertTitle>
+        <AlertDescription>
+          Changes to this configuration will affect <strong>ALL proposals</strong> when recalculated.
+          All proposals use this single source of truth for the transition period (2025-2027).
+          Historical proposals will use these updated values on next recalculation.
+        </AlertDescription>
+      </Alert>
 
       <Card>
         <CardHeader>

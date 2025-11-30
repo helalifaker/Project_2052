@@ -26,9 +26,18 @@ export type AuthResult =
 async function createSupabaseServerClient() {
   const cookieStore = await cookies();
 
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  // Support both old (ANON_KEY) and new (PUBLISHABLE_KEY) naming conventions
+  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+
+  if (!url || !key) {
+    console.error("Missing Supabase env vars:", { url: !!url, key: !!key });
+    throw new Error("Missing Supabase URL or Key");
+  }
+
   return createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SECRET_KEY!,
+    url,
+    key,
     {
       cookies: {
         getAll() {
@@ -65,48 +74,72 @@ async function createSupabaseServerClient() {
  * ```
  */
 export async function authenticateUser(): Promise<AuthResult> {
-  const supabase = await createSupabaseServerClient();
+  try {
+    const supabase = await createSupabaseServerClient();
 
-  // Get authenticated user from Supabase Auth
-  const {
-    data: { user: authUser },
-    error: authError,
-  } = await supabase.auth.getUser();
+    // Get authenticated user from Supabase Auth
+    const {
+      data: { user: authUser },
+      error: authError,
+    } = await supabase.auth.getUser();
 
-  if (authError || !authUser) {
+    if (authError || !authUser) {
+      console.error("Supabase auth error:", authError);
+      return {
+        success: false,
+        error: NextResponse.json(
+          { error: "Unauthorized - Authentication required", details: authError?.message },
+          { status: 401 },
+        ),
+      };
+    }
+
+    // Fetch user details from database to get role
+    try {
+      const dbUser = await prisma.user.findUnique({
+        where: { id: authUser.id },
+        select: { id: true, email: true, role: true },
+      });
+
+      if (!dbUser) {
+        return {
+          success: false,
+          error: NextResponse.json(
+            { error: "User not found in database" },
+            { status: 404 },
+          ),
+        };
+      }
+
+      return {
+        success: true,
+        user: {
+          id: dbUser.id,
+          email: dbUser.email,
+          role: dbUser.role,
+        },
+      };
+    } catch (dbError) {
+      console.error("Database error in authenticateUser:", dbError);
+      return {
+        success: false,
+        error: NextResponse.json(
+          { error: "Database authentication error", details: String(dbError) },
+          { status: 500 },
+        ),
+      };
+    }
+
+  } catch (error) {
+    console.error("Unexpected error in authenticateUser:", error);
     return {
       success: false,
       error: NextResponse.json(
-        { error: "Unauthorized - Authentication required" },
-        { status: 401 },
+        { error: "Authentication failed", details: String(error) },
+        { status: 500 },
       ),
     };
   }
-
-  // Fetch user details from database to get role
-  const dbUser = await prisma.user.findUnique({
-    where: { id: authUser.id },
-    select: { id: true, email: true, role: true },
-  });
-
-  if (!dbUser) {
-    return {
-      success: false,
-      error: NextResponse.json(
-        { error: "User not found in database" },
-        { status: 404 },
-      ),
-    };
-  }
-
-  return {
-    success: true,
-    user: {
-      id: dbUser.id,
-      email: dbUser.email,
-      role: dbUser.role,
-    },
-  };
 }
 
 /**

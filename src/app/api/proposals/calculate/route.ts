@@ -21,7 +21,7 @@ import type {
   RevenueShareParams,
   PartnerInvestmentParams,
 } from "@/lib/engine/core/types";
-import { RentModel } from "@/lib/engine/core/types";
+import { RentModel, CapExCategoryType } from "@/lib/engine/core/types";
 import { authenticateUserWithRole } from "@/middleware/auth";
 import { Role, Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
@@ -30,6 +30,7 @@ import {
   setCachedCalculation,
   getCacheStats,
 } from "@/lib/cache/calculation-cache";
+import { mapHistoricalPeriod } from "@/lib/historical/line-item-mapper";
 
 // ============================================================================
 // ZOD VALIDATION SCHEMAS
@@ -37,22 +38,44 @@ import {
 
 /**
  * Zod schema for Decimal.js values
- * Accepts string or number, converts to Decimal
+ * Accepts string, number, or existing Decimal, converts to Decimal
  */
 const DecimalSchema = z
-  .union([z.string(), z.number()])
+  .any()
   .refine(
     (val) => {
-      try {
-        new Decimal(val);
-        return true;
-      } catch {
-        return false;
+      // Accept Decimal objects directly
+      if (Decimal.isDecimal(val)) return true;
+      // Accept strings and numbers that can be converted to Decimal
+      if (typeof val === "string" || typeof val === "number") {
+        try {
+          new Decimal(val);
+          return true;
+        } catch {
+          return false;
+        }
       }
+      // Accept Prisma.Decimal (which has a toString method)
+      if (val && typeof val === "object" && typeof val.toString === "function") {
+        try {
+          new Decimal(val.toString());
+          return true;
+        } catch {
+          return false;
+        }
+      }
+      return false;
     },
     { message: "Invalid decimal value" },
   )
-  .transform((val) => new Decimal(val));
+  .transform((val) => {
+    if (Decimal.isDecimal(val)) return val;
+    if (typeof val === "string" || typeof val === "number") {
+      return new Decimal(val);
+    }
+    // Handle Prisma.Decimal and other objects with toString
+    return new Decimal(val.toString());
+  });
 
 /**
  * System Configuration Schema
@@ -69,11 +92,14 @@ const SystemConfigSchema = z.object({
  */
 const HistoricalPLSchema = z.object({
   revenue: DecimalSchema,
+  tuitionRevenue: DecimalSchema.optional(), // New: separate tuition revenue
+  otherRevenue: DecimalSchema.optional(), // New: other revenue (cafeteria, etc.)
   rent: DecimalSchema,
   staffCosts: DecimalSchema,
   otherOpex: DecimalSchema,
   depreciation: DecimalSchema,
-  interest: DecimalSchema,
+  interest: DecimalSchema, // Interest expense
+  interestIncome: DecimalSchema.optional(), // New: interest income on deposits
   zakat: DecimalSchema,
 });
 
@@ -84,7 +110,8 @@ const HistoricalBSSchema = z.object({
   cash: DecimalSchema,
   accountsReceivable: DecimalSchema,
   prepaidExpenses: DecimalSchema,
-  ppe: DecimalSchema,
+  grossPPE: DecimalSchema, // Gross PP&E (total cost of assets)
+  ppe: DecimalSchema, // Net PP&E (Gross - Accumulated Depreciation)
   accumulatedDepreciation: DecimalSchema,
   accountsPayable: DecimalSchema,
   accruedExpenses: DecimalSchema,
@@ -198,13 +225,39 @@ const StaffConfigSchema = z.object({
 /**
  * CapEx Configuration Schema
  */
-const CapExConfigSchema = z.object({
-  autoReinvestEnabled: z.boolean(),
-  reinvestAmount: DecimalSchema,
-  reinvestFrequency: z.number().int().positive(),
-  existingAssets: z.array(z.unknown()), // Simplified
-  newAssets: z.array(z.unknown()), // Simplified
-});
+const CapExConfigSchema = z
+  .object({
+    // New structure (required)
+    categories: z
+      .array(
+        z.object({
+          id: z.string(),
+          type: z.string(),
+          name: z.string(),
+          usefulLife: z.number().int().positive(),
+          reinvestFrequency: z.number().int().positive().optional(),
+          reinvestAmount: DecimalSchema.optional(),
+          reinvestStartYear: z.number().int().optional(),
+        }),
+      )
+      .min(1, "At least one CAPEX category is required"),
+    historicalState: z.object({
+      grossPPE2024: DecimalSchema,
+      accumulatedDepreciation2024: DecimalSchema,
+      annualDepreciation: DecimalSchema,
+      remainingToDepreciate: DecimalSchema,
+    }),
+    transitionCapex: z.array(z.unknown()).default([]),
+    virtualAssets: z.array(z.unknown()).default([]),
+
+    // Legacy fields (optional for backward compatibility)
+    autoReinvestEnabled: z.boolean().optional(),
+    reinvestAmount: DecimalSchema.optional(),
+    reinvestFrequency: z.number().int().positive().optional(),
+    existingAssets: z.array(z.unknown()).optional(),
+    newAssets: z.array(z.unknown()).optional(),
+  })
+  .passthrough(); // Allow additional properties
 
 /**
  * Dynamic Period Configuration Schema
@@ -216,8 +269,7 @@ const DynamicPeriodConfigSchema = z.object({
   staff: StaffConfigSchema,
   rentModel: z.nativeEnum(RentModel),
   rentParams: z.unknown(), // Will be parsed in transform based on rentModel
-  otherOpex: DecimalSchema,
-  otherOpexPercent: DecimalSchema.optional(),
+  otherOpexPercent: DecimalSchema, // % of revenue as decimal (e.g., 0.31 = 31%)
   capexConfig: CapExConfigSchema,
 });
 
@@ -236,6 +288,7 @@ const CircularSolverConfigSchema = z.object({
 const CalculationEngineInputSchema = z
   .object({
     systemConfig: SystemConfigSchema,
+    contractPeriodYears: z.union([z.literal(25), z.literal(30)]).default(30),
     historicalPeriods: z.array(HistoricalPeriodInputSchema).min(1),
     transitionPeriods: z.array(TransitionPeriodInputSchema).min(1),
     workingCapitalRatios: WorkingCapitalRatiosSchema,
@@ -287,6 +340,7 @@ const CalculationEngineInputSchema = z
         ...data.dynamicPeriodConfig,
         rentParams: dynamicRentParams,
       },
+      capexConfig: data.capexConfig, // Explicitly preserve CAPEX config
     };
   });
 
@@ -305,7 +359,7 @@ type ProposalPayload = {
   curriculum: CalculationEngineInput["dynamicPeriodConfig"]["curriculum"];
   staff: CalculationEngineInput["dynamicPeriodConfig"]["staff"];
   rentParams: CalculationEngineInput["rentParams"];
-  otherOpex: number;
+  otherOpexPercent: number; // % of revenue as decimal (e.g., 0.31 = 31%)
 };
 
 // ============================================================================
@@ -347,6 +401,7 @@ export async function POST(request: Request) {
         zakatRate: new Decimal(0.025),
         debtInterestRate: new Decimal(0.05),
         depositInterestRate: new Decimal(0.02),
+        discountRate: new Decimal(0.07), // Default NPV discount rate
         minCashBalance: new Decimal(1_000_000),
       };
 
@@ -374,72 +429,149 @@ export async function POST(request: Request) {
       ): Decimal | undefined => {
         if (value === null || value === undefined) return undefined;
         if (Decimal.isDecimal(value)) return value;
-        if (
-          typeof value === "object" &&
-          "toNumber" in value &&
-          typeof value.toNumber === "function"
-        ) {
-          return new Decimal(value.toNumber());
-        }
         if (typeof value === "number" || typeof value === "string") {
           return new Decimal(value);
+        }
+        // Handle Prisma.Decimal which has a toNumber method
+        if (
+          typeof value === "object" &&
+          value !== null &&
+          "toNumber" in value
+        ) {
+          const prismaDecimal = value as { toNumber: () => number };
+          return new Decimal(prismaDecimal.toNumber());
         }
         return undefined;
       };
 
-      // Historical periods (required) - fetch minimal placeholders if missing
-      const historicalPeriods = body.historicalPeriods || [
-        {
-          year: 2023,
-          profitLoss: {
-            revenue: new Decimal(45000000),
-            rent: new Decimal(9000000),
-            staffCosts: new Decimal(18000000),
-            otherOpex: new Decimal(4500000),
-            depreciation: new Decimal(1800000),
-            interest: new Decimal(900000),
-            zakat: new Decimal(270000),
-          },
-          balanceSheet: {
-            cash: new Decimal(4500000),
-            accountsReceivable: new Decimal(4500000),
-            prepaidExpenses: new Decimal(1575000),
-            ppe: new Decimal(27000000),
-            accumulatedDepreciation: new Decimal(9000000),
-            accountsPayable: new Decimal(2520000),
-            accruedExpenses: new Decimal(1575000),
-            deferredRevenue: new Decimal(6750000),
-            debt: new Decimal(18000000),
-            equity: new Decimal(8730000),
-          },
-          immutable: true,
-        },
-        {
-          year: 2024,
-          profitLoss: {
-            revenue: new Decimal(50000000),
-            rent: new Decimal(10000000),
-            staffCosts: new Decimal(20000000),
-            otherOpex: new Decimal(5000000),
-            depreciation: new Decimal(2000000),
-            interest: new Decimal(1000000),
-            zakat: new Decimal(300000),
-          },
-          balanceSheet: {
-            cash: new Decimal(5000000),
-            accountsReceivable: new Decimal(5000000),
-            prepaidExpenses: new Decimal(1750000),
-            ppe: new Decimal(30000000),
-            accumulatedDepreciation: new Decimal(10000000),
-            accountsPayable: new Decimal(2800000),
-            accruedExpenses: new Decimal(1750000),
-            deferredRevenue: new Decimal(7500000),
-            debt: new Decimal(20000000),
-            equity: new Decimal(9700000),
-          },
-          immutable: false,
-        },
-      ];
+      // Historical periods - load from database if not provided
+      let historicalPeriods = body.historicalPeriods;
+      if (!historicalPeriods) {
+        // Fetch historical data from database
+        const historicalData = await prisma.historicalData.findMany({
+          where: { confirmed: true },
+          orderBy: { year: "asc" },
+        });
+
+        if (historicalData.length > 0) {
+          // Group by year and statement type
+          const historicalByYear: Record<
+            number,
+            {
+              year: number;
+              pl: Record<string, Decimal.Value>;
+              bs: Record<string, Decimal.Value>;
+            }
+          > = {};
+          for (const record of historicalData) {
+            if (!historicalByYear[record.year]) {
+              historicalByYear[record.year] = { year: record.year, pl: {}, bs: {} };
+            }
+            if (
+              record.statementType === "PROFIT_LOSS" ||
+              record.statementType === "PL" ||
+              record.statementType === "P&L"
+            ) {
+              historicalByYear[record.year].pl[record.lineItem] = record.amount;
+            } else if (
+              record.statementType === "BALANCE_SHEET" ||
+              record.statementType === "BS"
+            ) {
+              historicalByYear[record.year].bs[record.lineItem] = record.amount;
+            }
+          }
+
+          // Map using line item mapper
+          historicalPeriods = Object.values(historicalByYear).map((yearData) => {
+            const mapped = mapHistoricalPeriod(yearData.pl, yearData.bs);
+            return {
+              year: yearData.year,
+              profitLoss: {
+                revenue: mapped.profitLoss.revenue,
+                tuitionRevenue: mapped.profitLoss.tuitionRevenue,
+                otherRevenue: mapped.profitLoss.otherRevenue,
+                rent: mapped.profitLoss.rent,
+                staffCosts: mapped.profitLoss.staffCosts,
+                otherOpex: mapped.profitLoss.otherOpex,
+                depreciation: mapped.profitLoss.depreciation,
+                interest: mapped.profitLoss.interest,
+                interestIncome: mapped.profitLoss.interestIncome,
+                zakat: mapped.profitLoss.zakat,
+              },
+              balanceSheet: {
+                cash: mapped.balanceSheet.cash,
+                accountsReceivable: mapped.balanceSheet.accountsReceivable,
+                prepaidExpenses: mapped.balanceSheet.prepaidExpenses,
+                grossPPE: mapped.balanceSheet.grossPPE,
+                ppe: mapped.balanceSheet.ppe,
+                accumulatedDepreciation: mapped.balanceSheet.accumulatedDepreciation,
+                accountsPayable: mapped.balanceSheet.accountsPayable,
+                accruedExpenses: mapped.balanceSheet.accruedExpenses,
+                deferredRevenue: mapped.balanceSheet.deferredRevenue,
+                debt: mapped.balanceSheet.debt,
+                equity: mapped.balanceSheet.equity,
+              },
+              immutable: true,
+            };
+          });
+        } else {
+          // Fallback to minimal placeholders if no database data
+          historicalPeriods = [
+            {
+              year: 2023,
+              profitLoss: {
+                revenue: new Decimal(45000000),
+                rent: new Decimal(9000000),
+                staffCosts: new Decimal(18000000),
+                otherOpex: new Decimal(4500000),
+                depreciation: new Decimal(1800000),
+                interest: new Decimal(900000),
+                zakat: new Decimal(270000),
+              },
+              balanceSheet: {
+                cash: new Decimal(4500000),
+                accountsReceivable: new Decimal(4500000),
+                prepaidExpenses: new Decimal(1575000),
+                grossPPE: new Decimal(36000000), // Gross = Net + AccDep
+                ppe: new Decimal(27000000),
+                accumulatedDepreciation: new Decimal(9000000),
+                accountsPayable: new Decimal(2520000),
+                accruedExpenses: new Decimal(1575000),
+                deferredRevenue: new Decimal(6750000),
+                debt: new Decimal(18000000),
+                equity: new Decimal(8730000),
+              },
+              immutable: true,
+            },
+            {
+              year: 2024,
+              profitLoss: {
+                revenue: new Decimal(50000000),
+                rent: new Decimal(10000000),
+                staffCosts: new Decimal(20000000),
+                otherOpex: new Decimal(5000000),
+                depreciation: new Decimal(2000000),
+                interest: new Decimal(1000000),
+                zakat: new Decimal(300000),
+              },
+              balanceSheet: {
+                cash: new Decimal(5000000),
+                accountsReceivable: new Decimal(5000000),
+                prepaidExpenses: new Decimal(1750000),
+                grossPPE: new Decimal(40000000), // Gross = Net + AccDep
+                ppe: new Decimal(30000000),
+                accumulatedDepreciation: new Decimal(10000000),
+                accountsPayable: new Decimal(2800000),
+                accruedExpenses: new Decimal(1750000),
+                deferredRevenue: new Decimal(7500000),
+                debt: new Decimal(20000000),
+                equity: new Decimal(9700000),
+              },
+              immutable: false,
+            },
+          ];
+        }
+      }
 
       // Build transition periods from admin config when available, otherwise wizard inputs
       const transitionInputs = {
@@ -515,39 +647,39 @@ export async function POST(request: Request) {
         body.curriculum?.ibStartYear ?? body.ibStartYear ?? 2028;
 
       const frRampPercents = [
-        (body.enrollment?.rampUpFRYear1Percentage ??
+        body.enrollment?.rampUpFRYear1Percentage ??
           body.rampUpFRYear1Percentage ??
-          20) / 100,
-        (body.enrollment?.rampUpFRYear2Percentage ??
+          0.20,
+        body.enrollment?.rampUpFRYear2Percentage ??
           body.rampUpFRYear2Percentage ??
-          40) / 100,
-        (body.enrollment?.rampUpFRYear3Percentage ??
+          0.40,
+        body.enrollment?.rampUpFRYear3Percentage ??
           body.rampUpFRYear3Percentage ??
-          60) / 100,
-        (body.enrollment?.rampUpFRYear4Percentage ??
+          0.60,
+        body.enrollment?.rampUpFRYear4Percentage ??
           body.rampUpFRYear4Percentage ??
-          80) / 100,
-        (body.enrollment?.rampUpFRYear5Percentage ??
+          0.80,
+        body.enrollment?.rampUpFRYear5Percentage ??
           body.rampUpFRYear5Percentage ??
-          100) / 100,
+          1.00,
       ];
 
       const ibRampPercents = [
-        (body.enrollment?.rampUpIBYear1Percentage ??
+        body.enrollment?.rampUpIBYear1Percentage ??
           body.rampUpIBYear1Percentage ??
-          0) / 100,
-        (body.enrollment?.rampUpIBYear2Percentage ??
+          0,
+        body.enrollment?.rampUpIBYear2Percentage ??
           body.rampUpIBYear2Percentage ??
-          0) / 100,
-        (body.enrollment?.rampUpIBYear3Percentage ??
+          0,
+        body.enrollment?.rampUpIBYear3Percentage ??
           body.rampUpIBYear3Percentage ??
-          0) / 100,
-        (body.enrollment?.rampUpIBYear4Percentage ??
+          0,
+        body.enrollment?.rampUpIBYear4Percentage ??
           body.rampUpIBYear4Percentage ??
-          0) / 100,
-        (body.enrollment?.rampUpIBYear5Percentage ??
+          0,
+        body.enrollment?.rampUpIBYear5Percentage ??
           body.rampUpIBYear5Percentage ??
-          0) / 100,
+          0,
       ];
 
       const rampPercents = [0, 1, 2, 3, 4].map((index) => {
@@ -600,9 +732,9 @@ export async function POST(request: Request) {
             ? new Decimal(body.avgAdminSalary)
             : undefined,
         cpiRate: body.staff?.cpiRate
-          ? new Decimal(body.staff.cpiRate).div(100)
+          ? new Decimal(body.staff.cpiRate)
           : body.cpiRate
-            ? new Decimal(body.cpiRate).div(100)
+            ? new Decimal(body.cpiRate)
             : undefined,
         cpiFrequency: body.staff?.cpiFrequency ?? body.cpiFrequency,
       };
@@ -611,36 +743,57 @@ export async function POST(request: Request) {
         body.otherOpexPercent ??
         body.staff?.otherOpexPercent ??
         body.opexPercent ??
-        10;
+        0.10;
 
       // Rent params per model
+      // Handle both nested (body.rentParams.x) and flat (body.x) formats for all models
       let rentParams:
         | FixedRentParams
         | RevenueShareParams
         | PartnerInvestmentParams;
       if (body.rentModel === "Fixed") {
         rentParams = {
-          baseRent: new Decimal(body.baseRent ?? 0),
-          growthRate: new Decimal(body.rentGrowthRate ?? 0).div(100),
-          frequency: body.rentFrequency ?? 1,
+          baseRent: new Decimal(
+            body.rentParams?.baseRent ?? body.baseRent ?? 0
+          ),
+          growthRate: new Decimal(
+            body.rentParams?.growthRate ?? body.rentGrowthRate ?? 0
+          ),
+          frequency: body.rentParams?.frequency ?? body.rentFrequency ?? 1,
         };
       } else if (body.rentModel === "RevShare") {
         rentParams = {
-          revenueSharePercent: new Decimal(body.revenueSharePercent ?? 0).div(
-            100,
+          revenueSharePercent: new Decimal(
+            body.rentParams?.revenueSharePercent ??
+              body.revenueSharePercent ??
+              0
           ),
         };
       } else {
+        // Partner Investment: Handle both nested (body.rentParams.landSize) and flat (body.partnerLandSize) formats
         rentParams = {
-          landSize: new Decimal(body.partnerLandSize ?? 0),
-          landPricePerSqm: new Decimal(body.partnerLandPricePerSqm ?? 0),
-          buaSize: new Decimal(body.partnerBuaSize ?? 0),
-          constructionCostPerSqm: new Decimal(
-            body.partnerConstructionCostPerSqm ?? 0,
+          landSize: new Decimal(
+            body.rentParams?.landSize ?? body.partnerLandSize ?? 0
           ),
-          yieldRate: new Decimal(body.partnerYieldRate ?? 0).div(100),
-          growthRate: new Decimal(body.partnerGrowthRate ?? 0).div(100),
-          frequency: body.partnerFrequency ?? 1,
+          landPricePerSqm: new Decimal(
+            body.rentParams?.landPricePerSqm ?? body.partnerLandPricePerSqm ?? 0
+          ),
+          buaSize: new Decimal(
+            body.rentParams?.buaSize ?? body.partnerBuaSize ?? 0
+          ),
+          constructionCostPerSqm: new Decimal(
+            body.rentParams?.constructionCostPerSqm ??
+              body.partnerConstructionCostPerSqm ??
+              0
+          ),
+          yieldRate: new Decimal(
+            body.rentParams?.yieldRate ?? body.partnerYieldRate ?? 0
+          ),
+          growthRate: new Decimal(
+            body.rentParams?.growthRate ?? body.partnerGrowthRate ?? 0
+          ),
+          frequency:
+            body.rentParams?.frequency ?? body.partnerFrequency ?? 1,
         };
       }
 
@@ -662,12 +815,12 @@ export async function POST(request: Request) {
           ibCurriculumFee: new Decimal(ibFee),
           nationalTuitionGrowthRate:
             frenchTuitionGrowthRate !== undefined
-              ? new Decimal(frenchTuitionGrowthRate).div(100)
+              ? new Decimal(frenchTuitionGrowthRate)
               : undefined,
           nationalTuitionGrowthFrequency: frenchTuitionGrowthFrequency,
           ibTuitionGrowthRate:
             ibTuitionGrowthRate !== undefined
-              ? new Decimal(ibTuitionGrowthRate).div(100)
+              ? new Decimal(ibTuitionGrowthRate)
               : undefined,
           ibTuitionGrowthFrequency: ibTuitionGrowthFrequency,
           ibStudentPercentage: new Decimal(ibPct),
@@ -679,14 +832,26 @@ export async function POST(request: Request) {
             ? RentModel.REVENUE_SHARE
             : RentModel.PARTNER_INVESTMENT) as RentModel,
         rentParams,
-        otherOpex: new Decimal(0),
-        otherOpexPercent: new Decimal(otherOpexPercent).div(100),
+        otherOpexPercent: new Decimal(otherOpexPercent),
         capexConfig: {
-          autoReinvestEnabled: false,
-          reinvestAmount: new Decimal(0),
-          reinvestFrequency: 1,
-          existingAssets: [],
-          newAssets: [],
+          categories: [
+            {
+              id: "cat-it",
+              type: CapExCategoryType.IT_EQUIPMENT,
+              name: "IT Equipment",
+              usefulLife: 5,
+              reinvestFrequency: undefined,
+              reinvestAmount: undefined,
+            },
+          ],
+          historicalState: {
+            grossPPE2024: new Decimal(40000000),
+            accumulatedDepreciation2024: new Decimal(10000000),
+            annualDepreciation: new Decimal(1000000),
+            remainingToDepreciate: new Decimal(30000000),
+          },
+          transitionCapex: [],
+          virtualAssets: [],
         },
       };
 
@@ -695,8 +860,10 @@ export async function POST(request: Request) {
           zakatRate: new Decimal(sysConfig.zakatRate),
           debtInterestRate: new Decimal(sysConfig.debtInterestRate),
           depositInterestRate: new Decimal(sysConfig.depositInterestRate),
+          discountRate: sysConfig.discountRate ? new Decimal(sysConfig.discountRate) : undefined,
           minCashBalance: new Decimal(sysConfig.minCashBalance),
         },
+        contractPeriodYears: body.contractPeriodYears ?? 30,
         historicalPeriods,
         transitionPeriods,
         workingCapitalRatios: {
@@ -705,7 +872,23 @@ export async function POST(request: Request) {
           apPercent: new Decimal(wc.apPercent),
           accruedPercent: new Decimal(wc.accruedPercent),
           deferredRevenuePercent: new Decimal(wc.deferredRevenuePercent),
-          otherRevenueRatio: new Decimal(0.1), // Default: 10% of tuition (Section 1.3 of Financial Rules)
+          // Calculate otherRevenueRatio from 2024 historical data (Section 1.3 of Financial Rules)
+          // Formula: Other Revenue 2024 / Tuition Revenue 2024
+          otherRevenueRatio: (() => {
+            const year2024 = historicalPeriods.find((p: { year: number }) => p.year === 2024);
+            if (year2024?.profitLoss?.tuitionRevenue) {
+              const tuition = Decimal.isDecimal(year2024.profitLoss.tuitionRevenue)
+                ? year2024.profitLoss.tuitionRevenue
+                : new Decimal(year2024.profitLoss.tuitionRevenue);
+              const other = Decimal.isDecimal(year2024.profitLoss.otherRevenue)
+                ? year2024.profitLoss.otherRevenue
+                : new Decimal(year2024.profitLoss.otherRevenue ?? 0);
+              if (tuition.greaterThan(0)) {
+                return other.dividedBy(tuition);
+              }
+            }
+            return new Decimal(0);
+          })(),
           locked: wc.locked,
           calculatedFrom2024: true,
         },
@@ -718,11 +901,24 @@ export async function POST(request: Request) {
         rentParams,
         dynamicPeriodConfig,
         capexConfig: {
-          autoReinvestEnabled: false,
-          reinvestAmount: new Decimal(0),
-          reinvestFrequency: 1,
-          existingAssets: [],
-          newAssets: [],
+          categories: [
+            {
+              id: "cat-it",
+              type: CapExCategoryType.IT_EQUIPMENT,
+              name: "IT Equipment",
+              usefulLife: 5,
+              reinvestFrequency: undefined,
+              reinvestAmount: undefined,
+            },
+          ],
+          historicalState: {
+            grossPPE2024: new Decimal(40000000),
+            accumulatedDepreciation2024: new Decimal(10000000),
+            annualDepreciation: new Decimal(1000000),
+            remainingToDepreciate: new Decimal(30000000),
+          },
+          transitionCapex: [],
+          virtualAssets: [],
         },
         circularSolverConfig: {
           maxIterations: 100,
@@ -746,6 +942,7 @@ export async function POST(request: Request) {
     const validationResult = CalculationEngineInputSchema.safeParse(body);
 
     if (!validationResult.success) {
+      console.error("❌ Validation errors:", JSON.stringify(validationResult.error.issues, null, 2));
       return NextResponse.json(
         {
           error: "Validation failed",
@@ -755,20 +952,43 @@ export async function POST(request: Request) {
       );
     }
 
+    // TypeScript can't perfectly infer the transform output matches CalculationEngineInput
+    // but the transform ensures all required fields are present
     const input = validationResult.data as CalculationEngineInput;
 
     // Extract proposal data for saving
     // If wizard format, use wizard data; otherwise extract from engine input
+    // Include capacity fields that UI expects (frenchCapacity, ibCapacity)
+    const frenchCapacity = body.enrollment?.frenchCapacity ?? body.frenchCapacity ??
+      (input.dynamicPeriodConfig.enrollment.steadyStateStudents || 1000);
+    const ibCapacity = body.enrollment?.ibCapacity ?? body.ibCapacity ?? 0;
+
+    // Get otherOpexPercent - stored as decimal (e.g., 0.10 for 10%)
+    const otherOpexPercentValue = input.dynamicPeriodConfig.otherOpexPercent
+      ? (Decimal.isDecimal(input.dynamicPeriodConfig.otherOpexPercent)
+        ? (input.dynamicPeriodConfig.otherOpexPercent as Decimal).toNumber()
+        : Number(input.dynamicPeriodConfig.otherOpexPercent))
+      : (body.otherOpexPercent ?? body.staff?.otherOpexPercent ?? body.opexPercent ?? 10) / 100;
+
+    // Create enrollment data with UI-friendly fields added
+    const enrollmentWithCapacity = {
+      ...input.dynamicPeriodConfig.enrollment,
+      // Add capacity fields for UI display (not part of engine type)
+      frenchCapacity,
+      ibCapacity,
+      totalCapacity: frenchCapacity + ibCapacity,
+    };
+
     const proposalData: ProposalPayload = {
       name: body.name || `Proposal ${new Date().toISOString().split("T")[0]}`,
       developer: body.developer,
       rentModel: input.rentModel,
       transition: input.transitionPeriods,
-      enrollment: input.dynamicPeriodConfig.enrollment,
+      enrollment: enrollmentWithCapacity as unknown as CalculationEngineInput["dynamicPeriodConfig"]["enrollment"],
       curriculum: input.dynamicPeriodConfig.curriculum,
       staff: input.dynamicPeriodConfig.staff,
       rentParams: input.rentParams,
-      otherOpex: input.dynamicPeriodConfig.otherOpex.toNumber(),
+      otherOpexPercent: otherOpexPercentValue,
     };
 
     // Log calculation request
@@ -810,22 +1030,26 @@ export async function POST(request: Request) {
 
     // Save proposal to database
     console.log("💾 Saving proposal to database...");
+    // Fetch TransitionConfig to record audit timestamp
+    const transitionConfig = await prisma.transitionConfig.findFirst();
+
     const proposal = await prisma.leaseProposal.create({
       data: {
         name: proposalData.name,
         rentModel: proposalData.rentModel,
         developer: proposalData.developer,
         createdBy: user.id,
-        transition: proposalData.transition as unknown as Prisma.InputJsonValue,
+        contractPeriodYears: input.contractPeriodYears, // FIX: Save contract period
         enrollment: proposalData.enrollment as unknown as Prisma.InputJsonValue,
         curriculum: proposalData.curriculum as unknown as Prisma.InputJsonValue,
         staff: proposalData.staff as unknown as Prisma.InputJsonValue,
         rentParams: proposalData.rentParams as unknown as Prisma.InputJsonValue,
-        otherOpex: new Decimal(proposalData.otherOpex),
+        otherOpexPercent: new Decimal(proposalData.otherOpexPercent),
         financials:
           serializedResult.periods as unknown as Prisma.InputJsonValue,
         metrics: serializedResult.metrics as unknown as Prisma.InputJsonValue,
         calculatedAt: new Date(),
+        transitionConfigUpdatedAt: transitionConfig?.updatedAt || new Date(),
       },
     });
 
@@ -932,23 +1156,56 @@ function serializeCalculationOutput(
 
 /**
  * Recursively serialize object, converting Decimal to string
+ * Uses a simple, aggressive approach to catch all Decimal objects
  */
 function serializeObject(obj: unknown): unknown {
+  // Handle primitives
+  if (obj === null || obj === undefined) return obj;
+  if (typeof obj !== "object") return obj;
+
+  // Handle Decimal instances
   if (obj instanceof Decimal) {
     return obj.toString();
   }
 
+  // Handle arrays
   if (Array.isArray(obj)) {
     return obj.map(serializeObject);
   }
 
-  if (obj !== null && typeof obj === "object") {
-    const serialized: Record<string, unknown> = {};
-    for (const [key, value] of Object.entries(obj)) {
-      serialized[key] = serializeObject(value);
-    }
-    return serialized;
+  // Handle Date objects
+  if (obj instanceof Date) {
+    return obj.toISOString();
   }
 
-  return obj;
+  // Handle objects with Decimal-like structure (has s, e, d properties)
+  // This catches Decimal objects that aren't instanceof Decimal (different context/version)
+  if (
+    typeof obj === "object" &&
+    "s" in obj &&
+    "e" in obj &&
+    "d" in obj &&
+    Array.isArray((obj as { d: unknown }).d)
+  ) {
+    // This is a Decimal-like object, convert to Decimal then to string
+    try {
+      return new Decimal(obj as Decimal.Value).toString();
+    } catch {
+      // If conversion fails, try toString
+      if (typeof (obj as { toString?: () => string }).toString === "function") {
+        return (obj as { toString: () => string }).toString();
+      }
+      return String(obj);
+    }
+  }
+
+  // Handle plain objects
+  const result: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(obj)) {
+    // Skip functions and non-enumerable properties
+    if (typeof value === "function") continue;
+    if (key === "constructor") continue; // Skip constructor property
+    result[key] = serializeObject(value);
+  }
+  return result;
 }

@@ -1,19 +1,11 @@
 "use client";
 
 import { Card } from "@/components/ui/card";
-import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
-  type TooltipProps,
-} from "recharts";
-import type { Payload } from "recharts/types/component/DefaultTooltipContent";
+import { BaseLineChart } from "@/components/charts/BaseLineChart";
+import { getProposalColor } from "@/lib/design-tokens/chart-colors";
 import { formatMillions } from "@/lib/utils/financial";
+import type { TooltipProps } from "recharts";
+import type { Payload } from "recharts/types/component/DefaultTooltipContent";
 
 interface RentTrajectoryData {
   proposalId: string;
@@ -47,41 +39,58 @@ const RentTrajectoryTooltip = ({
   label?: string | number;
   proposalLookup: TooltipLookup;
 }) => {
-  if (active && payload && payload.length) {
-    return (
-      <div className="bg-background border rounded-lg p-3 shadow-lg">
-        <p className="font-semibold mb-2">Year {label}</p>
+  if (!active || !payload || payload.length === 0) {
+    return null;
+  }
+
+  return (
+    <div
+      className="rounded-xl border p-3 shadow-floating"
+      style={{
+        backgroundColor: "hsl(var(--color-background))",
+        borderColor: "hsl(24 6% 83%)",
+        minWidth: "180px",
+      }}
+    >
+      {/* Label */}
+      <div className="text-xs uppercase tracking-wider font-semibold mb-2 pb-2 border-b border-border">
+        Year {label}
+      </div>
+
+      {/* Values */}
+      <div className="space-y-1.5">
         {payload.map((entry, index) => {
           const lookup = entry.dataKey
             ? proposalLookup[entry.dataKey.toString()]
             : undefined;
+
           return (
             <div
               key={String(entry.dataKey ?? entry.name ?? index)}
-              className="flex items-center gap-2 text-sm"
+              className="flex items-center justify-between gap-3"
             >
-              <div
-                className="w-3 h-3 rounded-full"
-                style={{ backgroundColor: entry.color }}
-              />
-              <span className="font-medium">
-                {lookup?.proposalName ?? entry.name}:
-              </span>
-              <span>
-                {formatMillions(Number(entry.value ?? 0) * 1_000_000)}
-              </span>
-              {lookup?.isWinner && (
-                <span className="text-xs bg-green-100 text-green-800 px-2 py-0.5 rounded">
-                  Winner
+              {/* Name with color indicator */}
+              <div className="flex items-center gap-2">
+                <div
+                  className="w-2 h-2 rounded-full flex-shrink-0"
+                  style={{ backgroundColor: entry.color }}
+                />
+                <span className="text-xs text-muted-foreground">
+                  {lookup?.proposalName ?? entry.name}
+                  {lookup?.isWinner && " ★"}
                 </span>
-              )}
+              </div>
+
+              {/* Value */}
+              <span className="font-semibold tabular-nums text-xs">
+                SAR {formatMillions(Number(entry.value ?? 0) * 1_000_000)}
+              </span>
             </div>
           );
         })}
       </div>
-    );
-  }
-  return null;
+    </div>
+  );
 };
 
 /**
@@ -125,16 +134,6 @@ export function RentTrajectoryChart({ data }: RentTrajectoryChartProps) {
     return point;
   });
 
-  // Colors for different proposals
-  const colors = [
-    "#3b82f6", // blue
-    "#ef4444", // red
-    "#10b981", // green
-    "#f59e0b", // amber
-    "#8b5cf6", // violet
-    "#ec4899", // pink
-  ];
-
   const proposalLookup: TooltipLookup = data.reduce((acc, proposal) => {
     acc[proposal.proposalId] = {
       proposalName: proposal.proposalName,
@@ -143,83 +142,56 @@ export function RentTrajectoryChart({ data }: RentTrajectoryChartProps) {
     return acc;
   }, {} as TooltipLookup);
 
+  // Prepare series configuration for BaseLineChart
+  const series = data.map((proposal, index) => ({
+    dataKey: proposal.proposalId,
+    name: proposal.proposalName,
+    color: getProposalColor(index),
+    strokeWidth: proposal.isWinner ? 3 : 2,
+  }));
+
   return (
-    <Card className="p-6">
-      <div className="space-y-4">
-        <div>
-          <h3 className="text-lg font-semibold">Rent Trajectory Over Time</h3>
-          <p className="text-sm text-muted-foreground">
-            Annual rent expense comparison across all proposals (30 years)
-          </p>
-        </div>
-
-        <div className="h-[400px]">
-          <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={chartData}>
-              <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-              <XAxis
-                dataKey="year"
-                label={{ value: "Year", position: "insideBottom", offset: -5 }}
-                className="text-xs"
-              />
-              <YAxis
-                label={{
-                  value: "Rent (Millions SAR)",
-                  angle: -90,
-                  position: "insideLeft",
-                }}
-                className="text-xs"
-                tickFormatter={(value) => `${value.toFixed(1)}M`}
-              />
-              <Tooltip
-                content={
-                  <RentTrajectoryTooltip proposalLookup={proposalLookup} />
-                }
-              />
-              <Legend
-                wrapperStyle={{ paddingTop: "20px" }}
-                formatter={(value) => {
-                  const proposal = data.find((p) => p.proposalId === value);
-                  return proposal
-                    ? `${proposal.proposalName}${proposal.isWinner ? " (Winner)" : ""}`
-                    : value;
-                }}
-              />
-              {data.map((proposal, index) => (
-                <Line
-                  key={proposal.proposalId}
-                  type="monotone"
-                  dataKey={proposal.proposalId}
-                  stroke={colors[index % colors.length]}
-                  strokeWidth={proposal.isWinner ? 3 : 2}
-                  dot={false}
-                  name={proposal.proposalId}
-                />
-              ))}
-            </LineChart>
-          </ResponsiveContainer>
-        </div>
-
-        {/* Legend with Winner indicator */}
-        <div className="flex flex-wrap gap-3 pt-2 border-t">
-          {data.map((proposal, index) => (
-            <div key={proposal.proposalId} className="flex items-center gap-2">
-              <div
-                className="w-3 h-3 rounded-full"
-                style={{ backgroundColor: colors[index % colors.length] }}
-              />
-              <span className="text-sm">
-                {proposal.proposalName} ({proposal.rentModel})
-              </span>
-              {proposal.isWinner && (
-                <span className="text-xs bg-green-100 text-green-800 px-2 py-0.5 rounded font-medium">
-                  Winner
-                </span>
-              )}
-            </div>
-          ))}
-        </div>
+    <div className="flex flex-col h-full gap-4">
+      {/* Chart */}
+      <div className="flex-1 min-h-[300px]">
+        <BaseLineChart
+          data={chartData}
+          series={series}
+          xAxisKey="year"
+          yAxisFormatter={(value) => `${value.toFixed(1)}M`}
+          tooltipContent={
+            <RentTrajectoryTooltip proposalLookup={proposalLookup} />
+          }
+          showLegend={false} // Using custom legend below
+          height={300}
+        />
       </div>
-    </Card>
+
+      {/* Custom Legend with Rent Model and Winner indicator */}
+      <div className="flex flex-wrap gap-4 pt-4 border-t border-border shrink-0">
+        {data.map((proposal, index) => (
+          <div key={proposal.proposalId} className="flex items-center gap-2">
+            <div
+              className="w-3 h-3 rounded-full"
+              style={{ backgroundColor: getProposalColor(index) }}
+            />
+            <span className="text-sm">
+              {proposal.proposalName} ({proposal.rentModel})
+            </span>
+            {proposal.isWinner && (
+              <span
+                className="text-xs px-2 py-0.5 rounded font-medium"
+                style={{
+                  backgroundColor: "hsl(var(--color-financial-positive))",
+                  color: "white",
+                }}
+              >
+                Winner
+              </span>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }

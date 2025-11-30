@@ -1,23 +1,25 @@
 /**
- * POST /api/proposals/[id]/scenarios
+ * GET/POST /api/proposals/[id]/scenarios
  *
  * Real-time Scenario Analysis Endpoint (GAP 6)
  *
- * Accepts scenario variables (enrollment%, CPI%, tuition growth%, rent escalation%)
- * and recalculates 30-year projections in real-time.
+ * GET: Fetch baseline slider values and time series data for initialization
+ * POST: Run scenario calculation with modified variables
  *
  * Performance Target: <200ms response time
  *
- * Request Body:
- * - enrollmentPercent: number (50-150)
- * - cpiPercent: number (0-10)
- * - tuitionGrowthPercent: number (0-15)
- * - rentEscalationPercent: number (0-10)
+ * POST Request Body:
+ * - enrollmentPercent: number (50-100) - % of max capacity
+ * - cpiPercent: number (0-10) - Annual CPI growth rate
+ * - tuitionGrowthPercent: number (0-15) - Annual tuition growth rate
+ * - rentEscalationPercent: number (0-10) - Annual rent escalation rate
  *
- * Response:
+ * Response (both GET and POST):
+ * - baselineSliderValues: { enrollment, cpi, tuitionGrowth, rentEscalation }
+ * - timeSeriesData: Array<{ year, baselineCashFlow, scenarioCashFlow, baselineRent, scenarioRent }>
  * - metrics: { totalRent, npv, totalEbitda, finalCash, maxDebt }
- * - comparisonToBaseline: { metric: { baseline, current, changePercent } }
- * - calculationTimeMs: number
+ * - comparison: { metric: { baseline, current, absoluteChange, percentChange } }
+ * - rentModel: string
  */
 
 import { NextResponse } from "next/server";
@@ -27,8 +29,14 @@ import { prisma } from "@/lib/prisma";
 import { authenticateUserWithRole } from "@/middleware/auth";
 import { Role, type Prisma } from "@prisma/client";
 import { calculateFinancialProjections } from "@/lib/engine";
-import type { CalculationEngineOutput } from "@/lib/engine/core/types";
-import { calculateNPV } from "@/lib/engine/core/decimal-utils";
+import type {
+  CalculationEngineInput,
+  CalculationEngineOutput,
+  FixedRentParams,
+  PartnerInvestmentParams,
+} from "@/lib/engine/core/types";
+import { RentModel as RentModelEnum } from "@/lib/engine/core/types";
+import { calculateNPV, toDecimal } from "@/lib/engine/core/decimal-utils";
 import {
   applyScenarioVariables,
   calculateMetricChange,
@@ -44,21 +52,127 @@ type StoredFinancialPeriod = {
   year: number;
   profitLoss: Record<string, unknown>;
   balanceSheet: Record<string, unknown>;
+  cashFlow: Record<string, unknown>;
 };
+
+// ============================================================================
+// TYPE DEFINITIONS
+// ============================================================================
+
+interface BaselineSliderValues {
+  enrollment: number;
+  cpi: number;
+  tuitionGrowth: number;
+  rentEscalation: number;
+}
+
+interface TimeSeriesDataPoint {
+  year: number;
+  baselineCashFlow: number;
+  scenarioCashFlow: number;
+  // eslint-disable-next-line no-restricted-syntax -- Display values only, not used in financial calculations
+  baselineRent: number;
+  // eslint-disable-next-line no-restricted-syntax -- Display values only, not used in financial calculations
+  scenarioRent: number;
+}
 
 // ============================================================================
 // VALIDATION SCHEMAS
 // ============================================================================
 
 const ScenarioVariablesSchema = z.object({
-  enrollmentPercent: z.number().min(50).max(150),
+  enrollmentPercent: z.number().min(50).max(100), // Updated: 50-100% of max capacity
   cpiPercent: z.number().min(0).max(10),
   tuitionGrowthPercent: z.number().min(0).max(15),
   rentEscalationPercent: z.number().min(0).max(10),
 });
 
 // ============================================================================
-// API HANDLER
+// GET HANDLER - Fetch baseline values for initialization
+// ============================================================================
+
+export async function GET(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  // Auth check
+  const authResult = await authenticateUserWithRole([
+    Role.ADMIN,
+    Role.PLANNER,
+    Role.VIEWER,
+  ]);
+  if (!authResult.success) return authResult.error;
+
+  try {
+    const { id: proposalId } = await params;
+
+    // Validate UUID
+    const uuidRegex =
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(proposalId)) {
+      return NextResponse.json(
+        { error: "Invalid proposal ID" },
+        { status: 400 },
+      );
+    }
+
+    // Fetch proposal
+    const proposal = await prisma.leaseProposal.findUnique({
+      where: { id: proposalId },
+    });
+
+    if (!proposal) {
+      return NextResponse.json(
+        { error: "Proposal not found" },
+        { status: 404 },
+      );
+    }
+
+    if (!proposal.financials || !proposal.metrics) {
+      return NextResponse.json(
+        {
+          error: "Proposal has not been calculated yet",
+          message: "Please run the initial calculation first",
+        },
+        { status: 400 },
+      );
+    }
+
+    // Reconstruct calculation input to extract baseline values
+    const calculationInput = await reconstructCalculationInput(proposal);
+
+    // Extract baseline slider values from actual proposal configuration
+    const baselineSliderValues = extractBaselineSliderValues(calculationInput);
+
+    // Extract baseline time series from stored financials
+    const periods = normalizeStoredPeriods(proposal.financials);
+    const baselineTimeSeries = periods.map((period) => ({
+      year: period.year,
+      cashFlow: readDecimal(period.cashFlow["netChangeInCash"]).toNumber(),
+      rent: readDecimal(period.profitLoss["rentExpense"]).toNumber(),
+    }));
+
+    return NextResponse.json({
+      success: true,
+      baselineSliderValues,
+      baselineTimeSeries,
+      rentModel: proposal.rentModel,
+    });
+  } catch (error) {
+    console.error("❌ Failed to fetch baseline:", error);
+
+    return NextResponse.json(
+      {
+        error: "Failed to fetch baseline values",
+        message: error instanceof Error ? error.message : "Unknown error",
+      },
+      { status: 500 },
+    );
+  }
+}
+
+// ============================================================================
+// POST HANDLER - Run scenario calculation
 // ============================================================================
 
 export async function POST(
@@ -152,20 +266,35 @@ export async function POST(
       scenarioInput.systemConfig.debtInterestRate ?? new Decimal(0.1),
     );
 
-    // Extract baseline metrics from stored proposal
-    const baselineMetrics = extractBaselineMetrics(proposal);
+    // Calculate baseline metrics fresh to ensure consistency with scenario metrics
+    // This avoids mismatches due to stored data drift or rounding differences
+    const baselineResult = await calculateFinancialProjections(baselineInput);
+    const baselineMetrics = extractScenarioMetrics(
+      baselineResult,
+      baselineInput.systemConfig.debtInterestRate ?? new Decimal(0.1),
+    );
 
     // Calculate comparison (baseline vs scenario)
     const comparison = compareMetrics(baselineMetrics, scenarioMetrics);
+
+    // Extract baseline slider values for reference
+    const baselineSliderValues = extractBaselineSliderValues(baselineInput);
+
+    // Extract time series data for charts
+    const baselinePeriods = normalizeStoredPeriods(proposal.financials);
+    const timeSeriesData = extractTimeSeriesData(baselinePeriods, result);
 
     const totalTimeMs = performance.now() - startTime;
 
     return NextResponse.json({
       success: true,
       variables,
+      baselineSliderValues,
+      timeSeriesData,
       metrics: scenarioMetrics,
       baseline: baselineMetrics,
       comparison,
+      rentModel: proposal.rentModel,
       performance: {
         totalTimeMs,
         calculationTimeMs,
@@ -191,6 +320,106 @@ export async function POST(
 
 // Use the shared utility for reconstructing calculation input
 const reconstructCalculationInput = sharedReconstructCalculationInput;
+
+/**
+ * Extract baseline slider values from the proposal's actual configuration.
+ * This ensures sliders are initialized with the proposal's real values,
+ * not hardcoded defaults.
+ */
+function extractBaselineSliderValues(
+  input: CalculationEngineInput,
+): BaselineSliderValues {
+  // Enrollment: 100% means full capacity (steadyStateStudents)
+  // The slider will adjust this as a percentage
+  const enrollment = 100;
+
+  // CPI: Extract from staff configuration
+  // Stored as decimal (0.03 = 3%), convert to percentage
+  const cpiRate = input.dynamicPeriodConfig.staff.cpiRate;
+  const cpi = cpiRate
+    ? (cpiRate instanceof Decimal ? cpiRate : new Decimal(cpiRate))
+      .times(100)
+      .toNumber()
+    : 3.0; // Default if not set
+
+  // Tuition Growth: Extract from curriculum configuration
+  const tuitionGrowthRate =
+    input.dynamicPeriodConfig.curriculum.nationalTuitionGrowthRate;
+  const tuitionGrowth = tuitionGrowthRate
+    ? (tuitionGrowthRate instanceof Decimal
+      ? tuitionGrowthRate
+      : new Decimal(tuitionGrowthRate)
+    )
+      .times(100)
+      .toNumber()
+    : 5.0; // Default if not set
+
+  // Rent Escalation: Extract based on rent model
+  let rentEscalation = 0;
+
+  if (input.rentModel === RentModelEnum.FIXED_ESCALATION) {
+    const params = input.rentParams as FixedRentParams;
+    if (params.growthRate) {
+      rentEscalation = (
+        params.growthRate instanceof Decimal
+          ? params.growthRate
+          : new Decimal(params.growthRate)
+      )
+        .times(100)
+        .toNumber();
+    }
+  } else if (input.rentModel === RentModelEnum.PARTNER_INVESTMENT) {
+    const params = input.rentParams as PartnerInvestmentParams;
+    if (params.growthRate) {
+      rentEscalation = (
+        params.growthRate instanceof Decimal
+          ? params.growthRate
+          : new Decimal(params.growthRate)
+      )
+        .times(100)
+        .toNumber();
+    }
+  }
+  // REVENUE_SHARE has no escalation rate - rent scales with revenue
+
+  return { enrollment, cpi, tuitionGrowth, rentEscalation };
+}
+
+/**
+ * Extract time-series data for charts from baseline and scenario periods.
+ * Returns arrays of cash flow and rent values for each year.
+ */
+function extractTimeSeriesData(
+  baselinePeriods: StoredFinancialPeriod[],
+  scenarioResult: CalculationEngineOutput,
+): TimeSeriesDataPoint[] {
+  const scenarioPeriods = scenarioResult.periods;
+
+  return scenarioPeriods.map((scenarioPeriod, index) => {
+    const baselinePeriod = baselinePeriods[index];
+    const year = scenarioPeriod.year;
+
+    // Cash flow: use netChangeInCash from cash flow statement
+    const baselineCashFlow = baselinePeriod
+      ? readDecimal(baselinePeriod.cashFlow["netChangeInCash"]).toNumber()
+      : 0;
+    const scenarioCashFlow = scenarioPeriod.cashFlow.netChangeInCash.toNumber();
+
+    // Rent: use rentExpense from P&L
+    const baselineRent = baselinePeriod
+      ? readDecimal(baselinePeriod.profitLoss["rentExpense"]).toNumber()
+      : 0;
+    const scenarioRent = scenarioPeriod.profitLoss.rentExpense.toNumber();
+
+    return {
+      year,
+      baselineCashFlow,
+      scenarioCashFlow,
+      baselineRent,
+      scenarioRent,
+    };
+  });
+}
 
 /**
  * Extract scenario metrics from calculation results
@@ -222,7 +451,7 @@ function extractScenarioMetrics(
   }, new Decimal(0));
 
   // NPV based on net change in cash each period using provided discount rate
-  const discount = discountRate || new Decimal(0.1);
+  const discount = discountRate ?? new Decimal(0.1);
   const cashFlows = periods.map((period) => period.cashFlow.netChangeInCash);
   const npv = calculateNPV(cashFlows, discount);
 
@@ -258,37 +487,72 @@ const normalizeStoredPeriods = (
         period.balanceSheet && typeof period.balanceSheet === "object"
           ? (period.balanceSheet as Record<string, unknown>)
           : {},
+      cashFlow:
+        period.cashFlow && typeof period.cashFlow === "object"
+          ? (period.cashFlow as Record<string, unknown>)
+          : {},
     }));
+};
+
+const readDecimal = (value: unknown): Decimal => {
+  if (value === null || value === undefined) return new Decimal(0);
+  try {
+    // Handle bigint by converting to string first
+    if (typeof value === "bigint") {
+      return new Decimal(value.toString());
+    }
+    return toDecimal(value as Decimal | number | string);
+  } catch {
+    return new Decimal(0);
+  }
 };
 
 /**
  * Extract baseline metrics from stored proposal
  */
-function extractBaselineMetrics(proposal: ProposalRecord) {
+function extractBaselineMetrics(
+  proposal: ProposalRecord,
+  discountRate: Decimal,
+) {
   // Metrics are already stored in the proposal
   const metrics =
     proposal.metrics &&
-    typeof proposal.metrics === "object" &&
-    !Array.isArray(proposal.metrics)
+      typeof proposal.metrics === "object" &&
+      !Array.isArray(proposal.metrics)
       ? (proposal.metrics as Record<string, unknown>)
       : {};
   const periods = normalizeStoredPeriods(proposal.financials);
 
-  // Calculate what we need from stored data
   const totalRent = periods.reduce((sum, period) => {
-    return sum + toNumber(period.profitLoss["rentExpense"]);
-  }, 0);
+    return sum.add(readDecimal(period.profitLoss["rentExpense"]));
+  }, new Decimal(0));
 
   const totalEbitda = periods.reduce((sum, period) => {
-    return sum + toNumber(period.profitLoss["ebitda"]);
-  }, 0);
+    return sum.add(readDecimal(period.profitLoss["ebitda"]));
+  }, new Decimal(0));
+
+  const cashFlows = periods.map((period) =>
+    readDecimal(period.cashFlow["netChangeInCash"]),
+  );
+  const npv = calculateNPV(cashFlows, discountRate ?? new Decimal(0.1)).toFixed(
+    2,
+  );
+
+  const finalCash = readDecimal(
+    periods.at(-1)?.balanceSheet["cash"] ?? metrics.finalCash ?? 0,
+  );
+
+  const maxDebt = periods.reduce((maxDebtValue, period) => {
+    const debt = readDecimal(period.balanceSheet["debtBalance"]);
+    return debt.greaterThan(maxDebtValue) ? debt : maxDebtValue;
+  }, new Decimal(0));
 
   return {
     totalRent: totalRent.toFixed(2),
-    npv: "0.00", // TODO
+    npv,
     totalEbitda: totalEbitda.toFixed(2),
-    finalCash: String(metrics.finalCash ?? "0"),
-    maxDebt: String(metrics.peakDebt ?? "0"),
+    finalCash: finalCash.toFixed(2),
+    maxDebt: maxDebt.toFixed(2),
   };
 }
 

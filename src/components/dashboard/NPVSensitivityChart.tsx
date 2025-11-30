@@ -15,6 +15,17 @@ import {
 } from "recharts";
 import type { Payload } from "recharts/types/component/DefaultTooltipContent";
 import { formatMillions } from "@/lib/utils/financial";
+import {
+  chartColorMappings,
+  chartColors,
+} from "@/lib/design-tokens/chart-colors";
+import {
+  getAxisProps,
+  getGridProps,
+  getTooltipProps,
+  getLegendProps,
+  chartAnimation,
+} from "@/lib/design-tokens/chart-config";
 
 interface SensitivityData {
   id: string;
@@ -48,25 +59,31 @@ const CustomTooltip = ({ active, payload, label }: ChartTooltipProps) => {
     if (!data) return null;
 
     return (
-      <div className="bg-background border rounded-lg p-3 shadow-lg">
-        <p className="font-semibold mb-2">{label}</p>
-        <p className="text-xs text-muted-foreground mb-2">{data.proposal}</p>
-        <div className="space-y-1 text-sm">
+      <div className="executive-tooltip">
+        <p className="executive-tooltip-label">{label}</p>
+        <p className="text-xs text-muted-foreground mb-3">{data.proposal}</p>
+        <div className="space-y-2 text-sm">
           <div className="flex justify-between gap-4">
-            <span className="text-red-600">Downside:</span>
-            <span className="font-medium">
+            <span style={{ color: chartColorMappings.sensitivity.negativeImpact }}>
+              Downside:
+            </span>
+            <span className="font-medium tabular-nums">
               {formatMillions(data.negativeImpact * 1_000_000)}
             </span>
           </div>
           <div className="flex justify-between gap-4">
-            <span className="text-green-600">Upside:</span>
-            <span className="font-medium">
+            <span style={{ color: chartColorMappings.sensitivity.positiveImpact }}>
+              Upside:
+            </span>
+            <span className="font-medium tabular-nums">
               {formatMillions(data.positiveImpact * 1_000_000)}
             </span>
           </div>
-          <div className="border-t pt-1 flex justify-between gap-4 font-semibold">
+          <div className="border-t border-border pt-2 flex justify-between gap-4 font-semibold">
             <span>Total Range:</span>
-            <span>{formatMillions(data.totalRange * 1_000_000)}</span>
+            <span className="tabular-nums">
+              {formatMillions(data.totalRange * 1_000_000)}
+            </span>
           </div>
         </div>
       </div>
@@ -143,88 +160,98 @@ export function NPVSensitivityChart({ data }: NPVSensitivityChartProps) {
   }
 
   return (
-    <Card className="p-6">
-      <div className="space-y-4">
-        <div>
-          <h3 className="text-lg font-semibold">
-            NPV Sensitivity Analysis (Tornado)
-          </h3>
-          <p className="text-sm text-muted-foreground">
-            Impact of key variables on NPV (ranked by total impact range)
-          </p>
-        </div>
-
-        <div className="h-[400px]">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart
-              data={processedData}
-              layout="vertical"
-              margin={{ left: 120, right: 20 }}
+    <div className="flex flex-col h-full gap-4">
+      <div className="flex-1 min-h-[300px]">
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart
+            data={processedData}
+            layout="vertical"
+            margin={{ left: 120, right: 20 }}
+          >
+            {/* Minimal vertical grid only for tornado */}
+            <CartesianGrid
+              {...getGridProps()}
+              horizontal={false}
+            />
+            <XAxis
+              {...getAxisProps("x")}
+              type="number"
+              tickFormatter={(value) => `${value.toFixed(0)}M`}
+            />
+            <YAxis
+              {...getAxisProps("y")}
+              type="category"
+              dataKey="variable"
+              width={100}
+            />
+            <Tooltip content={<CustomTooltip />} {...getTooltipProps()} />
+            <Legend {...getLegendProps()} />
+            <Bar
+              dataKey="negativeImpact"
+              fill={chartColorMappings.sensitivity.negativeImpact}
+              name="Downside Impact"
+              stackId="stack"
+              radius={[4, 0, 0, 4]}
+              animationDuration={chartAnimation.duration}
+              animationEasing={chartAnimation.easing}
             >
-              <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-              <XAxis
-                type="number"
-                label={{
-                  value: "Impact on NPV (Millions SAR)",
-                  position: "insideBottom",
-                  offset: -5,
-                }}
-                className="text-xs"
-                tickFormatter={(value) => `${value.toFixed(0)}M`}
-              />
-              <YAxis
-                type="category"
-                dataKey="variable"
-                width={100}
-                className="text-xs"
-              />
-              <Tooltip content={<CustomTooltip />} />
-              <Legend />
-              <Bar
-                dataKey="negativeImpact"
-                fill="#ef4444"
-                name="Downside Impact"
-                stackId="stack"
-              >
-                {processedData.map((_, index) => (
-                  <Cell key={`cell-neg-${index}`} fill="#ef4444" />
-                ))}
-              </Bar>
-              <Bar
-                dataKey="positiveImpact"
-                fill="#10b981"
-                name="Upside Impact"
-                stackId="stack"
-              >
-                {processedData.map((_, index) => (
-                  <Cell key={`cell-pos-${index}`} fill="#10b981" />
-                ))}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-
-        {/* Insights */}
-        <div className="bg-muted/50 rounded-lg p-4">
-          <h4 className="font-semibold text-sm mb-2">Key Insights:</h4>
-          <ul className="text-xs text-muted-foreground space-y-1">
-            <li>
-              <span className="font-semibold">Most Sensitive Variable: </span>
-              {processedData[0]?.variable || "N/A"} (highest impact range)
-            </li>
-            <li>
-              <span className="text-green-600 font-semibold">Green bars</span>:
-              Positive impact when variable increases
-            </li>
-            <li>
-              <span className="text-red-600 font-semibold">Red bars</span>:
-              Negative impact when variable decreases
-            </li>
-            <li>Longer bars indicate higher sensitivity to that variable</li>
-          </ul>
-        </div>
+              {processedData.map((_, index) => (
+                <Cell
+                  key={`cell-neg-${index}`}
+                  fill={chartColorMappings.sensitivity.negativeImpact}
+                />
+              ))}
+            </Bar>
+            <Bar
+              dataKey="positiveImpact"
+              fill={chartColorMappings.sensitivity.positiveImpact}
+              name="Upside Impact"
+              stackId="stack"
+              radius={[0, 4, 4, 0]}
+              animationDuration={chartAnimation.duration}
+              animationEasing={chartAnimation.easing}
+            >
+              {processedData.map((_, index) => (
+                <Cell
+                  key={`cell-pos-${index}`}
+                  fill={chartColorMappings.sensitivity.positiveImpact}
+                />
+              ))}
+            </Bar>
+          </BarChart>
+        </ResponsiveContainer>
       </div>
-    </Card>
+
+      {/* Insights with theme colors */}
+      <div className="bg-accent/50 rounded-xl p-4 border border-border shrink-0">
+        <h4 className="font-semibold text-sm mb-2">Key Insights:</h4>
+        <ul className="text-xs text-muted-foreground space-y-1">
+          <li>
+            <span className="font-semibold text-foreground">Most Sensitive Variable: </span>
+            {processedData[0]?.variable || "N/A"} (highest impact range)
+          </li>
+          <li>
+            <span
+              style={{ color: chartColorMappings.sensitivity.positiveImpact }}
+              className="font-semibold"
+            >
+              Sage bars
+            </span>
+            : Positive impact when variable increases
+          </li>
+          <li>
+            <span
+              style={{ color: chartColorMappings.sensitivity.negativeImpact }}
+              className="font-semibold"
+            >
+              Terracotta bars
+            </span>
+            : Negative impact when variable decreases
+          </li>
+          <li>Longer bars indicate higher sensitivity to that variable</li>
+        </ul>
+      </div>
+    </div>
   );
 }
 
@@ -235,7 +262,7 @@ function getVariableName(variable: string): string {
     cpi: "CPI Inflation",
     rentEscalation: "Rent Escalation",
     staffCosts: "Staff Costs",
-    otherOpex: "Other OpEx",
+    otherOpexPercent: "Other OpEx",
   };
   return names[variable] || variable;
 }

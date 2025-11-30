@@ -4,7 +4,7 @@
  * These tests validate the complete calculation flow across all periods:
  * - Historical Period (2023-2024)
  * - Transition Period (2025-2027)
- * - Dynamic Period (2028-2053)
+ * - Dynamic Period (2028-2057)
  *
  * Validation focuses on:
  * - Balance sheet balancing across all scenarios (diff <$0.01)
@@ -26,8 +26,9 @@ import type {
   TransitionPeriodInput,
   DynamicPeriodInput,
   FinancialPeriod,
+  CapExConfiguration,
 } from "./core/types";
-import { RentModel, PeriodType } from "./core/types";
+import { RentModel, PeriodType, CapExCategoryType } from "./core/types";
 import {
   BALANCE_SHEET_TOLERANCE,
   CASH_FLOW_TOLERANCE,
@@ -68,6 +69,7 @@ function createHistoricalPeriods(): HistoricalPeriodInput[] {
     cash: new Decimal(4500000),
     accountsReceivable: new Decimal(4500000),
     prepaidExpenses: new Decimal(1575000),
+    grossPPE: new Decimal(36000000), // Gross = Net + AccDep
     ppe: new Decimal(27000000),
     accumulatedDepreciation: new Decimal(9000000),
     accountsPayable: new Decimal(2520000),
@@ -91,6 +93,7 @@ function createHistoricalPeriods(): HistoricalPeriodInput[] {
     cash: new Decimal(5000000),
     accountsReceivable: new Decimal(5000000),
     prepaidExpenses: new Decimal(1750000),
+    grossPPE: new Decimal(40000000), // Gross = Net + AccDep
     ppe: new Decimal(30000000),
     accumulatedDepreciation: new Decimal(10000000),
     accountsPayable: new Decimal(2800000),
@@ -179,6 +182,52 @@ function createCalculationInput(rentModel: RentModel): CalculationEngineInput {
             frequency: 1,
           };
 
+  // Create CAPEX configuration with proper category structure
+  const capexConfig: CapExConfiguration = {
+    categories: [
+      {
+        id: "cat-it",
+        type: CapExCategoryType.IT_EQUIPMENT,
+        name: "IT Equipment",
+        usefulLife: 5,
+        reinvestFrequency: 5, // Every 5 years
+        reinvestAmount: new Decimal(1000000),
+      },
+      {
+        id: "cat-furniture",
+        type: CapExCategoryType.FURNITURE,
+        name: "Furniture",
+        usefulLife: 10,
+        reinvestFrequency: 7, // Every 7 years
+        reinvestAmount: new Decimal(500000),
+      },
+      {
+        id: "cat-equipment",
+        type: CapExCategoryType.EDUCATIONAL_EQUIPMENT,
+        name: "Educational Equipment",
+        usefulLife: 8,
+        reinvestFrequency: 6, // Every 6 years
+        reinvestAmount: new Decimal(750000),
+      },
+      {
+        id: "cat-building",
+        type: CapExCategoryType.BUILDING,
+        name: "Building",
+        usefulLife: 30,
+        reinvestFrequency: undefined, // No regular reinvestment
+        reinvestAmount: undefined,
+      },
+    ],
+    historicalState: {
+      grossPPE2024: new Decimal(40000000),
+      accumulatedDepreciation2024: new Decimal(10000000),
+      annualDepreciation: new Decimal(1000000),
+      remainingToDepreciate: new Decimal(30000000),
+    },
+    transitionCapex: [], // Empty for this E2E test
+    virtualAssets: [], // Will be populated during calculation
+  };
+
   const dynamicPeriodConfig: DynamicPeriodInput = {
     year: 2028, // Will be overridden in loop
     enrollment: {
@@ -202,22 +251,8 @@ function createCalculationInput(rentModel: RentModel): CalculationEngineInput {
     },
     rentModel,
     rentParams,
-    otherOpex: new Decimal(5000000), // 5M SAR
-    capexConfig: {
-      autoReinvestEnabled: true,
-      reinvestAmount: new Decimal(2500000), // 2.5M SAR per reinvestment
-      reinvestFrequency: 1, // Every year
-      existingAssets: [], // Simplified for E2E
-      newAssets: [],
-    },
-  };
-
-  const capexConfig = {
-    autoReinvestEnabled: true,
-    reinvestAmount: new Decimal(2500000),
-    reinvestFrequency: 1,
-    existingAssets: [],
-    newAssets: [],
+    otherOpexPercent: new Decimal(0.10), // 10% of revenue
+    capexConfig, // Use the properly configured CAPEX
   };
 
   const circularSolverConfig = {
@@ -327,8 +362,8 @@ describe("End-to-End Integration Tests - 30-Year Calculation Engine", () => {
         `   Max Cash Diff: $${result.validation.maxCashDifference.toFixed(4)}`,
       );
 
-      // Validate 31 years calculated (2023-2053 including historical 2023)
-      expect(result.periods).toHaveLength(31);
+      // Validate 35 years calculated (2023-2057: 2 historical + 3 transition + 30 dynamic)
+      expect(result.periods).toHaveLength(35);
 
       // Validate all balance sheets balanced
       validateAllPeriodsBalanced(result.periods);
@@ -384,7 +419,7 @@ describe("End-to-End Integration Tests - 30-Year Calculation Engine", () => {
         `   Max Cash Diff: $${result.validation.maxCashDifference.toFixed(4)}`,
       );
 
-      expect(result.periods).toHaveLength(31);
+      expect(result.periods).toHaveLength(35);
       validateAllPeriodsBalanced(result.periods);
       validateAllCashFlowsReconciled(result.periods);
       validatePeriodLinkage(result.periods);
@@ -430,7 +465,7 @@ describe("End-to-End Integration Tests - 30-Year Calculation Engine", () => {
         `   Max Cash Diff: $${result.validation.maxCashDifference.toFixed(4)}`,
       );
 
-      expect(result.periods).toHaveLength(31);
+      expect(result.periods).toHaveLength(35);
       validateAllPeriodsBalanced(result.periods);
       validateAllCashFlowsReconciled(result.periods);
       validatePeriodLinkage(result.periods);
@@ -664,7 +699,7 @@ describe("End-to-End Integration Tests - 30-Year Calculation Engine", () => {
         `   ✅ Cash flows reconciled (diff <$0.01): ${rentModels.every((m) => validationResults[m].allReconciled) ? "PASSED ✅" : "FAILED ❌"}`,
       );
       console.log(
-        `   ✅ All 31 years calculated (2023-2053): ${rentModels.every((m) => validationResults[m].periodsCount === 31) ? "PASSED ✅" : "FAILED ❌"}`,
+        `   ✅ All 35 years calculated (2023-2057): ${rentModels.every((m) => validationResults[m].periodsCount === 35) ? "PASSED ✅" : "FAILED ❌"}`,
       );
       console.log(
         `   ✅ Positive equity throughout: ${rentModels.every((m) => validationResults[m].minEquity > 0) ? "PASSED ✅" : "FAILED ❌"}`,
@@ -675,7 +710,7 @@ describe("End-to-End Integration Tests - 30-Year Calculation Engine", () => {
       rentModels.forEach((model) => {
         expect(validationResults[model].allBalanced).toBe(true);
         expect(validationResults[model].allReconciled).toBe(true);
-        expect(validationResults[model].periodsCount).toBe(31);
+        expect(validationResults[model].periodsCount).toBe(35);
         expect(validationResults[model].minEquity).toBeGreaterThan(0);
       });
     });

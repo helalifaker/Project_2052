@@ -25,7 +25,6 @@ import {
   validateCurriculumConfig,
   calculateStaffCosts,
   calculateRentExpense,
-  calculateDepreciation,
   calculateProfitLoss,
   calculateBalanceSheet,
   calculateCashFlow,
@@ -95,6 +94,7 @@ function createMockPriorPeriod(year: number): FinancialPeriod {
     prepaidExpenses: new D(500000),
     totalCurrentAssets: new D(7500000),
     // propertyPlantEquipment stores NET PP&E (consistent with historical/transition periods)
+    grossPPE: new D(10000000), // GROSS PP&E = Net + AccDep
     propertyPlantEquipment: new D(9000000), // NET PP&E
     accumulatedDepreciation: new D(1000000),
     totalNonCurrentAssets: new D(9000000), // Same as NET PP&E
@@ -473,79 +473,81 @@ describe("Rent Model Calculations", () => {
     );
     expect(rentPostRecovery.toNumber()).toBeCloseTo(expectedPostRecovery, -1);
   });
+
+  it("should apply growth rate based on frequency for partner investment", () => {
+    const rentParams = {
+      landSize: new D(10000), // m²
+      landPricePerSqm: new D(5000), // SAR/m²
+      buaSize: new D(20000), // m²
+      constructionCostPerSqm: new D(2500), // SAR/m²
+      yieldRate: new D(0.09), // 9% yield
+      growthRate: new D(0.02), // 2% growth
+      frequency: 2, // Every 2 years
+    };
+
+    // Base rent = (50M + 50M) * 9% = 9M
+
+    // Year 1 (2028): yearsElapsed = floor(0/2) = 0, rent = 9M
+    const rent2028 = calculateRentExpense(
+      2028,
+      2028,
+      new D(20000000),
+      RentModel.PARTNER_INVESTMENT,
+      rentParams,
+    );
+    expect(rent2028.toNumber()).toBeCloseTo(9000000, -2);
+
+    // Year 2 (2029): yearsElapsed = floor(1/2) = 0, rent = 9M (same as year 1)
+    const rent2029 = calculateRentExpense(
+      2029,
+      2028,
+      new D(20000000),
+      RentModel.PARTNER_INVESTMENT,
+      rentParams,
+    );
+    expect(rent2029.toNumber()).toBeCloseTo(9000000, -2);
+
+    // Year 3 (2030): yearsElapsed = floor(2/2) = 1, rent = 9M * 1.02 = 9.18M
+    const rent2030 = calculateRentExpense(
+      2030,
+      2028,
+      new D(20000000),
+      RentModel.PARTNER_INVESTMENT,
+      rentParams,
+    );
+    expect(rent2030.toNumber()).toBeCloseTo(9180000, -2);
+
+    // Year 4 (2031): yearsElapsed = floor(3/2) = 1, rent = 9M * 1.02 = 9.18M (same as year 3)
+    const rent2031 = calculateRentExpense(
+      2031,
+      2028,
+      new D(20000000),
+      RentModel.PARTNER_INVESTMENT,
+      rentParams,
+    );
+    expect(rent2031.toNumber()).toBeCloseTo(9180000, -2);
+
+    // Year 5 (2032): yearsElapsed = floor(4/2) = 2, rent = 9M * 1.02^2 = 9.3636M
+    const rent2032 = calculateRentExpense(
+      2032,
+      2028,
+      new D(20000000),
+      RentModel.PARTNER_INVESTMENT,
+      rentParams,
+    );
+    expect(rent2032.toNumber()).toBeCloseTo(9000000 * Math.pow(1.02, 2), -2);
+  });
 });
 
 // ============================================================================
 // DEPRECIATION TESTS
 // ============================================================================
-
-describe("Depreciation Calculation", () => {
-  it("should calculate depreciation for existing assets", () => {
-    const depreciation = calculateDepreciation(2028, mockCapExConfig);
-
-    // Building: 10,000,000 / 20 years = 500,000 per year
-    expect(depreciation.toString()).toBe("500000");
-  });
-
-  it("should handle multiple assets", () => {
-    const config: CapExConfiguration = {
-      autoReinvestEnabled: false,
-      existingAssets: [
-        {
-          id: "asset-1",
-          assetName: "Building",
-          purchaseYear: 2023,
-          purchaseAmount: new D(10000000),
-          usefulLife: 20,
-          depreciationMethod: DepreciationMethod.STRAIGHT_LINE,
-          accumulatedDepreciation: new D(500000),
-          netBookValue: new D(9500000),
-          fullyDepreciated: false,
-        },
-        {
-          id: "asset-2",
-          assetName: "Equipment",
-          purchaseYear: 2025,
-          purchaseAmount: new D(2000000),
-          usefulLife: 10,
-          depreciationMethod: DepreciationMethod.STRAIGHT_LINE,
-          accumulatedDepreciation: new D(200000),
-          netBookValue: new D(1800000),
-          fullyDepreciated: false,
-        },
-      ],
-      newAssets: [],
-    };
-
-    const depreciation = calculateDepreciation(2028, config);
-
-    // Building: 500,000 + Equipment: 200,000 = 700,000
-    expect(depreciation.toString()).toBe("700000");
-  });
-
-  it("should return zero for fully depreciated assets", () => {
-    const config: CapExConfiguration = {
-      autoReinvestEnabled: false,
-      existingAssets: [
-        {
-          id: "asset-1",
-          assetName: "Old Equipment",
-          purchaseYear: 2010,
-          purchaseAmount: new D(1000000),
-          usefulLife: 10,
-          depreciationMethod: DepreciationMethod.STRAIGHT_LINE,
-          accumulatedDepreciation: new D(1000000),
-          netBookValue: ZERO,
-          fullyDepreciated: true,
-        },
-      ],
-      newAssets: [],
-    };
-
-    const depreciation = calculateDepreciation(2028, config);
-    expect(depreciation.toString()).toBe("0");
-  });
-});
+// NOTE: Depreciation calculation has been moved to the CAPEX calculator.
+// These tests are deprecated and have been removed as they tested the old
+// deprecated calculateDepreciation function. Depreciation is now handled
+// via calculateCapexYearResult() which combines historical and new asset depreciation.
+//
+// For CAPEX-based depreciation tests, see: src/lib/engine/capex/capex-calculator.test.ts
 
 // ============================================================================
 // PROFIT & LOSS TESTS
@@ -578,7 +580,7 @@ describe("Profit & Loss Statement", () => {
         growthRate: new D(0.03),
         frequency: 1,
       },
-      otherOpex: new D(2000000),
+      otherOpexPercent: new D(0.10), // 10% of revenue
       capexConfig: mockCapExConfig,
     };
 
@@ -589,6 +591,7 @@ describe("Profit & Loss Statement", () => {
       mockWorkingCapitalRatios,
       new D(8000000), // prior debt
       new D(5000000), // prior cash
+      new D(0), // zakatExpense (test doesn't need accurate value)
     );
 
     // Validations
@@ -631,7 +634,7 @@ describe("Dynamic Period Calculator (Integration)", () => {
       rentParams: {
         revenueSharePercent: new D(0.15),
       },
-      otherOpex: new D(2000000),
+      otherOpexPercent: new D(0.10), // 10% of revenue
       capexConfig: mockCapExConfig,
     };
 
@@ -690,7 +693,7 @@ describe("Dynamic Period Calculator (Integration)", () => {
         growthRate: new D(0.03),
         frequency: 1,
       },
-      otherOpex: new D(2000000),
+      otherOpexPercent: new D(0.10), // 10% of revenue
       capexConfig: mockCapExConfig,
     };
 

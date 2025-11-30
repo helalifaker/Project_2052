@@ -68,6 +68,13 @@ export function AuthProvider({ children }: AuthProviderProps) {
         if (response.status === 401) {
           return null;
         }
+        // If 500, server error - log but don't crash
+        if (response.status === 500) {
+          console.warn(
+            "Auth session endpoint returned 500 - server may be initializing",
+          );
+          return null;
+        }
         console.error("Failed to fetch user details:", response.status);
         return null;
       }
@@ -86,6 +93,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
         name: data.user.name,
       };
     } catch (error) {
+      // Network errors (Failed to fetch) are common during dev server startup
+      // Don't spam console with errors - just silently return null
+      if (error instanceof TypeError && error.message === "Failed to fetch") {
+        // Server might not be ready yet - this is expected during startup
+        return null;
+      }
       console.error("Error fetching user data:", error);
       return null;
     }

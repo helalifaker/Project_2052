@@ -15,6 +15,8 @@ import { InputField } from "@/components/forms/FormField";
 import { useProposalForm } from "@/lib/hooks/useProposalForm";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { Role } from "@/lib/types/roles";
+import { BackButton } from "@/components/navigation/BackButton";
+import { Breadcrumbs } from "@/components/navigation/Breadcrumbs";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -25,7 +27,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { ArrowLeft, Save, Info } from "lucide-react";
+import { Save, Info } from "lucide-react";
 import { z } from "zod";
 import { toast } from "sonner";
 import Decimal from "decimal.js";
@@ -41,6 +43,10 @@ const configSchema = z.object({
     .number()
     .min(0)
     .max(100, "Deposit interest rate must be between 0 and 100"),
+  discountRate: z
+    .number()
+    .min(0)
+    .max(100, "Discount rate must be between 0 and 100"),
   minCashBalance: z.number().min(0, "Minimum cash balance must be positive"),
 });
 
@@ -56,6 +62,7 @@ function SystemConfigPageContent() {
     zakatRate: 2.5, // GAP 18: Default Zakat Rate
     debtInterestRate: 5.0, // Default Debt Interest Rate
     depositInterestRate: 2.0, // GAP 16: Default Deposit Interest Rate
+    discountRate: 8.0, // Default NPV Discount Rate (WACC/hurdle rate)
     minCashBalance: 1.0, // GAP 14: Default Minimum Cash Balance (in Millions SAR)
   });
 
@@ -72,6 +79,7 @@ function SystemConfigPageContent() {
           zakatRate: Number(data.zakatRate ?? 0) * 100,
           debtInterestRate: Number(data.debtInterestRate ?? 0) * 100,
           depositInterestRate: Number(data.depositInterestRate ?? 0) * 100,
+          discountRate: Number(data.discountRate ?? 0) * 100,
           minCashBalance: Number(data.minCashBalance ?? 0) / 1_000_000,
         });
       } catch (error) {
@@ -106,6 +114,9 @@ function SystemConfigPageContent() {
           .div(100)
           .toNumber(),
         depositInterestRate: new Decimal(data.depositInterestRate)
+          .div(100)
+          .toNumber(),
+        discountRate: new Decimal(data.discountRate)
           .div(100)
           .toNumber(),
         minCashBalance: new Decimal(data.minCashBalance)
@@ -143,12 +154,14 @@ function SystemConfigPageContent() {
 
   return (
     <div className="container mx-auto py-8 space-y-6">
-      {/* Header */}
-      <div className="flex items-center gap-4">
-        <Button variant="ghost" size="sm" onClick={() => router.push("/admin")}>
-          <ArrowLeft className="h-4 w-4 mr-2" />
-          Back to Admin
-        </Button>
+      {/* Navigation */}
+      <div className="space-y-4">
+        <BackButton href="/admin" label="Back to Admin" />
+        <Breadcrumbs items={[
+          { label: "Dashboard", href: "/dashboard" },
+          { label: "Admin", href: "/admin" },
+          { label: "System Config" }
+        ]} />
       </div>
 
       <div>
@@ -236,6 +249,30 @@ function SystemConfigPageContent() {
                 </div>
               </div>
 
+              {/* Discount Rate for NPV Calculations */}
+              <div className="space-y-4 p-4 rounded-lg border bg-muted/30">
+                <div className="flex items-start gap-3">
+                  <Info className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" />
+                  <div className="flex-1">
+                    <h3 className="font-semibold mb-2">
+                      Discount Rate (NPV Calculations)
+                    </h3>
+                    <p className="text-sm text-muted-foreground mb-4">
+                      The discount rate used for Net Present Value (NPV) calculations.
+                      Represents the weighted average cost of capital (WACC) or required return rate.
+                      Typical range: 8-12% for real estate investments.
+                    </p>
+                    <InputField
+                      name="discountRate"
+                      label="Discount Rate"
+                      type="number"
+                      suffix="%"
+                      description="Applied to future cash flows for NPV calculations"
+                    />
+                  </div>
+                </div>
+              </div>
+
               {/* Minimum Cash Balance (GAP 14) */}
               <div className="space-y-4 p-4 rounded-lg border bg-muted/30">
                 <div className="flex items-start gap-3">
@@ -307,6 +344,12 @@ function SystemConfigPageContent() {
               </span>
             </div>
             <div className="flex justify-between items-center p-3 rounded-lg border">
+              <span className="text-sm font-medium">Discount Rate (NPV):</span>
+              <span className="font-mono font-semibold">
+                {form.watch("discountRate")}%
+              </span>
+            </div>
+            <div className="flex justify-between items-center p-3 rounded-lg border">
               <span className="text-sm font-medium">Minimum Cash Balance:</span>
               <span className="font-mono font-semibold">
                 {form.watch("minCashBalance")} M SAR
@@ -343,6 +386,12 @@ function SystemConfigPageContent() {
               <span>Deposit Interest Rate:</span>
               <span className="font-mono font-semibold">
                 {form.watch("depositInterestRate")}%
+              </span>
+            </div>
+            <div className="flex justify-between text-sm">
+              <span>Discount Rate (NPV):</span>
+              <span className="font-mono font-semibold">
+                {form.watch("discountRate")}%
               </span>
             </div>
             <div className="flex justify-between text-sm">

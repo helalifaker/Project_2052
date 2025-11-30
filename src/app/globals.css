@@ -91,95 +91,290 @@
   --space-10: 2.5rem;
   --space-12: 3rem;
   --space-16: 4rem;
+  /* Typography Design Tokens */
+  --font-size-financial-hero: 3.5rem;
+  --font-weight-financial-hero: 300;
+  --line-height-financial-hero: 1;
+  --letter-spacing-financial-hero: -0.02em;
+  --font-size-financial-large: 2.5rem;
+  --font-weight-financial-large: 300;
+  --line-height-financial-large: 1.1;
+  --letter-spacing-financial-large: -0.01em;
+  --font-size-financial-medium: 1.75rem;
+  --font-weight-financial-medium: 400;
+  --line-height-financial-medium: 1.2;
+  --font-size-financial-base: 1.25rem;
+  --font-weight-financial-base: 400;
+  --line-height-financial-base: 1.3;
+  --font-size-label-large: 0.875rem;
+  --font-size-label-base: 0.8125rem;
+  --font-size-label-small: 0.75rem;
+  --font-weight-label: 500;
+  --line-height-label: 1.4;
+  --font-size-chart-axis: 0.6875rem;
+  --font-size-chart-legend: 0.75rem;
+  --font-size-chart-tooltip: 0.8125rem;
+  --font-size-chart-label: 0.75rem;
+  --font-weight-chart: 500;
 }
 
 :root {
+  /* ══════════════════════════════════════════════════════════════════════════
+     SAHARA TWILIGHT THEME - Handcrafted Color System
+     A palette of intention, proportion, and harmony
+     Inspired by desert sand, burnished copper, and twilight skies
+     ══════════════════════════════════════════════════════════════════════════ */
+
   --radius: 0.625rem;
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  /* Primary (Blue) from UI/UX Spec */
-  --primary: oklch(0.446 0.148 251.45); /* #1d4ed8 - primary-700 */
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325); /* danger-500 */
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  /* Chart Colors from UI/UX Spec */
-  --chart-1: oklch(0.588 0.206 250.13); /* #3b82f6 - Primary Blue */
-  --chart-2: oklch(0.646 0.222 41.116); /* #10b981 - Emerald Green */
-  --chart-3: oklch(0.769 0.188 70.08); /* #f59e0b - Amber */
-  --chart-4: oklch(0.577 0.245 27.325); /* #ef4444 - Red */
-  --chart-5: oklch(0.627 0.265 303.9); /* #8b5cf6 - Purple */
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.446 0.148 251.45);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
-  /* Financial Colors (GAP 8) */
-  --financial-positive: oklch(0.145 0 0); /* Black for positive */
-  --financial-negative: oklch(0.577 0.245 27.325); /* Red for negative */
-  --financial-warning: oklch(0.769 0.188 70.08); /* Amber */
-  --financial-neutral: oklch(0.556 0 0); /* Medium gray */
-  /* Proposal Colors */
-  --proposal-a: oklch(0.588 0.206 250.13); /* Blue */
-  --proposal-b: oklch(0.646 0.222 41.116); /* Green */
-  --proposal-c: oklch(0.769 0.188 70.08); /* Amber */
+
+  /* ─────────────────────────────────────────────────────────────────────────
+     Foundation Colors - 60% of visual weight
+     Warm Stone neutrals for sophisticated warmth
+     ───────────────────────────────────────────────────────────────────────── */
+  --background: #faf9f7;           /* Stone-50: Warm paper white */
+  --foreground: #1c1a17;           /* Stone-950: Warm charcoal */
+  --card: #ffffff;
+  --card-foreground: #1c1a17;
+  --popover: #ffffff;
+  --popover-foreground: #1c1a17;
+
+  /* ─────────────────────────────────────────────────────────────────────────
+     Surface Colors - 30% of visual weight
+     ───────────────────────────────────────────────────────────────────────── */
+  --muted: #f5f4f1;                /* Stone-100 */
+  --muted-foreground: #6b6760;     /* Stone-600 */
+  --secondary: #e8e6e1;            /* Stone-200 */
+  --secondary-foreground: #3d3a34; /* Stone-800 */
+
+  /* ─────────────────────────────────────────────────────────────────────────
+     Accent Colors - 10% of visual weight
+     Burnished Copper: Timeless, luxurious, crafted
+     ───────────────────────────────────────────────────────────────────────── */
+  --primary: #a47b42;              /* Copper-700: Primary actions */
+  --primary-foreground: #ffffff;
+  --accent: #f7f3eb;               /* Copper-100: Tinted backgrounds */
+  --accent-foreground: #7a5c2e;    /* Copper-900: Accent text */
+
+  /* Copper Scale for granular control */
+  --copper-900: #7a5c2e;           /* Active states, pressed */
+  --copper-700: #a47b42;           /* Primary buttons, links */
+  --copper-500: #c9a86c;           /* Accent borders, icons */
+  --copper-300: #e4d4b8;           /* Subtle highlights */
+  --copper-100: #f7f3eb;           /* Tinted backgrounds */
+
+  /* Stone Scale for neutrals */
+  --stone-950: #1c1a17;
+  --stone-900: #292723;
+  --stone-800: #3d3a34;
+  --stone-600: #6b6760;
+  --stone-400: #a5a19a;
+  --stone-200: #e8e6e1;
+  --stone-100: #f5f4f1;
+  --stone-50: #faf9f7;
+
+  /* Destructive */
+  --destructive: #b84233;          /* Terracotta */
+
+  /* Borders & Inputs */
+  --border: #e8e6e1;               /* Stone-200 */
+  --input: #e8e6e1;
+  --ring: #c9a86c;                 /* Copper-500 */
+
+  /* ─────────────────────────────────────────────────────────────────────────
+     Chart Colors - Harmonious 5-color palette
+     All colors share warm undertones for visual cohesion
+     ───────────────────────────────────────────────────────────────────────── */
+  --chart-1: #c9a86c;              /* Copper: Primary series */
+  --chart-2: #4a7c96;              /* Twilight Blue: Secondary */
+  --chart-3: #7a9e8a;              /* Sage: Tertiary */
+  --chart-4: #9b7a5a;              /* Sienna: Quaternary */
+  --chart-5: #6b6760;              /* Stone: Quinary */
+
+  /* Sidebar */
+  --sidebar: #faf9f7;
+  --sidebar-foreground: #1c1a17;
+  --sidebar-primary: #a47b42;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #f7f3eb;
+  --sidebar-accent-foreground: #7a5c2e;
+  --sidebar-border: #e8e6e1;
+  --sidebar-ring: #c9a86c;
+
+  /* ─────────────────────────────────────────────────────────────────────────
+     Financial Semantic Colors
+     Muted Professional style: Sophisticated and subtle
+     ───────────────────────────────────────────────────────────────────────── */
+  --financial-positive: #2d7a4f;   /* Desert Sage: Profits, gains */
+  --financial-negative: #b84233;   /* Terracotta: Losses, costs */
+  --financial-warning: #c4850a;    /* Saffron: Attention needed */
+  --financial-neutral: #6b6760;    /* Stone: Baseline, unchanged */
+  --financial-info: #4a7c96;       /* Twilight Blue: Information */
+
+  /* Proposal Colors for comparison views */
+  --proposal-a: #c9a86c;           /* Copper: Featured option */
+  --proposal-b: #4a7c96;           /* Twilight: Alternative */
+  --proposal-c: #7a9e8a;           /* Sage: Third option */
+  --proposal-d: #9b7a5a;           /* Sienna: Fourth option */
+
+  /* ─────────────────────────────────────────────────────────────────────────
+     Financial Table - Minimalist Typography-First Design
+     Bloomberg Terminal aesthetics meets Apple simplicity
+     ───────────────────────────────────────────────────────────────────────── */
+  --financial-card-bg: #ffffff;
+  --financial-border: #e5e7eb;           /* Single light gray border */
+  --financial-total-bg: #fafafa;         /* Subtle background for totals only */
+  --financial-hover-row: #fafafa;        /* Simple row hover */
+
+  /* Period indicators - subtle top borders only */
+  --period-historical: #94a3b8;          /* Muted slate for 2023-2024 */
+  --period-transition: #a1a1aa;          /* Muted zinc for 2025-2027 */
+
+  /* ─────────────────────────────────────────────────────────────────────────
+     Chart Color Design Tokens
+     Semantic colors for data visualization (replaces hardcoded hex values)
+     ───────────────────────────────────────────────────────────────────────── */
+  --color-chart-series-1: 28 42% 45%;    /* Copper (primary) */
+  --color-chart-series-2: 142 41% 38%;   /* Sage (secondary) */
+  --color-chart-series-3: 200 18% 46%;   /* Blue-gray (tertiary) */
+  --color-chart-series-4: 280 40% 55%;   /* Purple (quaternary) */
+  --color-chart-grid: 24 6% 83%;         /* Stone-300 (grid lines) */
+  --color-chart-axis: 24 6% 46%;         /* Stone-600 (axis lines/text) */
+  --color-copper: 28 42% 45%;            /* Burnished Copper */
+  --color-sage: 142 41% 38%;             /* Desert Sage */
+  --color-terracotta: 15 66% 53%;        /* Terracotta */
+
+  /* ─────────────────────────────────────────────────────────────────────────
+     Shadow & Elevation Design Tokens
+     Four-tier shadow system with warm tints aligned to Sahara Twilight
+     ───────────────────────────────────────────────────────────────────────── */
+  --shadow-none: none;
+  --shadow-card: 0 1px 3px 0 hsl(24 10% 10% / 0.08), 0 1px 2px -1px hsl(24 10% 10% / 0.06);
+  --shadow-floating: 0 4px 6px -1px hsl(24 10% 10% / 0.12), 0 2px 4px -2px hsl(24 10% 10% / 0.08);
+  --shadow-elevated: 0 10px 15px -3px hsl(24 10% 10% / 0.14), 0 4px 6px -4px hsl(24 10% 10% / 0.10);
+  --shadow-command: 0 20px 25px -5px hsl(24 10% 10% / 0.16), 0 8px 10px -6px hsl(24 10% 10% / 0.12);
+  --shadow-glow-copper: 0 0 0 3px hsl(var(--color-copper) / 0.15);
+  --shadow-glow-sage: 0 0 0 3px hsl(var(--color-sage) / 0.15);
+  --shadow-glow-terracotta: 0 0 0 3px hsl(var(--color-terracotta) / 0.15);
 }
 
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.488 0.243 264.376);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.769 0.188 70.08);
-  --chart-4: oklch(0.627 0.265 303.9);
-  --chart-5: oklch(0.645 0.246 16.439);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
-  /* Financial Colors (GAP 8 - UI/UX Spec) */
-  --financial-positive: oklch(0.646 0.222 41.116); /* Emerald - gains, savings */
-  --financial-negative: oklch(0.577 0.245 27.325); /* Rose - costs, losses */
-  --financial-warning: oklch(0.828 0.189 84.429); /* Amber - attention needed */
-  --financial-neutral: oklch(0.708 0 0); /* Slate - baseline */
-  /* Proposal Colors (for rent model visualization) */
-  --proposal-a: oklch(0.627 0.265 303.9); /* Violet - Fixed Rent */
-  --proposal-b: oklch(0.696 0.17 162.48); /* Cyan - Revenue Share */
-  --proposal-c: oklch(0.769 0.188 70.08); /* Amber - Partnership */
+  /* ══════════════════════════════════════════════════════════════════════════
+     SAHARA TWILIGHT DARK MODE
+     True luxury aesthetic with warm undertones
+     ══════════════════════════════════════════════════════════════════════════ */
+
+  /* Foundation - Warm blacks */
+  --background: #1c1a17;           /* Stone-950: Warm black */
+  --foreground: #f5f4f1;           /* Stone-100: Warm white */
+  --card: #292723;                 /* Stone-900 */
+  --card-foreground: #f5f4f1;
+  --popover: #292723;
+  --popover-foreground: #f5f4f1;
+
+  /* Surfaces */
+  --muted: #3d3a34;                /* Stone-800 */
+  --muted-foreground: #a5a19a;     /* Stone-400 */
+  --secondary: #3d3a34;
+  --secondary-foreground: #e8e6e1;
+
+  /* Accent - Copper brightens in dark mode */
+  --primary: #c9a86c;              /* Copper-500 (brighter) */
+  --primary-foreground: #1c1a17;
+  --accent: #292723;
+  --accent-foreground: #e4d4b8;    /* Copper-300 */
+
+  /* Copper Scale - Dark mode adjustments */
+  --copper-900: #9b7a5a;
+  --copper-700: #b8956a;
+  --copper-500: #c9a86c;
+  --copper-300: #d4b87a;
+  --copper-100: #3d3830;           /* Darker for dark mode */
+
+  /* Stone Scale - Dark mode */
+  --stone-950: #1c1a17;
+  --stone-900: #292723;
+  --stone-800: #3d3a34;
+  --stone-600: #6b6760;
+  --stone-400: #a5a19a;
+  --stone-200: #e8e6e1;
+  --stone-100: #f5f4f1;
+  --stone-50: #faf9f7;
+
+  /* Destructive */
+  --destructive: #e07a6a;          /* Lighter Terracotta for dark */
+
+  /* Borders & Inputs */
+  --border: #3d3a34;
+  --input: #3d3a34;
+  --ring: #c9a86c;
+
+  /* Chart Colors - Brighter for dark backgrounds */
+  --chart-1: #d4b87a;              /* Lighter Copper */
+  --chart-2: #6a9cb6;              /* Lighter Twilight */
+  --chart-3: #8ab09a;              /* Lighter Sage */
+  --chart-4: #b08a6a;              /* Lighter Sienna */
+  --chart-5: #8b8780;              /* Lighter Stone */
+
+  /* Sidebar */
+  --sidebar: #292723;
+  --sidebar-foreground: #f5f4f1;
+  --sidebar-primary: #c9a86c;
+  --sidebar-primary-foreground: #1c1a17;
+  --sidebar-accent: #3d3a34;
+  --sidebar-accent-foreground: #e4d4b8;
+  --sidebar-border: #3d3a34;
+  --sidebar-ring: #c9a86c;
+
+  /* Premium Dark Mode Effects */
+  --glass-bg: rgba(28, 26, 23, 0.7);
+  --glass-border: rgba(255, 255, 255, 0.1);
+  --glass-highlight: rgba(201, 168, 108, 0.05);
+
+  /* Financial Colors - Muted Professional (Dark) */
+  --financial-positive: #5aad7a;   /* Lighter Desert Sage */
+  --financial-negative: #e07a6a;   /* Lighter Terracotta */
+  --financial-warning: #e0a830;    /* Lighter Saffron */
+  --financial-neutral: #a5a19a;    /* Stone-400 */
+  --financial-info: #6a9cb6;       /* Lighter Twilight */
+
+  /* Proposal Colors - Dark mode */
+  --proposal-a: #d4b87a;           /* Lighter Copper */
+  --proposal-b: #6a9cb6;           /* Lighter Twilight */
+  --proposal-c: #8ab09a;           /* Lighter Sage */
+  --proposal-d: #b08a6a;           /* Lighter Sienna */
+
+  /* Financial Table - Minimalist Dark Mode */
+  --financial-card-bg: #1a1a1a;
+  --financial-border: #2d2d2d;
+  --financial-total-bg: #222222;
+  --financial-hover-row: #222222;
+
+  /* Period indicators - Dark mode */
+  --period-historical: #64748b;
+  --period-transition: #71717a;
+
+  /* Chart Colors - Dark Mode (brighter for contrast) */
+  --color-chart-grid: 24 6% 25%;         /* Darker grid in dark mode */
+  --color-chart-axis: 24 6% 60%;         /* Lighter axis in dark mode */
+
+  /* Shadows - Dark Mode (stronger for better contrast) */
+  --shadow-card: 0 1px 3px 0 hsl(0 0% 0% / 0.20), 0 1px 2px -1px hsl(0 0% 0% / 0.16);
+  --shadow-floating: 0 4px 6px -1px hsl(0 0% 0% / 0.28), 0 2px 4px -2px hsl(0 0% 0% / 0.20);
+  --shadow-elevated: 0 10px 15px -3px hsl(0 0% 0% / 0.36), 0 4px 6px -4px hsl(0 0% 0% / 0.24);
+  --shadow-command: 0 20px 25px -5px hsl(0 0% 0% / 0.44), 0 8px 10px -6px hsl(0 0% 0% / 0.32);
+  --shadow-glow-copper: 0 0 0 3px hsl(var(--color-copper) / 0.20);
+  --shadow-glow-sage: 0 0 0 3px hsl(var(--color-sage) / 0.20);
+  --shadow-glow-terracotta: 0 0 0 3px hsl(var(--color-terracotta) / 0.20);
+}
+
+@layer utilities {
+  .glass-panel {
+    @apply bg-background/60 backdrop-blur-md border border-white/10 shadow-xl;
+  }
+  
+  .glass-card {
+    @apply bg-card/50 backdrop-blur-sm border border-white/5 shadow-sm hover:bg-card/60 transition-colors;
+  }
 }
 
 @layer base {
@@ -189,6 +384,154 @@
   body {
     @apply bg-background text-foreground;
   }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   EXECUTIVE LUXURY THEME - Finance Frontend Designer Skill
+   Premium aesthetics for board-level decision support
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+:root {
+  /* Executive Accent - Warm Copper (replaces generic blue) */
+  --executive-accent: #c9a86c;
+  --executive-accent-rgb: 201, 168, 108;
+  --executive-accent-subtle: rgba(201, 168, 108, 0.08);
+  --executive-accent-muted: rgba(201, 168, 108, 0.15);
+
+  /* Executive Surfaces */
+  --executive-surface: #fafaf9;
+  --executive-elevated: #ffffff;
+  --executive-card: #ffffff;
+
+  /* Executive Typography */
+  --executive-text: #18181b;
+  --executive-text-secondary: #71717a;
+  --executive-text-tertiary: #a1a1aa;
+
+  /* Financial Indicators */
+  --executive-positive: #16a34a;
+  --executive-negative: #dc2626;
+  --executive-neutral: #71717a;
+
+  /* Premium Border */
+  --executive-border: #e4e4e7;
+  --executive-border-subtle: #f4f4f5;
+}
+
+.dark {
+  /* Executive Dark - True luxury aesthetic */
+  --executive-accent: #d4a574;
+  --executive-accent-rgb: 212, 165, 116;
+  --executive-accent-subtle: rgba(212, 165, 116, 0.1);
+  --executive-accent-muted: rgba(212, 165, 116, 0.2);
+
+  /* Executive Dark Surfaces */
+  --executive-surface: #0a0a0a;
+  --executive-elevated: #141414;
+  --executive-card: #1a1a1a;
+
+  /* Executive Dark Typography */
+  --executive-text: #fafafa;
+  --executive-text-secondary: #a1a1aa;
+  --executive-text-tertiary: #52525b;
+
+  /* Financial Indicators (Dark) */
+  --executive-positive: #4ade80;
+  --executive-negative: #f87171;
+  --executive-neutral: #71717a;
+
+  /* Premium Border (Dark) */
+  --executive-border: #27272a;
+  --executive-border-subtle: #1f1f23;
+}
+
+/* Executive Component Styles */
+@layer components {
+  .executive-card {
+    @apply relative p-8 rounded-2xl border transition-all duration-500;
+    background: var(--executive-card);
+    border-color: var(--executive-border);
+  }
+
+  .executive-card:hover {
+    border-color: var(--executive-accent);
+  }
+
+  .executive-card::after {
+    content: '';
+    @apply absolute bottom-0 left-8 right-8 h-px scale-x-0 transition-transform duration-500;
+    background: var(--executive-accent);
+  }
+
+  .executive-card:hover::after {
+    @apply scale-x-100;
+  }
+
+  .executive-label {
+    @apply text-[10px] uppercase tracking-[0.2em] mb-3;
+    color: var(--executive-text-secondary);
+  }
+
+  .executive-value {
+    @apply text-5xl font-light tracking-tight tabular-nums;
+    color: var(--executive-text);
+  }
+
+  .executive-subtitle {
+    @apply text-xs mt-3;
+    color: var(--executive-text-tertiary);
+  }
+
+  .executive-trend-positive {
+    @apply flex items-center gap-2 text-sm mt-4;
+    color: var(--executive-positive);
+  }
+
+  .executive-trend-negative {
+    @apply flex items-center gap-2 text-sm mt-4;
+    color: var(--executive-negative);
+  }
+
+  /* Chart Container */
+  .executive-chart-container {
+    @apply p-8 rounded-2xl border;
+    background: var(--executive-card);
+    border-color: var(--executive-border);
+  }
+
+  .executive-chart-title {
+    @apply text-lg font-semibold tracking-tight mb-1;
+    color: var(--executive-text);
+  }
+
+  .executive-chart-subtitle {
+    @apply text-sm mb-8;
+    color: var(--executive-text-secondary);
+  }
+
+  /* Premium Tooltip */
+  .executive-tooltip {
+    @apply px-4 py-3 rounded-xl shadow-2xl;
+    background: var(--executive-card);
+    border: 1px solid var(--executive-border);
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+  }
+
+  .executive-tooltip-label {
+    @apply text-[10px] uppercase tracking-[0.15em] mb-2;
+    color: var(--executive-text-secondary);
+  }
+
+  .executive-tooltip-value {
+    @apply text-lg font-medium tabular-nums;
+    color: var(--executive-text);
+  }
+}
+
+/* Keyframe for card accent animation */
+@keyframes accentSlide {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
 }
 
 /* Financial Data Utilities (GAP 8 - Critical for alignment) */
@@ -230,5 +573,390 @@
 
   .text-proposal-c {
     color: var(--proposal-c);
+  }
+
+  /* ═══════════════════════════════════════════════════════════════════════════
+     Premium Micro-Interactions
+     Subtle animations that create delight without distraction
+     ═══════════════════════════════════════════════════════════════════════════ */
+
+  /* Smooth hover lift effect */
+  .hover-lift {
+    @apply transition-all duration-300 ease-out;
+  }
+
+  .hover-lift:hover {
+    transform: scale(1.02) translateY(-2px);
+    box-shadow: 0 4px 6px -1px hsl(24 10% 10% / 0.12), 0 2px 4px -2px hsl(24 10% 10% / 0.08);
+  }
+
+  /* Active press effect */
+  .active-press:active {
+    transform: scale(0.98) translateY(0);
+  }
+
+  /* Copper focus glow - brand-aligned focus states */
+  .focus-glow-copper {
+    @apply focus-visible:outline-none;
+  }
+
+  .focus-glow-copper:focus-visible {
+    box-shadow: 0 0 0 3px hsl(var(--color-copper) / 0.15);
+    border-color: hsl(var(--color-copper));
+  }
+
+  /* Count-up animation for financial values */
+  @keyframes count-up {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .animate-count-up {
+    animation: count-up 0.4s ease-out;
+  }
+
+  /* Shimmer border effect for premium cards */
+  @keyframes shimmer-border {
+    0% {
+      background-position: 200% 0;
+    }
+    100% {
+      background-position: -200% 0;
+    }
+  }
+
+  .shimmer-border {
+    background: linear-gradient(
+      90deg,
+      hsl(var(--color-copper) / 0.1) 0%,
+      hsl(var(--color-copper) / 0.3) 50%,
+      hsl(var(--color-copper) / 0.1) 100%
+    );
+    background-size: 200% 100%;
+    animation: shimmer-border 3s linear infinite;
+  }
+
+  /* Shimmer animation for loading skeletons */
+  @keyframes shimmer {
+    0% {
+      background-position: 200% 0;
+    }
+    100% {
+      background-position: -200% 0;
+    }
+  }
+
+  .animate-shimmer {
+    animation: shimmer 2s ease-in-out infinite;
+  }
+
+  /* Fade in animation */
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  .animate-fade-in {
+    animation: fade-in 0.3s ease-out;
+  }
+
+  /* Slide up animation */
+  @keyframes slide-up {
+    from {
+      opacity: 0;
+      transform: translateY(20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .animate-slide-up {
+    animation: slide-up 0.4s ease-out;
+  }
+
+  /* Validation shake animation */
+  @keyframes shake {
+    0%, 100% {
+      transform: translateX(0);
+    }
+    10%, 30%, 50%, 70%, 90% {
+      transform: translateX(-4px);
+    }
+    20%, 40%, 60%, 80% {
+      transform: translateX(4px);
+    }
+  }
+
+  .animate-shake {
+    animation: shake 0.5s ease-in-out;
+  }
+
+  /* Checkmark success animation */
+  @keyframes checkmark {
+    0% {
+      opacity: 0;
+      transform: scale(0.8);
+    }
+    50% {
+      transform: scale(1.1);
+    }
+    100% {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+
+  .animate-checkmark {
+    animation: checkmark 0.3s ease-out;
+  }
+
+  /* Slide down animation for validation summary */
+  @keyframes slide-down {
+    from {
+      opacity: 0;
+      transform: translateY(-10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .animate-slide-down {
+    animation: slide-down 0.3s ease-out;
+  }
+
+  /* ═══════════════════════════════════════════════════════════════════════════
+     Page Transition Animations
+     Premium route change transitions with executive polish
+     ═══════════════════════════════════════════════════════════════════════════ */
+
+  /* Page fade-in transition */
+  @keyframes page-fade-in {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .page-transition-enter {
+    animation: page-fade-in 300ms cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  /* Modal/Dialog slide-up transition (faster) */
+  @keyframes modal-slide-up {
+    from {
+      opacity: 0;
+      transform: translateY(16px) scale(0.98);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+  }
+
+  .modal-transition-enter {
+    animation: modal-slide-up 200ms cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  /* Loading bar animation */
+  @keyframes loading-bar {
+    0% {
+      transform: translateX(-100%);
+    }
+    50% {
+      transform: translateX(-50%);
+    }
+    100% {
+      transform: translateX(0%);
+    }
+  }
+
+  .animate-loading-bar {
+    animation: loading-bar 500ms cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  /* Stagger animation for lists */
+  @keyframes stagger-fade-in {
+    from {
+      opacity: 0;
+      transform: translateY(4px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .stagger-item {
+    animation: stagger-fade-in 250ms cubic-bezier(0.4, 0, 0.2, 1) backwards;
+  }
+
+  .stagger-item:nth-child(1) { animation-delay: 0ms; }
+  .stagger-item:nth-child(2) { animation-delay: 50ms; }
+  .stagger-item:nth-child(3) { animation-delay: 100ms; }
+  .stagger-item:nth-child(4) { animation-delay: 150ms; }
+  .stagger-item:nth-child(5) { animation-delay: 200ms; }
+  .stagger-item:nth-child(6) { animation-delay: 250ms; }
+  .stagger-item:nth-child(7) { animation-delay: 300ms; }
+  .stagger-item:nth-child(8) { animation-delay: 350ms; }
+
+  /* ═══════════════════════════════════════════════════════════════════════════
+     ACCESSIBILITY ENHANCEMENTS
+     WCAG 2.1 AA Compliant Focus Styles & Screen Reader Utilities
+     ═══════════════════════════════════════════════════════════════════════════ */
+
+  /* Premium focus ring - Copper accent with high visibility */
+  .focus-visible-copper {
+    @apply outline-none;
+  }
+
+  .focus-visible-copper:focus-visible {
+    outline: 3px solid hsl(var(--color-copper));
+    outline-offset: 2px;
+    box-shadow: 0 0 0 5px hsl(var(--color-copper) / 0.15);
+  }
+
+  /* High contrast focus ring for buttons and interactive elements */
+  .focus-ring-enhanced {
+    @apply outline-none transition-shadow duration-200;
+  }
+
+  .focus-ring-enhanced:focus-visible {
+    box-shadow: 0 0 0 3px var(--background), 0 0 0 5px var(--ring);
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+
+  /* Skip link focus - highly visible for keyboard users */
+  .skip-link-focus:focus {
+    clip: auto !important;
+    height: auto !important;
+    width: auto !important;
+    position: relative !important;
+    overflow: visible !important;
+  }
+
+  /* Screen reader only text */
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border-width: 0;
+  }
+
+  .sr-only-focusable:focus,
+  .sr-only-focusable:active {
+    position: static;
+    width: auto;
+    height: auto;
+    overflow: visible;
+    clip: auto;
+    white-space: normal;
+  }
+
+  /* High contrast mode support */
+  @media (prefers-contrast: high) {
+    .focus-ring-enhanced:focus-visible {
+      outline-width: 3px;
+      outline-color: currentColor;
+    }
+
+    button,
+    a,
+    input,
+    select,
+    textarea {
+      border-width: 2px;
+    }
+  }
+
+  /* Reduced motion support - accessibility first */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+
+  /* Focus within - for complex components */
+  .focus-within-ring {
+    transition: box-shadow 200ms ease;
+  }
+
+  .focus-within-ring:focus-within {
+    box-shadow: 0 0 0 3px hsl(var(--color-copper) / 0.15);
+    border-color: hsl(var(--color-copper));
+  }
+
+  /* Accessible color combinations for financial data */
+  .text-accessible-positive {
+    color: #0f7d42; /* Dark green for light mode - 4.5:1 contrast */
+  }
+
+  .dark .text-accessible-positive {
+    color: #4ade80; /* Light green for dark mode - 7:1 contrast */
+  }
+
+  .text-accessible-negative {
+    color: #b91c1c; /* Dark red for light mode - 4.5:1 contrast */
+  }
+
+  .dark .text-accessible-negative {
+    color: #f87171; /* Light red for dark mode - 7:1 contrast */
+  }
+
+  /* ARIA live region styling - hidden but announced */
+  [aria-live="polite"],
+  [aria-live="assertive"] {
+    position: absolute;
+    left: -10000px;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+  }
+
+  /* Loading state with aria-busy */
+  [aria-busy="true"] {
+    cursor: wait;
+    opacity: 0.6;
+  }
+
+  /* Invalid state with aria-invalid */
+  [aria-invalid="true"] {
+    border-color: var(--destructive);
+    outline-color: var(--destructive);
+  }
+
+  /* Disabled state with aria-disabled */
+  [aria-disabled="true"] {
+    opacity: 0.5;
+    cursor: not-allowed;
+    pointer-events: none;
   }
 }

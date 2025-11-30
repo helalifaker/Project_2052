@@ -73,7 +73,14 @@ export function useAuth() {
         const response = await fetch(`/api/users/${authUser.id}`);
 
         if (!response.ok) {
-          console.error("Failed to fetch user details");
+          if (response.status === 404) {
+            console.warn("User record not found in database. Session might be stale or out of sync.");
+            // Optional: Sign out to clear the invalid session state
+            // await supabase.auth.signOut();
+          } else {
+            const errorText = await response.text();
+            console.error(`Failed to fetch user details: ${response.status} ${response.statusText}`, errorText);
+          }
           setUser(null);
           return;
         }

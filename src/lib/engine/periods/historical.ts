@@ -191,8 +191,9 @@ function calculateProfitLoss(
   const ebit = subtract(ebitda, depreciation);
 
   // Interest (net)
+  // Use interestIncome from input if available (new structure), otherwise fallback to ZERO
   const interestExpense = pl.interest;
-  const interestIncome = ZERO; // Historical data typically has net interest
+  const interestIncome = pl.interestIncome ?? ZERO;
   const netInterest = subtract(interestIncome, interestExpense);
 
   // EBT
@@ -253,8 +254,9 @@ function calculateBalanceSheet(
   );
 
   // Non-Current Assets
-  const propertyPlantEquipment = bs.ppe; // Net PP&E
+  const grossPPE = bs.grossPPE; // Gross PP&E from input
   const accumulatedDepreciation = bs.accumulatedDepreciation;
+  const propertyPlantEquipment = bs.ppe; // Net PP&E = Gross - Accumulated Depreciation
   const totalNonCurrentAssets = propertyPlantEquipment;
 
   const totalAssets = add(totalCurrentAssets, totalNonCurrentAssets);
@@ -300,14 +302,44 @@ function calculateBalanceSheet(
     add(totalLiabilities, totalEquity),
   );
 
+  // Log detailed balance sheet breakdown if there's a difference
+  if (!isWithinTolerance(balanceDifference, ZERO, BALANCE_SHEET_TOLERANCE)) {
+    console.warn(`⚠️ Year ${input.year} Balance Sheet DOES NOT BALANCE`);
+    console.warn(`   === ASSETS ===`);
+    console.warn(`   Cash: ${cash.toFixed(2)}`);
+    console.warn(`   Accounts Receivable: ${accountsReceivable.toFixed(2)}`);
+    console.warn(`   Prepaid Expenses: ${prepaidExpenses.toFixed(2)}`);
+    console.warn(`   Total Current Assets: ${totalCurrentAssets.toFixed(2)}`);
+    console.warn(`   PP&E (Net): ${propertyPlantEquipment.toFixed(2)}`);
+    console.warn(`   Accumulated Depreciation: ${accumulatedDepreciation.toFixed(2)}`);
+    console.warn(`   Total Non-Current Assets: ${totalNonCurrentAssets.toFixed(2)}`);
+    console.warn(`   TOTAL ASSETS: ${totalAssets.toFixed(2)}`);
+    console.warn(`   === LIABILITIES ===`);
+    console.warn(`   Accounts Payable: ${accountsPayable.toFixed(2)}`);
+    console.warn(`   Accrued Expenses: ${accruedExpenses.toFixed(2)}`);
+    console.warn(`   Deferred Revenue: ${deferredRevenue.toFixed(2)}`);
+    console.warn(`   Total Current Liabilities: ${totalCurrentLiabilities.toFixed(2)}`);
+    console.warn(`   Debt Balance: ${debtBalance.toFixed(2)}`);
+    console.warn(`   Total Non-Current Liabilities: ${totalNonCurrentLiabilities.toFixed(2)}`);
+    console.warn(`   TOTAL LIABILITIES: ${totalLiabilities.toFixed(2)}`);
+    console.warn(`   === EQUITY ===`);
+    console.warn(`   Retained Earnings: ${retainedEarnings.toFixed(2)}`);
+    console.warn(`   Net Income (Current Year): ${netIncomeCurrentYear.toFixed(2)}`);
+    console.warn(`   TOTAL EQUITY: ${totalEquity.toFixed(2)}`);
+    console.warn(`   === VALIDATION ===`);
+    console.warn(`   Total Liabilities + Equity: ${add(totalLiabilities, totalEquity).toFixed(2)}`);
+    console.warn(`   BALANCE DIFFERENCE: ${balanceDifference.toFixed(2)}`);
+  }
+
   return {
     year: input.year,
     cash,
     accountsReceivable,
     prepaidExpenses,
     totalCurrentAssets,
-    propertyPlantEquipment,
+    grossPPE,
     accumulatedDepreciation,
+    propertyPlantEquipment,
     totalNonCurrentAssets,
     totalAssets,
     accountsPayable,

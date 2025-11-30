@@ -45,7 +45,7 @@
       "start_year": 2025,
       "duration_years": 3,
       "initial_enrollment_rate": 0.4,
-      "target_enrollment_rate": 1.0,
+      "target_enrollment_rate": 1,
       "progression": "LINEAR"
     },
     "rent_model": {
@@ -57,8 +57,8 @@
     },
     "opex_assumptions": {
       "staff_cost_per_student": 12500,
-      "other_opex_rate": 0.10,
-      "depreciation_rate": 0.10
+      "other_opex_rate": 0.1,
+      "depreciation_rate": 0.1
     },
     "balance_sheet_assumptions": {
       "ar_days": 30,
@@ -113,7 +113,7 @@
         "property_plant_equipment_gross": 25000000,
         "accumulated_depreciation": 5000000,
         "property_plant_equipment_net": 20000000,
-        "total_assets": 34145600,
+        "total_assets": 31937900,
         "accounts_payable": 3360000,
         "accrued_expenses": 1058400,
         "deferred_revenue": 1764000,
@@ -173,7 +173,7 @@
         "property_plant_equipment_gross": 27600000,
         "accumulated_depreciation": 6260000,
         "property_plant_equipment_net": 21340000,
-        "total_assets": 38413450,
+        "total_assets": 42694575,
         "accounts_payable": 3571500,
         "accrued_expenses": 1124550,
         "deferred_revenue": 1874250,
@@ -233,7 +233,7 @@
         "property_plant_equipment_gross": 31600000,
         "accumulated_depreciation": 7580000,
         "property_plant_equipment_net": 24020000,
-        "total_assets": 38342800,
+        "total_assets": 42021575,
         "accounts_payable": 2100000,
         "accrued_expenses": 529200,
         "deferred_revenue": 882000,
@@ -261,7 +261,7 @@
         "debt_repayment": -2397650,
         "cash_flow_from_financing": -397650,
         "net_change_in_cash": -3700000,
-        "ending_cash": 12500000
+        "ending_cash": 9500000
       }
     },
     "2026": {
@@ -293,7 +293,7 @@
         "property_plant_equipment_gross": 35800000,
         "accumulated_depreciation": 8960000,
         "property_plant_equipment_net": 26840000,
-        "total_assets": 44374200,
+        "total_assets": 50658825,
         "accounts_payable": 3150000,
         "accrued_expenses": 793800,
         "deferred_revenue": 1323000,
@@ -326,7 +326,7 @@
     },
     "2027": {
       "enrollment": 1500,
-      "enrollment_rate": 1.0,
+      "enrollment_rate": 1,
       "profit_loss": {
         "tuition_revenue": 42000000,
         "other_revenue": 2100000,
@@ -353,7 +353,7 @@
         "property_plant_equipment_gross": 40300000,
         "accumulated_depreciation": 10400000,
         "property_plant_equipment_net": 29900000,
-        "total_assets": 54957000,
+        "total_assets": 67130525,
         "accounts_payable": 5250000,
         "accrued_expenses": 1323000,
         "deferred_revenue": 2205000,
@@ -381,12 +381,12 @@
         "debt_repayment": -5388900,
         "cash_flow_from_financing": -4888900,
         "net_change_in_cash": 6200000,
-        "ending_cash": 20500000
+        "ending_cash": 21000000
       }
     },
     "2028": {
       "enrollment": 1500,
-      "enrollment_rate": 1.0,
+      "enrollment_rate": 1,
       "profit_loss": {
         "tuition_revenue": 42000000,
         "other_revenue": 2100000,
@@ -413,7 +413,7 @@
         "property_plant_equipment_gross": 43300000,
         "accumulated_depreciation": 11900000,
         "property_plant_equipment_net": 31400000,
-        "total_assets": 61657000,
+        "total_assets": 78503275,
         "accounts_payable": 5250000,
         "accrued_expenses": 1323000,
         "deferred_revenue": 2205000,
@@ -441,12 +441,12 @@
         "debt_repayment": -1000000,
         "cash_flow_from_financing": -1000000,
         "net_change_in_cash": 9872750,
-        "ending_cash": 25700000
+        "ending_cash": 30372750
       }
     },
     "2029": {
       "enrollment": 1500,
-      "enrollment_rate": 1.0,
+      "enrollment_rate": 1,
       "profit_loss": {
         "tuition_revenue": 42000000,
         "other_revenue": 2100000,
@@ -473,7 +473,7 @@
         "property_plant_equipment_gross": 46400000,
         "accumulated_depreciation": 13460000,
         "property_plant_equipment_net": 32940000,
-        "total_assets": 67997000,
+        "total_assets": 87866275,
         "accounts_payable": 5250000,
         "accrued_expenses": 1323000,
         "deferred_revenue": 2205000,
@@ -501,12 +501,12 @@
         "debt_repayment": -3000000,
         "cash_flow_from_financing": -3000000,
         "net_change_in_cash": 7823000,
-        "ending_cash": 30500000
+        "ending_cash": 33523000
       }
     },
     "2030": {
       "enrollment": 1500,
-      "enrollment_rate": 1.0,
+      "enrollment_rate": 1,
       "profit_loss": {
         "tuition_revenue": 42000000,
         "other_revenue": 2100000,
@@ -533,7 +533,7 @@
         "property_plant_equipment_gross": 49600000,
         "accumulated_depreciation": 15080000,
         "property_plant_equipment_net": 34520000,
-        "total_assets": 74277000,
+        "total_assets": 97317025,
         "accounts_payable": 5250000,
         "accrued_expenses": 1323000,
         "deferred_revenue": 2205000,
@@ -561,7 +561,7 @@
         "debt_repayment": -3000000,
         "cash_flow_from_financing": -3000000,
         "net_change_in_cash": 7870750,
-        "ending_cash": 35200000
+        "ending_cash": 38370750
       }
     }
   },

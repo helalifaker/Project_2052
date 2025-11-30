@@ -1,0 +1,355 @@
+/**
+ * Unit tests for Category Reinvestment Engine Module
+ *
+ * Tests the per-category reinvestment calculations that allow
+ * different asset classes to have independent reinvestment schedules.
+ */
+
+import { describe, it, expect } from "vitest";
+import Decimal from "decimal.js";
+import {
+  isCategoryReinvestmentDue,
+  getCategoryReinvestmentAmount,
+  calculateTotalCategoryReinvestment,
+  generateCategoryReinvestmentProjection,
+  validateCategoryConfig,
+  getCategoryReinvestmentYears,
+  getCategoryReinvestmentSummary,
+} from "./category-reinvestment";
+import type { CapExCategoryConfig } from "../core/types";
+
+// Test fixtures
+const createCategory = (
+  overrides: Partial<CapExCategoryConfig> = {}
+): CapExCategoryConfig => ({
+  id: "test-category-1",
+  name: "IT Equipment",
+  defaultUsefulLife: 5,
+  reinvestFrequency: 5,
+  reinvestAmount: new Decimal(2),
+  autoReinvestEnabled: true,
+  displayOrder: 1,
+  ...overrides,
+});
+
+describe("Category Reinvestment Module", () => {
+  describe("isCategoryReinvestmentDue", () => {
+    it("returns true when year aligns with reinvestment frequency", () => {
+      const category = createCategory({ reinvestFrequency: 5 });
+
+      // Base year 2028, frequency 5
+      // Should trigger at 2033 (5 years), 2038 (10 years), 2043 (15 years)
+      // Does NOT trigger at base year (year 0)
+      expect(isCategoryReinvestmentDue(category, 2033, 2028)).toBe(true);
+      expect(isCategoryReinvestmentDue(category, 2038, 2028)).toBe(true);
+      expect(isCategoryReinvestmentDue(category, 2043, 2028)).toBe(true);
+    });
+
+    it("returns false at base year (year 0)", () => {
+      const category = createCategory({ reinvestFrequency: 5 });
+
+      // First reinvestment doesn't happen at year 0 (base year)
+      expect(isCategoryReinvestmentDue(category, 2028, 2028)).toBe(false);
+    });
+
+    it("returns false when year does not align with frequency", () => {
+      const category = createCategory({ reinvestFrequency: 5 });
+
+      expect(isCategoryReinvestmentDue(category, 2029, 2028)).toBe(false);
+      expect(isCategoryReinvestmentDue(category, 2030, 2028)).toBe(false);
+      expect(isCategoryReinvestmentDue(category, 2031, 2028)).toBe(false);
+      expect(isCategoryReinvestmentDue(category, 2032, 2028)).toBe(false);
+    });
+
+    it("returns false when autoReinvestEnabled is false", () => {
+      const category = createCategory({ autoReinvestEnabled: false });
+
+      expect(isCategoryReinvestmentDue(category, 2028, 2028)).toBe(false);
+      expect(isCategoryReinvestmentDue(category, 2033, 2028)).toBe(false);
+    });
+
+    it("returns false when reinvestFrequency is undefined", () => {
+      const category = createCategory({
+        reinvestFrequency: undefined,
+        autoReinvestEnabled: true,
+      });
+
+      expect(isCategoryReinvestmentDue(category, 2028, 2028)).toBe(false);
+    });
+
+    it("handles annual reinvestment (frequency=1)", () => {
+      const category = createCategory({ reinvestFrequency: 1 });
+
+      // Annual reinvestment: every year after base year
+      expect(isCategoryReinvestmentDue(category, 2028, 2028)).toBe(false); // Base year
+      expect(isCategoryReinvestmentDue(category, 2029, 2028)).toBe(true);
+      expect(isCategoryReinvestmentDue(category, 2030, 2028)).toBe(true);
+    });
+
+    it("handles long frequency cycles", () => {
+      const category = createCategory({ reinvestFrequency: 15 });
+
+      expect(isCategoryReinvestmentDue(category, 2028, 2028)).toBe(false); // Base year
+      expect(isCategoryReinvestmentDue(category, 2043, 2028)).toBe(true); // 15 years
+      expect(isCategoryReinvestmentDue(category, 2040, 2028)).toBe(false); // 12 years
+    });
+  });
+
+  describe("getCategoryReinvestmentAmount", () => {
+    it("returns reinvestment amount when due", () => {
+      const category = createCategory({
+        reinvestFrequency: 5,
+        reinvestAmount: new Decimal(3.5),
+      });
+
+      const result = getCategoryReinvestmentAmount(category, 2033, 2028);
+      expect(result.equals(new Decimal(3.5))).toBe(true);
+    });
+
+    it("returns zero when not due", () => {
+      const category = createCategory({
+        reinvestFrequency: 5,
+        reinvestAmount: new Decimal(3.5),
+      });
+
+      const result = getCategoryReinvestmentAmount(category, 2030, 2028);
+      expect(result.equals(new Decimal(0))).toBe(true);
+    });
+
+    it("returns zero when reinvestAmount is undefined", () => {
+      const category = createCategory({
+        reinvestFrequency: 5,
+        reinvestAmount: undefined,
+      });
+
+      const result = getCategoryReinvestmentAmount(category, 2033, 2028);
+      expect(result.equals(new Decimal(0))).toBe(true);
+    });
+  });
+
+  describe("getCategoryReinvestmentYears", () => {
+    it("returns all reinvestment years in range", () => {
+      const category = createCategory({ reinvestFrequency: 5 });
+
+      const years = getCategoryReinvestmentYears(category, 2028, 2048);
+
+      // 2033, 2038, 2043, 2048
+      expect(years).toEqual([2033, 2038, 2043, 2048]);
+    });
+
+    it("returns empty array when disabled", () => {
+      const category = createCategory({ autoReinvestEnabled: false });
+
+      const years = getCategoryReinvestmentYears(category, 2028, 2048);
+      expect(years).toEqual([]);
+    });
+  });
+
+  describe("calculateTotalCategoryReinvestment", () => {
+    it("sums reinvestments from multiple categories", () => {
+      const categories: CapExCategoryConfig[] = [
+        createCategory({
+          id: "cat-1",
+          name: "IT Equipment",
+          reinvestFrequency: 5,
+          reinvestAmount: new Decimal(2),
+        }),
+        createCategory({
+          id: "cat-2",
+          name: "Furniture",
+          reinvestFrequency: 5,
+          reinvestAmount: new Decimal(3),
+        }),
+      ];
+
+      const result = calculateTotalCategoryReinvestment(categories, 2033, 2028);
+
+      expect(result.total.equals(new Decimal(5))).toBe(true);
+      expect(result.breakdown.length).toBe(2);
+    });
+
+    it("only includes categories that are due", () => {
+      const categories: CapExCategoryConfig[] = [
+        createCategory({
+          id: "cat-1",
+          name: "IT Equipment",
+          reinvestFrequency: 5,
+          reinvestAmount: new Decimal(2),
+        }),
+        createCategory({
+          id: "cat-2",
+          name: "Furniture",
+          reinvestFrequency: 10,
+          reinvestAmount: new Decimal(3),
+        }),
+      ];
+
+      // Year 2033: Only IT Equipment is due (5 years from 2028)
+      // Furniture has 10-year cycle, not due until 2038
+      const result = calculateTotalCategoryReinvestment(categories, 2033, 2028);
+
+      expect(result.total.equals(new Decimal(2))).toBe(true);
+      expect(result.breakdown.length).toBe(1);
+      expect(result.breakdown[0].categoryName).toBe("IT Equipment");
+    });
+
+    it("returns zero total when no categories are due", () => {
+      const categories: CapExCategoryConfig[] = [
+        createCategory({
+          id: "cat-1",
+          reinvestFrequency: 5,
+          reinvestAmount: new Decimal(2),
+        }),
+      ];
+
+      const result = calculateTotalCategoryReinvestment(categories, 2030, 2028);
+
+      expect(result.total.equals(new Decimal(0))).toBe(true);
+      expect(result.breakdown.length).toBe(0);
+    });
+
+    it("handles empty categories array", () => {
+      const result = calculateTotalCategoryReinvestment([], 2033, 2028);
+
+      expect(result.total.equals(new Decimal(0))).toBe(true);
+      expect(result.breakdown.length).toBe(0);
+    });
+  });
+
+  describe("generateCategoryReinvestmentProjection", () => {
+    it("returns Map with only reinvestment years", () => {
+      const categories: CapExCategoryConfig[] = [
+        createCategory({
+          reinvestFrequency: 5,
+          reinvestAmount: new Decimal(2),
+        }),
+      ];
+
+      const projection = generateCategoryReinvestmentProjection(
+        categories,
+        2028,
+        2040
+      );
+
+      // Should only have years 2033 and 2038
+      expect(projection.size).toBe(2);
+      expect(projection.has(2033)).toBe(true);
+      expect(projection.has(2038)).toBe(true);
+      expect(projection.has(2028)).toBe(false); // Base year not included
+    });
+
+    it("correctly marks reinvestment years", () => {
+      const categories: CapExCategoryConfig[] = [
+        createCategory({
+          reinvestFrequency: 5,
+          reinvestAmount: new Decimal(2),
+        }),
+      ];
+
+      const projection = generateCategoryReinvestmentProjection(
+        categories,
+        2028,
+        2038
+      );
+
+      // Years 2033, 2038 should have reinvestment
+      const reinvestYears = Array.from(projection.keys());
+      expect(reinvestYears).toEqual([2033, 2038]);
+    });
+  });
+
+  describe("getCategoryReinvestmentSummary", () => {
+    it("returns correct summary for a category", () => {
+      const category = createCategory({
+        reinvestFrequency: 5,
+        reinvestAmount: new Decimal(2),
+      });
+
+      const summary = getCategoryReinvestmentSummary(category, 2028, 2048);
+
+      expect(summary.categoryName).toBe("IT Equipment");
+      expect(summary.reinvestmentYears).toEqual([2033, 2038, 2043, 2048]);
+      expect(summary.cycleCount).toBe(4);
+      expect(summary.amountPerCycle.equals(new Decimal(2))).toBe(true);
+      expect(summary.totalReinvestment.equals(new Decimal(8))).toBe(true);
+    });
+  });
+
+  describe("validateCategoryConfig", () => {
+    it("returns valid for properly configured category", () => {
+      const category = createCategory();
+      const result = validateCategoryConfig(category);
+
+      expect(result.isValid).toBe(true);
+      expect(result.errors.length).toBe(0);
+    });
+
+    it("returns error for missing name", () => {
+      const category = createCategory({ name: "" });
+      const result = validateCategoryConfig(category);
+
+      expect(result.isValid).toBe(false);
+      expect(result.errors).toContain("Category name is required");
+    });
+
+    it("returns error for invalid useful life", () => {
+      const category = createCategory({ defaultUsefulLife: 0 });
+      const result = validateCategoryConfig(category);
+
+      expect(result.isValid).toBe(false);
+      expect(result.errors).toContain(
+        "Default useful life must be greater than 0"
+      );
+    });
+
+    it("returns error when auto-reinvest enabled but no frequency", () => {
+      const category = createCategory({
+        autoReinvestEnabled: true,
+        reinvestFrequency: undefined,
+      });
+      const result = validateCategoryConfig(category);
+
+      expect(result.isValid).toBe(false);
+      expect(result.errors).toContain(
+        "Reinvestment frequency is required when auto-reinvest is enabled"
+      );
+    });
+
+    it("returns error when auto-reinvest enabled but no amount", () => {
+      const category = createCategory({
+        autoReinvestEnabled: true,
+        reinvestFrequency: 5,
+        reinvestAmount: undefined,
+      });
+      const result = validateCategoryConfig(category);
+
+      expect(result.isValid).toBe(false);
+      expect(result.errors).toContain(
+        "Reinvestment amount is required when auto-reinvest is enabled"
+      );
+    });
+
+    it("passes validation when auto-reinvest disabled without frequency/amount", () => {
+      const category = createCategory({
+        autoReinvestEnabled: false,
+        reinvestFrequency: undefined,
+        reinvestAmount: undefined,
+      });
+      const result = validateCategoryConfig(category);
+
+      expect(result.isValid).toBe(true);
+    });
+
+    it("returns warning for annual reinvestment", () => {
+      const category = createCategory({
+        reinvestFrequency: 1,
+      });
+      const result = validateCategoryConfig(category);
+
+      expect(result.isValid).toBe(true);
+      expect(result.warnings).toContain(
+        "Annual reinvestment may result in high CapEx spending"
+      );
+    });
+  });
+});

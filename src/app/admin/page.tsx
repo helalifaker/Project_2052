@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { Role } from "@/lib/types/roles";
+import { Breadcrumbs } from "@/components/navigation/Breadcrumbs";
 import {
   Database,
   Settings,
@@ -19,6 +20,7 @@ import {
   CheckCircle2,
   AlertCircle,
   TrendingUp,
+  Calendar,
 } from "lucide-react";
 
 function AdminDashboardContent() {
@@ -72,6 +74,14 @@ function AdminDashboardContent() {
 
   return (
     <div className="container mx-auto py-8 space-y-8">
+      {/* Navigation */}
+      <div className="space-y-4">
+        <Breadcrumbs items={[
+          { label: "Dashboard", href: "/dashboard" },
+          { label: "Admin" }
+        ]} />
+      </div>
+
       {/* Page Header */}
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Admin Dashboard</h1>
@@ -155,7 +165,7 @@ function AdminDashboardContent() {
       </Card>
 
       {/* Quick Actions */}
-      <div className="grid gap-6 md:grid-cols-3">
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
         {/* Historical Data Entry */}
         <Card
           className="hover:shadow-lg transition-shadow cursor-pointer"
@@ -248,6 +258,27 @@ function AdminDashboardContent() {
               variant={systemStatus.capexModuleSetup ? "outline" : "default"}
             >
               {systemStatus.capexModuleSetup ? "Manage CapEx" : "Set Up"}
+            </Button>
+          </CardContent>
+        </Card>
+
+        {/* Transition Period Setup */}
+        <Card
+          className="hover:shadow-lg transition-shadow cursor-pointer"
+          onClick={() => router.push("/admin/transition")}
+        >
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <Calendar className="h-8 w-8 text-primary" />
+            </div>
+            <CardTitle className="mt-4">Transition Period</CardTitle>
+            <CardDescription>
+              Configure 2025-2027 bridge period used by ALL proposals
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button className="w-full" variant="outline">
+              Manage Config
             </Button>
           </CardContent>
         </Card>

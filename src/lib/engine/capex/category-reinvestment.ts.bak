@@ -1,0 +1,357 @@
+/**
+ * CAPEX CATEGORY REINVESTMENT ENGINE
+ *
+ * Handles per-category reinvestment scheduling with independent timelines.
+ * Each category can have its own:
+ * - Reinvestment frequency (every N years)
+ * - Fixed reinvestment amount (SAR)
+ * - Base year for calculation
+ *
+ * This module enables more granular CapEx planning where different asset classes
+ * (e.g., Buildings, IT Equipment, Furniture) can have different replacement cycles.
+ */
+
+import type Decimal from "decimal.js";
+import type {
+  CapExCategoryConfig,
+  CategoryReinvestmentResult,
+  CategoryReinvestmentBreakdown,
+} from "../core/types";
+import { ZERO, DYNAMIC_START_YEAR, DYNAMIC_END_YEAR } from "../core/constants";
+import { add, isGreaterThan } from "../core/decimal-utils";
+
+// ============================================================================
+// SINGLE CATEGORY OPERATIONS
+// ============================================================================
+
+/**
+ * Check if a specific category has reinvestment due in a given year.
+ *
+ * The reinvestment is triggered when:
+ * 1. autoReinvestEnabled is true
+ * 2. reinvestFrequency is defined and > 0
+ * 3. Years since baseYear is a multiple of frequency (but not year 0)
+ *
+ * @param category - The category configuration
+ * @param year - The year to check
+ * @param baseYear - The base year to start counting from (defaults to DYNAMIC_START_YEAR)
+ * @returns true if reinvestment is due this year
+ */
+export function isCategoryReinvestmentDue(
+  category: CapExCategoryConfig,
+  year: number,
+  baseYear: number = DYNAMIC_START_YEAR
+): boolean {
+  // Must be enabled and have a frequency
+  if (!category.autoReinvestEnabled) {
+    return false;
+  }
+
+  const frequency = category.reinvestFrequency;
+  if (!frequency || frequency <= 0) {
+    return false;
+  }
+
+  // Calculate years since base year
+  const yearsSinceBase = year - baseYear;
+
+  // Reinvestment is due on frequency intervals (but not on year 0 / base year)
+  return yearsSinceBase > 0 && yearsSinceBase % frequency === 0;
+}
+
+/**
+ * Get the reinvestment amount for a category if due in a given year.
+ *
+ * @param category - The category configuration
+ * @param year - The year to check
+ * @param baseYear - The base year to start counting from
+ * @returns The reinvestment amount if due, otherwise ZERO
+ */
+export function getCategoryReinvestmentAmount(
+  category: CapExCategoryConfig,
+  year: number,
+  baseYear: number = DYNAMIC_START_YEAR
+): Decimal {
+  if (!isCategoryReinvestmentDue(category, year, baseYear)) {
+    return ZERO;
+  }
+
+  return category.reinvestAmount ?? ZERO;
+}
+
+/**
+ * Generate the list of years when a category will have reinvestment.
+ *
+ * @param category - The category configuration
+ * @param startYear - Start of projection (defaults to DYNAMIC_START_YEAR)
+ * @param endYear - End of projection (defaults to DYNAMIC_END_YEAR)
+ * @returns Array of years when reinvestment occurs
+ */
+export function getCategoryReinvestmentYears(
+  category: CapExCategoryConfig,
+  startYear: number = DYNAMIC_START_YEAR,
+  endYear: number = DYNAMIC_END_YEAR
+): number[] {
+  const years: number[] = [];
+
+  if (!category.autoReinvestEnabled || !category.reinvestFrequency) {
+    return years;
+  }
+
+  for (let year = startYear; year <= endYear; year++) {
+    if (isCategoryReinvestmentDue(category, year, startYear)) {
+      years.push(year);
+    }
+  }
+
+  return years;
+}
+
+// ============================================================================
+// MULTI-CATEGORY OPERATIONS
+// ============================================================================
+
+/**
+ * Calculate total reinvestment amount for a year across ALL categories.
+ * Sums all categories that have reinvestment due in this year.
+ *
+ * @param categories - Array of category configurations
+ * @param year - The year to calculate for
+ * @param baseYear - The base year to start counting from
+ * @returns Total reinvestment amount and breakdown by category
+ */
+export function calculateTotalCategoryReinvestment(
+  categories: CapExCategoryConfig[],
+  year: number,
+  baseYear: number = DYNAMIC_START_YEAR
+): CategoryReinvestmentResult {
+  let total = ZERO;
+  const breakdown: CategoryReinvestmentBreakdown[] = [];
+
+  for (const category of categories) {
+    const amount = getCategoryReinvestmentAmount(category, year, baseYear);
+
+    if (isGreaterThan(amount, ZERO)) {
+      total = add(total, amount);
+      breakdown.push({
+        categoryId: category.id,
+        categoryName: category.name,
+        amount,
+      });
+    }
+  }
+
+  return { total, breakdown };
+}
+
+/**
+ * Generate full reinvestment projection for all categories across the projection period.
+ *
+ * @param categories - Array of category configurations
+ * @param startYear - Start of projection (defaults to DYNAMIC_START_YEAR)
+ * @param endYear - End of projection (defaults to DYNAMIC_END_YEAR)
+ * @returns Map of year -> reinvestment result (only years with reinvestment)
+ */
+export function generateCategoryReinvestmentProjection(
+  categories: CapExCategoryConfig[],
+  startYear: number = DYNAMIC_START_YEAR,
+  endYear: number = DYNAMIC_END_YEAR
+): Map<number, CategoryReinvestmentResult> {
+  const projection = new Map<number, CategoryReinvestmentResult>();
+
+  for (let year = startYear; year <= endYear; year++) {
+    const result = calculateTotalCategoryReinvestment(categories, year, startYear);
+
+    // Only add years where there's actual reinvestment
+    if (isGreaterThan(result.total, ZERO)) {
+      projection.set(year, result);
+    }
+  }
+
+  return projection;
+}
+
+/**
+ * Calculate total reinvestment over the entire projection period for all categories.
+ *
+ * @param categories - Array of category configurations
+ * @param startYear - Start of projection
+ * @param endYear - End of projection
+ * @returns Total reinvestment amount across all years and categories
+ */
+export function calculateTotalProjectionReinvestment(
+  categories: CapExCategoryConfig[],
+  startYear: number = DYNAMIC_START_YEAR,
+  endYear: number = DYNAMIC_END_YEAR
+): Decimal {
+  let total = ZERO;
+
+  for (let year = startYear; year <= endYear; year++) {
+    const result = calculateTotalCategoryReinvestment(categories, year, startYear);
+    total = add(total, result.total);
+  }
+
+  return total;
+}
+
+// ============================================================================
+// SUMMARY & REPORTING
+// ============================================================================
+
+/**
+ * Summary of reinvestment schedule for a single category.
+ */
+export interface CategoryReinvestmentSummary {
+  categoryId: string;
+  categoryName: string;
+  reinvestmentYears: number[];
+  amountPerCycle: Decimal;
+  totalReinvestment: Decimal;
+  cycleCount: number;
+}
+
+/**
+ * Get a summary of reinvestment schedule for a category.
+ *
+ * @param category - The category configuration
+ * @param startYear - Start of projection
+ * @param endYear - End of projection
+ * @returns Summary of reinvestment schedule
+ */
+export function getCategoryReinvestmentSummary(
+  category: CapExCategoryConfig,
+  startYear: number = DYNAMIC_START_YEAR,
+  endYear: number = DYNAMIC_END_YEAR
+): CategoryReinvestmentSummary {
+  const reinvestmentYears = getCategoryReinvestmentYears(category, startYear, endYear);
+  const amountPerCycle = category.reinvestAmount ?? ZERO;
+  const cycleCount = reinvestmentYears.length;
+
+  // Calculate total reinvestment
+  let totalReinvestment = ZERO;
+  for (let i = 0; i < cycleCount; i++) {
+    totalReinvestment = add(totalReinvestment, amountPerCycle);
+  }
+
+  return {
+    categoryId: category.id,
+    categoryName: category.name,
+    reinvestmentYears,
+    amountPerCycle,
+    totalReinvestment,
+    cycleCount,
+  };
+}
+
+/**
+ * Get summaries for all categories.
+ *
+ * @param categories - Array of category configurations
+ * @param startYear - Start of projection
+ * @param endYear - End of projection
+ * @returns Array of category summaries
+ */
+export function getAllCategoryReinvestmentSummaries(
+  categories: CapExCategoryConfig[],
+  startYear: number = DYNAMIC_START_YEAR,
+  endYear: number = DYNAMIC_END_YEAR
+): CategoryReinvestmentSummary[] {
+  return categories.map((category) =>
+    getCategoryReinvestmentSummary(category, startYear, endYear)
+  );
+}
+
+// ============================================================================
+// VALIDATION
+// ============================================================================
+
+/**
+ * Validation result for category configuration.
+ */
+export interface CategoryValidationResult {
+  isValid: boolean;
+  errors: string[];
+  warnings: string[];
+}
+
+/**
+ * Validate a category configuration.
+ *
+ * @param category - The category configuration to validate
+ * @returns Validation result with any errors or warnings
+ */
+export function validateCategoryConfig(
+  category: CapExCategoryConfig
+): CategoryValidationResult {
+  const errors: string[] = [];
+  const warnings: string[] = [];
+
+  // Name validation
+  if (!category.name || category.name.trim().length === 0) {
+    errors.push("Category name is required");
+  }
+
+  // Useful life validation
+  if (category.defaultUsefulLife <= 0) {
+    errors.push("Default useful life must be greater than 0");
+  } else if (category.defaultUsefulLife > 50) {
+    warnings.push("Default useful life exceeds 50 years - verify this is intentional");
+  }
+
+  // Reinvestment configuration validation
+  if (category.autoReinvestEnabled) {
+    if (!category.reinvestFrequency || category.reinvestFrequency <= 0) {
+      errors.push("Reinvestment frequency is required when auto-reinvest is enabled");
+    }
+
+    if (!category.reinvestAmount || category.reinvestAmount.isZero()) {
+      errors.push("Reinvestment amount is required when auto-reinvest is enabled");
+    } else if (category.reinvestAmount.isNegative()) {
+      errors.push("Reinvestment amount cannot be negative");
+    }
+
+    // Warning for very frequent reinvestment
+    if (category.reinvestFrequency && category.reinvestFrequency === 1) {
+      warnings.push("Annual reinvestment may result in high CapEx spending");
+    }
+  }
+
+  return {
+    isValid: errors.length === 0,
+    errors,
+    warnings,
+  };
+}
+
+/**
+ * Validate all category configurations.
+ *
+ * @param categories - Array of category configurations
+ * @returns Combined validation result
+ */
+export function validateAllCategories(
+  categories: CapExCategoryConfig[]
+): CategoryValidationResult {
+  const errors: string[] = [];
+  const warnings: string[] = [];
+
+  // Check for duplicate names
+  const names = new Set<string>();
+  for (const category of categories) {
+    if (names.has(category.name.toLowerCase())) {
+      errors.push(`Duplicate category name: ${category.name}`);
+    }
+    names.add(category.name.toLowerCase());
+
+    // Validate individual category
+    const result = validateCategoryConfig(category);
+    errors.push(...result.errors.map((e) => `[${category.name}] ${e}`));
+    warnings.push(...result.warnings.map((w) => `[${category.name}] ${w}`));
+  }
+
+  return {
+    isValid: errors.length === 0,
+    errors,
+    warnings,
+  };
+}

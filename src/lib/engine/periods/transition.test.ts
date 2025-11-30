@@ -88,6 +88,7 @@ function createPreviousPeriod2024(): FinancialPeriod {
       cash: new Decimal(5000000), // 5M SAR
       accountsReceivable: new Decimal(5500000), // 5.5M SAR (10% of 55M total revenue)
       prepaidExpenses: new Decimal(1750000), // 1.75M SAR
+      grossPPE: new Decimal(40000000), // 40M SAR (gross = net + accDep)
       ppe: new Decimal(30000000), // 30M SAR (net)
       accumulatedDepreciation: new Decimal(10000000), // 10M SAR
       accountsPayable: new Decimal(2800000), // 2.8M SAR
@@ -146,7 +147,7 @@ function createTransitionInput2025(): TransitionPeriodInput {
     preFillFromPriorYear: true,
     revenueGrowthRate: new Decimal(0.1), // 10% growth
     staffCostsRatio: new Decimal(0.4), // 40% of revenue
-    otherOpex: new Decimal(5500000), // 5.5M SAR
+    // Note: otherOpex is carried forward from prior period (historical data)
     rentGrowthPercent: new Decimal(0.05),
   };
 }

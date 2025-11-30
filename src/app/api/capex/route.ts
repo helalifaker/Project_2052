@@ -23,6 +23,7 @@ const CapExConfigSchema = z.object({
   reinvestAmountType: z.enum(["fixed", "percentage"]).optional(),
   reinvestAmount: z.number().min(0).optional().nullable(),
   reinvestAmountPercent: z.number().min(0).max(100).optional().nullable(),
+  useCategoryReinvestment: z.boolean().optional(),
 });
 
 // Schema for manual CapEx items (used by /api/capex/items endpoint)
@@ -55,7 +56,18 @@ export async function GET() {
     // Fetch all global manual items (not attached to a specific proposal)
     const manualItems = await prisma.capExAsset.findMany({
       where: { proposalId: null },
-      orderBy: { year: "asc" },
+      orderBy: { purchaseYear: "asc" },
+      include: {
+        category: true,
+      },
+    });
+
+    // Fetch all categories with asset counts
+    const categories = await prisma.capExCategory.findMany({
+      orderBy: { type: "asc" },
+      include: {
+        _count: { select: { assets: true } },
+      },
     });
 
     return NextResponse.json({
@@ -70,17 +82,43 @@ export async function GET() {
             reinvestAmountPercent: config.reinvestAmountPercent
               ? Number(config.reinvestAmountPercent)
               : null,
+            useCategoryReinvestment: config.useCategoryReinvestment,
           }
         : null,
-      manualItems: manualItems.map((item) => ({
-        id: item.id,
-        year: item.year,
-        assetName: item.assetName,
-        amount: Number(item.amount),
-        usefulLife: item.usefulLife,
-        depreciationMethod: item.depreciationMethod,
-        nbv: Number(item.nbv),
-        createdAt: item.createdAt,
+      manualItems: manualItems.map((item) => {
+        // Calculate NBV and depreciation method based on purchase year
+        const currentYear = new Date().getFullYear();
+        const yearsDepreciated = Math.max(0, currentYear - item.purchaseYear);
+        const annualDepreciation = Number(item.purchaseAmount) / item.usefulLife;
+        const accumulatedDepreciation = Math.min(
+          yearsDepreciated * annualDepreciation,
+          Number(item.purchaseAmount)
+        );
+        const nbv = Math.max(0, Number(item.purchaseAmount) - accumulatedDepreciation);
+        const depreciationMethod = item.purchaseYear >= 2028 ? "NEW" : "OLD";
+
+        return {
+          id: item.id,
+          year: item.purchaseYear,  // Map new field to old UI field name
+          assetName: item.category?.name ?? "Unknown",  // Use category name as asset name
+          amount: Number(item.purchaseAmount),  // Map new field to old UI field name
+          usefulLife: item.usefulLife,
+          depreciationMethod,
+          nbv,
+          createdAt: item.createdAt,
+          categoryId: item.categoryId,
+          categoryName: item.category?.name ?? null,
+        };
+      }),
+      categories: categories.map((cat) => ({
+        id: cat.id,
+        type: cat.type,  // NEW: Include category type
+        name: cat.name,
+        usefulLife: cat.usefulLife,  // Changed from defaultUsefulLife
+        reinvestFrequency: cat.reinvestFrequency,
+        reinvestAmount: cat.reinvestAmount ? Number(cat.reinvestAmount) : null,
+        reinvestStartYear: cat.reinvestStartYear,  // Year when auto-reinvestment begins
+        assetCount: cat._count.assets,
       })),
       isConfigured: Boolean(config),
     });
@@ -130,6 +168,7 @@ export async function POST(request: Request) {
           reinvestFrequency: data.reinvestFrequency ?? null,
           reinvestAmount: data.reinvestAmount ?? null,
           reinvestAmountPercent: data.reinvestAmountPercent ?? null,
+          useCategoryReinvestment: data.useCategoryReinvestment ?? false,
         },
       });
     } else {
@@ -140,6 +179,7 @@ export async function POST(request: Request) {
           reinvestFrequency: data.reinvestFrequency ?? null,
           reinvestAmount: data.reinvestAmount ?? null,
           reinvestAmountPercent: data.reinvestAmountPercent ?? null,
+          useCategoryReinvestment: data.useCategoryReinvestment ?? false,
         },
       });
     }
@@ -156,6 +196,7 @@ export async function POST(request: Request) {
         reinvestAmountPercent: config.reinvestAmountPercent
           ? Number(config.reinvestAmountPercent)
           : null,
+        useCategoryReinvestment: config.useCategoryReinvestment,
       },
     });
   } catch (error) {

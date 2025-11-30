@@ -1,0 +1,166 @@
+ERROR BOUNDARY HIERARCHY - PROJECT 2052
+========================================
+
+Application Root
+└── global-error.tsx (CRITICAL)
+    │   Catches: All unhandled errors at root level
+    │   Features: Full page error, home button, critical logging
+    │
+    └── error.tsx (App Level)
+        │   Catches: Root layout errors, unhandled route errors
+        │   Features: Error classification, conditional reset, smart messaging
+        │
+        ├── /dashboard/error.tsx
+        │   │   Catches: Dashboard metric failures, chart errors, KPI issues
+        │   │   Features: Dashboard refetch, navigation options
+        │   │
+        │   └── /dashboard/page.tsx (Executive Dashboard)
+        │
+        ├── /proposals/error.tsx
+        │   │   Catches: Proposals list fetch failures, filtering errors
+        │   │   Features: Proposals refetch, create new option
+        │   │
+        │   ├── /proposals/page.tsx (Proposals List)
+        │   │
+        │   ├── /proposals/[id]/error.tsx
+        │   │   │   Catches: Proposal 404s, calculation failures, tab errors
+        │   │   │   Features: Proposal refetch, recalculation, support contact
+        │   │   │   Types: not-found, calculation, analysis, visualization, data-load
+        │   │   │
+        │   │   └── /proposals/[id]/page.tsx (Proposal Detail)
+        │   │
+        │   └── /proposals/new/error.tsx
+        │       │   Catches: Form validation, calculation, submission errors
+        │       │   Features: Form reset (WARNING), back to list
+        │       │   Types: validation, calculation, submission, form
+        │       │
+        │       └── /proposals/new/page.tsx (Proposal Wizard)
+        │
+        ├── /admin/error.tsx
+        │   │   Catches: Permission errors, config failures, import errors
+        │   │   Features: High priority logging, no reset for permissions
+        │   │   Types: permission, configuration, import, database
+        │   │
+        │   ├── /admin/page.tsx (Admin Dashboard)
+        │   ├── /admin/config/page.tsx (System Config)
+        │   ├── /admin/capex/page.tsx (CapEx Management)
+        │   └── /admin/transition/page.tsx (Historical Data)
+        │
+        └── /negotiations/error.tsx
+            │   Catches: Comparison failures, calculation errors
+            │   Features: Comparison recalculation, navigation
+            │
+            └── /negotiations/page.tsx (War Room)
+
+
+ERROR CLASSIFICATION SYSTEM
+============================
+
+Error Types:
+------------
+network       → Fetch failures, connection issues          [LOW]
+permission    → Unauthorized, RBAC errors                  [MEDIUM]
+calculation   → Financial engine, Decimal.js errors        [HIGH]
+validation    → Missing/invalid form fields                [LOW]
+database      → Prisma, query failures                     [HIGH]
+not-found     → 404 errors                                 [MEDIUM]
+unknown       → Unclassified errors                        [MEDIUM]
+
+
+Severity Levels:
+----------------
+CRITICAL      → Application-breaking (global-error.tsx only)
+HIGH          → Calculation failures, database errors, admin issues
+MEDIUM        → Permission errors, not found, unknown errors
+LOW           → Network errors, validation errors
+
+
+Recoverability:
+---------------
+Recoverable   → network, calculation, validation, database, unknown
+Non-Recoverable → permission, not-found
+
+
+USER EXPERIENCE FLOW
+====================
+
+1. Error Occurs
+   └── Caught by nearest error boundary
+       └── Error classified (type + severity)
+           └── Logged with context
+               └── User-friendly message displayed
+                   └── Recovery options presented
+                       ├── Try Again (if recoverable)
+                       ├── Go Back (navigation)
+                       └── Home (critical errors)
+
+
+DEVELOPMENT vs PRODUCTION
+==========================
+
+Development:
+- Full stack traces in console
+- Error details accordion
+- Color-coded severity badges
+- Full error context logging
+
+Production:
+- Generic user messages
+- Error tracking service integration
+- Digest-based error IDs
+- Clean, professional UI
+- No stack trace exposure
+
+
+INTEGRATION POINTS
+==================
+
+Components:
+- ErrorState (src/components/states/ErrorState.tsx)
+  └── Used by all error boundaries
+  └── Three sizes: compact, default, full-page
+  └── Terracotta accent for errors
+  └── Accessible with ARIA
+
+Utilities:
+- error-tracking.ts (src/lib/error-tracking.ts)
+  └── logError() - Centralized logging
+  └── classifyError() - Type detection
+  └── getUserFriendlyMessage() - Message generation
+  └── isRecoverableError() - Retry logic
+  └── getSeverityFromType() - Severity mapping
+
+
+TESTING STRATEGY
+=================
+
+Manual:
+1. Disconnect network → Test network errors
+2. Access admin as viewer → Test permission errors
+3. Navigate to /proposals/invalid-id → Test 404 errors
+4. Submit incomplete form → Test validation errors
+5. Enter bad calculation data → Test calculation errors
+
+Automated (E2E):
+- test('should show error on proposal not found')
+- test('should allow retry on network error')
+- test('should prevent access on permission error')
+- test('should show details in dev mode')
+- test('should hide details in prod mode')
+
+
+PRODUCTION READINESS
+====================
+
+✓ Error boundaries at all critical routes
+✓ User-friendly, actionable messages
+✓ Intelligent error classification
+✓ Severity-based logging
+✓ Recovery strategies implemented
+✓ Accessibility compliant
+✓ Error tracking infrastructure ready
+✓ Development vs production modes
+✓ Performance optimized
+✓ Documentation complete
+
+Ready for Sentry/LogRocket integration!

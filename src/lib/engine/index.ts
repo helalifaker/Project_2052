@@ -30,7 +30,8 @@ import {
   TRANSITION_START_YEAR,
   TRANSITION_END_YEAR,
   DYNAMIC_START_YEAR,
-  DYNAMIC_END_YEAR,
+  getDynamicEndYear,
+  getTotalPeriodCount,
   BALANCE_SHEET_TOLERANCE,
   CASH_FLOW_TOLERANCE,
 } from "./core/constants";
@@ -40,6 +41,11 @@ import {
   subtract,
   sum,
   divide,
+  add,
+  multiply,
+  calculateNPV,
+  calculateAnnualizationFactor,
+  calculateIRR,
   isWithinTolerance,
 } from "./core/decimal-utils";
 import Decimal from "decimal.js";
@@ -54,6 +60,18 @@ import {
   validateFinancialPeriod,
   validatePeriodSequence,
 } from "./statements/validators";
+
+// CAPEX Calculator
+import {
+  calculateCapexYearResult,
+  updateHistoricalDepreciationState,
+  validateCapexConfig,
+} from "./capex/capex-calculator";
+import type {
+  CapExConfiguration,
+  HistoricalDepreciationState,
+  CapExYearResult,
+} from "./core/types";
 
 // ============================================================================
 // MAIN CALCULATION ENGINE
@@ -78,7 +96,51 @@ export async function calculateFinancialProjections(
   const allPeriods: FinancialPeriod[] = [];
   let totalIterations = 0;
 
+  // Calculate period boundaries based on contract period configuration
+  const dynamicEndYear = getDynamicEndYear(input.contractPeriodYears);
+  const expectedPeriodCount = getTotalPeriodCount(input.contractPeriodYears);
+
+  console.log("🎯 Starting Financial Calculation Engine...");
+  console.log(`📅 Projection Period: ${HISTORICAL_START_YEAR}-${dynamicEndYear}`);
+  console.log(`   Historical: ${HISTORICAL_START_YEAR}-${HISTORICAL_END_YEAR} (2 periods)`);
+  console.log(`   Transition: ${TRANSITION_START_YEAR}-${TRANSITION_END_YEAR} (3 periods)`);
+  console.log(`   Dynamic: ${DYNAMIC_START_YEAR}-${dynamicEndYear} (${input.contractPeriodYears} periods)`);
+  console.log(`   Total: ${expectedPeriodCount} periods`);
+
   try {
+    // ========================================================================
+    // PHASE 0: INITIALIZE CAPEX CONFIGURATION
+    // ========================================================================
+    console.log("📊 Initializing CAPEX Configuration...");
+
+    // Validate CAPEX config
+    const capexValidationErrors = validateCapexConfig(input.capexConfig);
+    if (capexValidationErrors.length > 0) {
+      console.error("❌ CAPEX Configuration Errors:");
+      capexValidationErrors.forEach(err => console.error(`   - ${err}`));
+      throw new Error("Invalid CAPEX configuration");
+    }
+
+    // Initialize historical depreciation state from 2024 data
+    // These values come from the first historical period in input
+    let historicalDepreciationState: HistoricalDepreciationState = {
+      grossPPE2024: input.capexConfig.historicalState.grossPPE2024,
+      accumulatedDepreciation2024: input.capexConfig.historicalState.accumulatedDepreciation2024,
+      annualDepreciation: input.capexConfig.historicalState.annualDepreciation,
+      remainingToDepreciate: subtract(
+        input.capexConfig.historicalState.grossPPE2024,
+        input.capexConfig.historicalState.accumulatedDepreciation2024,
+      ),
+    };
+
+    console.log(`  ✓ Historical Depreciation Initialized`);
+    console.log(`    - Gross PPE 2024: ${historicalDepreciationState.grossPPE2024.toFixed(2)}`);
+    console.log(`    - Annual Depreciation: ${historicalDepreciationState.annualDepreciation.toFixed(2)}`);
+    console.log(`    - Remaining: ${historicalDepreciationState.remainingToDepreciate.toFixed(2)}`);
+
+    // Track all virtual assets across periods
+    let allVirtualAssets = [...input.capexConfig.virtualAssets];
+
     // ========================================================================
     // PHASE 1: HISTORICAL PERIOD (2023-2024)
     // ========================================================================
@@ -97,7 +159,13 @@ export async function calculateFinancialProjections(
       allPeriods.push(period);
       totalIterations += period.iterationsRequired || 0;
 
+      // Update historical depreciation state for next year
+      historicalDepreciationState = updateHistoricalDepreciationState(
+        historicalDepreciationState,
+      );
+
       console.log(`  ✓ Year ${historicalInput.year} calculated`);
+      console.log(`    - Remaining to Depreciate: ${historicalDepreciationState.remainingToDepreciate.toFixed(2)}`);
     }
 
     // ========================================================================
@@ -118,20 +186,33 @@ export async function calculateFinancialProjections(
         workingCapitalRatios,
         input.rentModel,
         input.rentParams,
+        input.capexConfig, // Add this parameter
+        historicalDepreciationState, // Add this parameter
+        allVirtualAssets, // Add this parameter
       );
 
       allPeriods.push(period);
       totalIterations += period.iterationsRequired || 0;
 
+      // Update state for next year (after period calculation)
+      historicalDepreciationState = updateHistoricalDepreciationState(
+        historicalDepreciationState,
+      );
+
+      // Accumulate virtual assets (transition period can create new ones)
+      if ((period as any).capexResult) {
+        allVirtualAssets = [...allVirtualAssets, ...(period as any).capexResult.newAssets];
+      }
+
       console.log(`  ✓ Year ${transitionInput.year} calculated`);
     }
 
     // ========================================================================
-    // PHASE 3: DYNAMIC PERIOD (2028-2053)
+    // PHASE 3: DYNAMIC PERIOD (variable: 2028-2052 or 2028-2057)
     // ========================================================================
-    console.log("📊 Calculating Dynamic Period (2028-2053)...");
+    console.log(`📊 Calculating Dynamic Period (${DYNAMIC_START_YEAR}-${dynamicEndYear})...`);
 
-    for (let year = DYNAMIC_START_YEAR; year <= DYNAMIC_END_YEAR; year++) {
+    for (let year = DYNAMIC_START_YEAR; year <= dynamicEndYear; year++) {
       const previousPeriod = allPeriods[allPeriods.length - 1];
 
       // Create dynamic period input for this year
@@ -142,8 +223,11 @@ export async function calculateFinancialProjections(
         staff: input.dynamicPeriodConfig.staff,
         rentModel: input.rentModel,
         rentParams: input.rentParams,
-        otherOpex: input.dynamicPeriodConfig.otherOpex,
-        capexConfig: input.capexConfig,
+        otherOpexPercent: input.dynamicPeriodConfig.otherOpexPercent,
+        capexConfig: {
+          ...input.dynamicPeriodConfig.capexConfig,
+          virtualAssets: allVirtualAssets, // Pass accumulated assets
+        },
       };
 
       const period = calculateDynamicPeriod(
@@ -151,12 +235,24 @@ export async function calculateFinancialProjections(
         previousPeriod,
         input.systemConfig,
         workingCapitalRatios,
+        historicalDepreciationState, // Add this parameter
+        allVirtualAssets, // Add this parameter
       );
 
       allPeriods.push(period);
       totalIterations += period.iterationsRequired || 0;
 
-      if (year % 5 === 0) {
+      // Update state for next year
+      historicalDepreciationState = updateHistoricalDepreciationState(
+        historicalDepreciationState,
+      );
+
+      // Accumulate virtual assets created this year
+      if ((period as any).capexResult) {
+        allVirtualAssets = [...allVirtualAssets, ...(period as any).capexResult.newAssets];
+      }
+
+      if (year % 5 === 0 || year === dynamicEndYear) {
         console.log(`  ✓ Year ${year} calculated`);
       }
     }
@@ -175,7 +271,7 @@ export async function calculateFinancialProjections(
     // ========================================================================
     console.log("📈 Calculating summary metrics...");
 
-    const metrics = calculateMetrics(allPeriods);
+    const metrics = calculateMetrics(allPeriods, input);
 
     // ========================================================================
     // PERFORMANCE METRICS
@@ -274,36 +370,211 @@ function validateResults(
  */
 function calculateMetrics(
   periods: FinancialPeriod[],
+  input: CalculationEngineInput,
 ): CalculationEngineOutput["metrics"] {
+  // Validate periods array
+  if (!periods || periods.length === 0) {
+    console.error("❌ calculateMetrics: Empty periods array");
+    throw new Error("Cannot calculate metrics: no periods provided");
+  }
+
+  // Validate expected length (variable based on contract period)
+  const expectedLength = getTotalPeriodCount(input.contractPeriodYears);
+  const dynamicEndYear = getDynamicEndYear(input.contractPeriodYears);
+  if (periods.length !== expectedLength) {
+    console.warn(
+      `⚠️ calculateMetrics: Expected ${expectedLength} periods (${HISTORICAL_START_YEAR}-${dynamicEndYear}), got ${periods.length}`,
+    );
+  }
+
+  // Validate each period has required fields
+  for (const period of periods) {
+    if (!period.profitLoss || !period.balanceSheet || !period.cashFlow) {
+      console.error(
+        `❌ calculateMetrics: Period ${period.year} missing required statements`,
+      );
+      throw new Error(
+        `Invalid period structure for year ${period.year}`,
+      );
+    }
+  }
+
   const netIncomes = periods.map((p) => p.profitLoss.netIncome);
   const totalNetIncome = sum(netIncomes);
 
-  // Calculate average ROE
-  const roes = periods.map((p) => {
-    const equity = p.balanceSheet.totalEquity;
-    const netIncome = p.profitLoss.netIncome;
-    return equity.greaterThan(ZERO) ? divide(netIncome, equity) : ZERO;
-  });
-  const averageROE = divide(sum(roes), new Decimal(roes.length));
+  // Calculate total rent across all periods
+  const rents = periods.map((p) => p.profitLoss.rentExpense);
+  const totalRent = sum(rents);
 
-  // Find peak debt
+  // Calculate total EBITDA across all periods
+  const ebitdas = periods.map((p) => p.profitLoss.ebitda);
+  const totalEbitda = sum(ebitdas);
+
+  // Validate totalEbitda is reasonable (scaled based on contract period length)
+  // Base ranges: -3B to +15B for 30 years, scaled proportionally for 25 years
+  const yearsMultiplier = new Decimal(input.contractPeriodYears || 30).dividedBy(30);
+  const MAX_REASONABLE_TOTAL_EBITDA = new Decimal(15e9).times(yearsMultiplier); // 15B * (25/30 or 30/30)
+  const MIN_REASONABLE_TOTAL_EBITDA = new Decimal(-3e9).times(yearsMultiplier); // -3B * (25/30 or 30/30)
+  if (
+    totalEbitda.greaterThan(MAX_REASONABLE_TOTAL_EBITDA) ||
+    totalEbitda.lessThan(MIN_REASONABLE_TOTAL_EBITDA)
+  ) {
+    console.warn(
+      `⚠️ calculateMetrics: Total EBITDA outside expected range for ${input.contractPeriodYears || 30}-year period:`,
+      totalEbitda.toString(),
+      `(expected between ${MIN_REASONABLE_TOTAL_EBITDA.toString()} and ${MAX_REASONABLE_TOTAL_EBITDA.toString()})`,
+    );
+  }
+
+  // ========================================================================
+  // CONTRACT PERIOD METRICS (2028 onward only)
+  // ========================================================================
+  const contractStartYear = 2028;
+  const contractPeriodYears = input.contractPeriodYears || 30;
+  const contractEndYear = contractStartYear + contractPeriodYears - 1;
+
+  // Filter to contract period only (2028 to contractEndYear)
+  const contractPeriods = periods.filter(
+    (p) => p.year >= contractStartYear && p.year <= contractEndYear
+  );
+
+  // Calculate contract period rent
+  const contractRents = contractPeriods.map((p) => p.profitLoss.rentExpense);
+  const contractTotalRent = sum(contractRents);
+
+  // Calculate contract period EBITDA
+  const contractEbitdas = contractPeriods.map((p) => p.profitLoss.ebitda);
+  const contractTotalEbitda = sum(contractEbitdas);
+
+  // Calculate contract period NPV (rent as negative cash flows)
+  const contractRentCashFlows = contractRents.map((r) => r.neg());
+  // Use admin discount rate for NPV calculations (matches overview page)
+  const discountRate =
+    input.systemConfig.discountRate ??
+    input.systemConfig.wacc ??
+    input.systemConfig.debtInterestRate;
+  const contractRentNPV = calculateNPV(contractRentCashFlows, discountRate);
+
+  // Final cash at end of contract period
+  const contractFinalCash = contractPeriods.length > 0
+    ? contractPeriods[contractPeriods.length - 1].balanceSheet.cash
+    : ZERO;
+
+  // ========================================================================
+  // CONTRACT PERIOD NPV & ANNUALIZED METRICS (Equivalent Annual Value)
+  // ========================================================================
+
+  // Calculate EBITDA NPV (EBITDA as positive cash flows)
+  const contractEbitdaCashFlows = contractEbitdas; // Already calculated above
+  const contractEbitdaNPV = calculateNPV(contractEbitdaCashFlows, discountRate);
+
+  // Calculate Net Tenant Surplus (EBITDA NPV - Rent NPV)
+  // Note: contractRentNPV is negative (costs), so we subtract its absolute value
+  const contractNetTenantSurplus = subtract(
+    contractEbitdaNPV,
+    contractRentNPV.abs()
+  );
+
+  // Calculate Annualization Factor: r / (1 - (1 + r)^(-n))
+  // This converts NPV to Equivalent Annual Value (EAV) for fair comparison
+  const annualizationFactor = calculateAnnualizationFactor(
+    discountRate,
+    contractPeriodYears
+  );
+
+  // Calculate Annualized EBITDA
+  const contractAnnualizedEbitda = multiply(
+    contractEbitdaNPV,
+    annualizationFactor
+  );
+
+  // Calculate Annualized Rent (absolute value)
+  const contractAnnualizedRent = multiply(
+    contractRentNPV.abs(),
+    annualizationFactor
+  );
+
+  // Calculate Net Annualized Value (NAV) - KEY DECISION METRIC
+  // NAV = Annualized EBITDA - Annualized Rent
+  // Higher NAV = better proposal for the school (tenant)
+  const contractNAV = subtract(
+    contractAnnualizedEbitda,
+    contractAnnualizedRent
+  );
+
+  // Calculate average ROE
+  const roeNumerator = sum(netIncomes);
+  const roeDenominator = sum(periods.map((p) => p.balanceSheet.totalEquity));
+  const averageROE =
+    roeDenominator.greaterThan(ZERO) && roeDenominator.abs().greaterThan(ZERO)
+      ? divide(roeNumerator, roeDenominator)
+      : ZERO;
+
+  // Find peak debt (maxDebt)
   const debts = periods.map((p) => p.balanceSheet.debtBalance);
   const peakDebt = max(...debts);
+  const maxDebt = peakDebt; // Alias for UI compatibility
 
-  // Final cash balance
+  // Final cash balance (all periods)
   const finalCash = periods[periods.length - 1].balanceSheet.cash;
 
-  // TODO: Calculate NPV and IRR (optional)
-  // These require discount rate and cash flow extraction
+  const cashFlows = periods.map((p) => p.cashFlow.netChangeInCash);
+  const npv = calculateNPV(cashFlows, discountRate);
+  const irr = calculateIRR(cashFlows);
+  const paybackPeriod = calculatePaybackPeriod(cashFlows);
 
   return {
+    // Full period metrics (2023-2053 or 2023-2048 for 25-year contracts)
     totalNetIncome,
+    totalRent,
+    totalEbitda,
     averageROE,
     peakDebt,
+    maxDebt,
     finalCash,
-    npv: undefined,
-    irr: undefined,
+    npv,
+    irr,
+    paybackPeriod,
+
+    // Contract period metrics (2028-contractEndYear) - for ProposalCard
+    contractTotalRent,
+    contractTotalEbitda,
+    contractRentNPV,
+    contractFinalCash,
+    contractEndYear,
+
+    // Contract period NPV & Annualized Metrics (EAV) - for comparison
+    contractEbitdaNPV,
+    contractNetTenantSurplus,
+    contractAnnualizedEbitda,
+    contractAnnualizedRent,
+    contractNAV,
   };
+}
+
+function calculatePaybackPeriod(cashFlows: Decimal[]): Decimal | null {
+  let cumulative = ZERO;
+
+  for (let yearIndex = 0; yearIndex < cashFlows.length; yearIndex++) {
+    const flow = cashFlows[yearIndex];
+    const priorCumulative = cumulative;
+    cumulative = add(cumulative, flow);
+
+    if (cumulative.greaterThanOrEqualTo(ZERO)) {
+      if (flow.equals(ZERO)) {
+        return new Decimal(yearIndex);
+      }
+
+      // Linear interpolation within the year for fractional payback timing
+      const fractionOfYear = priorCumulative
+        .abs()
+        .dividedBy(flow.abs())
+        .toDecimalPlaces(4);
+      return new Decimal(yearIndex).add(fractionOfYear);
+    }
+  }
+
+  return null; // Payback not achieved within modeled periods
 }
 
 // ============================================================================

@@ -21,7 +21,7 @@ interface FinancialValueProps {
   showColor?: boolean;
   monospace?: boolean;
   type?: "currency" | "percent" | "number";
-  colorMode?: "auto" | "positive" | "negative" | "neutral" | "warning";
+  colorMode?: "auto" | "negative"; // Simplified: auto (red for negatives) or force negative
   size?: "sm" | "md" | "lg" | "xl";
 }
 
@@ -50,28 +50,22 @@ export function FinancialValue({
       break;
   }
 
-  // Determine color class
+  // Determine color class - minimalist: red for negatives only
   let colorClass = "";
   if (showColor) {
     if (colorMode === "auto") {
       colorClass = getFinancialColorClass(value ?? 0);
-    } else if (colorMode === "positive") {
-      colorClass = "text-financial-positive";
     } else if (colorMode === "negative") {
-      colorClass = "text-financial-negative";
-    } else if (colorMode === "warning") {
-      colorClass = "text-financial-warning";
-    } else if (colorMode === "neutral") {
-      colorClass = "text-financial-neutral";
+      colorClass = "text-red-700 dark:text-red-400";
     }
   }
 
-  // Size classes
+  // Size classes - improved for better readability
   const sizeClasses = {
-    sm: "text-xs",
-    md: "text-sm",
+    sm: "text-xs tracking-tight",
+    md: "text-sm leading-tight",
     lg: "text-base",
-    xl: "text-2xl font-semibold",
+    xl: "text-xl font-semibold tracking-tight",
   };
 
   const content = (

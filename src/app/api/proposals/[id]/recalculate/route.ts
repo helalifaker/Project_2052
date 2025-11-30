@@ -51,6 +51,7 @@ export async function POST(
     // Fetch proposal
     const proposal = await prisma.leaseProposal.findUnique({
       where: { id: proposalId },
+      include: { assets: true },
     });
 
     if (!proposal) {
@@ -81,6 +82,9 @@ export async function POST(
     // Serialize results
     const serializedResult = serializeCalculationOutput(result);
 
+    // Fetch TransitionConfig to record audit timestamp
+    const transitionConfig = await prisma.transitionConfig.findFirst();
+
     // Update proposal with new results
     const updatedProposal = await prisma.leaseProposal.update({
       where: { id: proposalId },
@@ -89,6 +93,7 @@ export async function POST(
           serializedResult.periods as unknown as Prisma.InputJsonValue,
         metrics: serializedResult.metrics as unknown as Prisma.InputJsonValue,
         calculatedAt: new Date(),
+        transitionConfigUpdatedAt: transitionConfig?.updatedAt || new Date(),
       },
       include: {
         creator: {

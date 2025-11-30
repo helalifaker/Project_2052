@@ -149,6 +149,7 @@ function createValidCalculationRequest(rentModel: RentModel): any {
           cash: "4500000",
           accountsReceivable: "4500000",
           prepaidExpenses: "1575000",
+          grossPPE: "36000000", // Gross = Net + Accumulated Depreciation (27000000 + 9000000)
           ppe: "27000000",
           accumulatedDepreciation: "9000000",
           accountsPayable: "2520000",
@@ -174,6 +175,7 @@ function createValidCalculationRequest(rentModel: RentModel): any {
           cash: "5000000",
           accountsReceivable: "5000000",
           prepaidExpenses: "1750000",
+          grossPPE: "40000000", // Gross = Net + Accumulated Depreciation (30000000 + 10000000)
           ppe: "30000000",
           accumulatedDepreciation: "10000000",
           accountsPayable: "2800000",
@@ -275,13 +277,31 @@ function createValidCalculationRequest(rentModel: RentModel): any {
                 growthRate: "0.02",
                 frequency: 1,
               },
-      otherOpex: "5000000",
+      otherOpexPercent: "0.10",
       capexConfig: {
         autoReinvestEnabled: true,
         reinvestAmount: "2500000",
         reinvestFrequency: 1,
         existingAssets: [],
         newAssets: [],
+        categories: [
+          {
+            id: "cat-it",
+            type: "IT_EQUIPMENT",
+            name: "IT Equipment",
+            usefulLife: 5,
+            reinvestFrequency: undefined,
+            reinvestAmount: undefined,
+          },
+        ],
+        historicalState: {
+          grossPPE2024: "40000000",
+          accumulatedDepreciation2024: "10000000",
+          annualDepreciation: "1000000",
+          remainingToDepreciate: "30000000",
+        },
+        transitionCapex: [],
+        virtualAssets: [],
       },
     },
     capexConfig: {
@@ -290,6 +310,24 @@ function createValidCalculationRequest(rentModel: RentModel): any {
       reinvestFrequency: 1,
       existingAssets: [],
       newAssets: [],
+      categories: [
+        {
+          id: "cat-it",
+          type: "IT_EQUIPMENT",
+          name: "IT Equipment",
+          usefulLife: 5,
+          reinvestFrequency: undefined,
+          reinvestAmount: undefined,
+        },
+      ],
+      historicalState: {
+        grossPPE2024: "40000000",
+        accumulatedDepreciation2024: "10000000",
+        annualDepreciation: "1000000",
+        remainingToDepreciate: "30000000",
+      },
+      transitionCapex: [],
+      virtualAssets: [],
     },
     circularSolverConfig: {
       maxIterations: 100,
@@ -485,7 +523,7 @@ describe("POST /api/proposals/calculate - API Integration", () => {
       expect(data.success).toBe(true);
       expect(data.data).toBeDefined();
       expect(data.data.periods).toBeDefined();
-      expect(data.data.periods.length).toBe(31); // 2023-2053
+      expect(data.data.periods.length).toBe(35); // 2023-2057 (35 years)
       expect(data.meta.allBalanced).toBe(true);
       expect(data.meta.allReconciled).toBe(true);
     });
@@ -516,7 +554,7 @@ describe("POST /api/proposals/calculate - API Integration", () => {
 
       expect(response.status).toBe(201); // 201 Created is correct for POST
       expect(data.success).toBe(true);
-      expect(data.data.periods.length).toBe(31);
+      expect(data.data.periods.length).toBe(35); // 2023-2057 (35 years)
       expect(data.meta.allBalanced).toBe(true);
     });
 
@@ -546,7 +584,7 @@ describe("POST /api/proposals/calculate - API Integration", () => {
 
       expect(response.status).toBe(201); // 201 Created is correct for POST
       expect(data.success).toBe(true);
-      expect(data.data.periods.length).toBe(31);
+      expect(data.data.periods.length).toBe(35); // 2023-2057 (35 years)
       expect(data.meta.allBalanced).toBe(true);
     });
   });

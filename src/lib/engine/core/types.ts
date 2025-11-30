@@ -38,6 +38,13 @@ export enum DepreciationMethod {
   DECLINING_BALANCE = "DECLINING_BALANCE",
 }
 
+export enum CapExCategoryType {
+  IT_EQUIPMENT = "IT_EQUIPMENT",
+  FURNITURE = "FURNITURE",
+  EDUCATIONAL_EQUIPMENT = "EDUCATIONAL_EQUIPMENT",
+  BUILDING = "BUILDING",
+}
+
 // ============================================================================
 // PROFIT & LOSS STATEMENT
 // ============================================================================
@@ -95,8 +102,9 @@ export interface BalanceSheet {
   totalCurrentAssets: Decimal;
 
   // Non-Current Assets
-  propertyPlantEquipment: Decimal; // Net PP&E
-  accumulatedDepreciation: Decimal;
+  grossPPE: Decimal; // Gross PP&E (total cost of assets)
+  accumulatedDepreciation: Decimal; // Total accumulated depreciation
+  propertyPlantEquipment: Decimal; // Net PP&E = Gross PP&E - Accumulated Depreciation
   totalNonCurrentAssets: Decimal;
 
   totalAssets: Decimal;
@@ -199,7 +207,8 @@ export interface HistoricalPeriodInput {
     staffCosts: Decimal;
     otherOpex: Decimal;
     depreciation: Decimal;
-    interest: Decimal;
+    interest: Decimal; // Interest expense
+    interestIncome?: Decimal; // Interest income on deposits
     zakat: Decimal;
   };
 
@@ -207,7 +216,8 @@ export interface HistoricalPeriodInput {
     cash: Decimal;
     accountsReceivable: Decimal;
     prepaidExpenses: Decimal;
-    ppe: Decimal;
+    grossPPE: Decimal; // Gross PP&E (total cost of assets)
+    ppe: Decimal; // Net PP&E (Gross - Accumulated Depreciation)
     accumulatedDepreciation: Decimal;
     accountsPayable: Decimal;
     accruedExpenses: Decimal;
@@ -239,7 +249,6 @@ export interface TransitionPeriodInput {
   rentGrowthPercent?: Decimal; // Growth applied to 2024 rent (per financial rules)
   rentAmount?: Decimal; // If not using rent model
   staffCostsRatio?: Decimal; // % of revenue
-  otherOpex?: Decimal;
 
   // Working Capital ratios (if not auto-calculated)
   workingCapitalRatios?: WorkingCapitalRatios;
@@ -265,9 +274,8 @@ export interface DynamicPeriodInput {
   rentModel: RentModel;
   rentParams: FixedRentParams | RevenueShareParams | PartnerInvestmentParams;
 
-  // Other OpEx
-  otherOpex: Decimal;
-  otherOpexPercent?: Decimal; // Optional % of revenue
+  // Other OpEx (% of revenue as decimal, e.g., 0.31 = 31%)
+  otherOpexPercent: Decimal;
 
   // CapEx Configuration
   capexConfig: CapExConfiguration;
@@ -368,33 +376,110 @@ export interface PartnerInvestmentParams {
 // CAPEX CONFIGURATION (GAP 1: Depreciation)
 // ============================================================================
 
-export interface CapExConfiguration {
-  // Auto-reinvestment
-  autoReinvestEnabled: boolean;
-  reinvestFrequency?: number; // Every N years
-  reinvestAmount?: Decimal; // Fixed amount
-  reinvestAmountPercent?: Decimal; // Or % of revenue
-
-  // Asset pools
-  existingAssets: CapExAsset[]; // OLD assets from 2023-2024
-  newAssets: CapExAsset[]; // NEW assets from Transition/Dynamic
+/**
+ * Fixed category configuration for NEW investments (2025+).
+ * Each category has independent reinvestment settings.
+ */
+export interface CapExCategoryConfig {
+  id: string;
+  type: CapExCategoryType; // Fixed category type
+  name: string; // Display name
+  usefulLife: number; // Years for straight-line depreciation of NEW assets
+  reinvestFrequency?: number; // Years between auto-reinvestments (null = no reinvestment)
+  reinvestAmount?: Decimal; // Fixed SAR amount per reinvestment cycle
+  reinvestStartYear?: number; // Year when auto-reinvestment begins (null = starts from 2028)
 }
 
+/**
+ * Historical depreciation state (from 2024 data).
+ * Continues annually until fully amortized.
+ */
+export interface HistoricalDepreciationState {
+  grossPPE2024: Decimal; // 2024 Gross PPE
+  accumulatedDepreciation2024: Decimal; // 2024 Accumulated Depreciation
+  annualDepreciation: Decimal; // 2024 Depreciation (continues each year)
+  remainingToDepreciate: Decimal; // grossPPE - accumulated (decreases over time)
+}
+
+/**
+ * Transition CAPEX entry (manual input by category).
+ */
+export interface CapExTransitionEntry {
+  categoryType: CapExCategoryType;
+  year: number; // 2025, 2026, or 2027
+  amount: Decimal;
+}
+
+/**
+ * Virtual asset for NEW investment depreciation tracking.
+ */
+export interface CapExVirtualAsset {
+  id: string;
+  categoryType: CapExCategoryType;
+  purchaseYear: number; // 2025 or later
+  purchaseAmount: Decimal;
+  usefulLife: number; // Copied from category at time of creation
+}
+
+/**
+ * CAPEX result per year with both depreciation streams.
+ */
+export interface CapExYearResult {
+  year: number;
+
+  // CAPEX spending
+  spending: Decimal; // Total NEW CAPEX this year
+  spendingByCategory: Map<CapExCategoryType, Decimal>;
+
+  // Depreciation (two streams)
+  historicalDepreciation: Decimal; // From 2024 continuation
+  newAssetDepreciation: Decimal; // From virtual assets
+  totalDepreciation: Decimal; // Historical + New
+
+  // PPE tracking
+  grossPPE: Decimal; // Cumulative
+  accumulatedDepreciation: Decimal; // Cumulative
+  netPPE: Decimal; // Gross - Accumulated
+
+  // Assets created this year
+  newAssets: CapExVirtualAsset[];
+}
+
+/**
+ * Complete CAPEX configuration for engine.
+ */
+export interface CapExConfiguration {
+  categories: CapExCategoryConfig[]; // Category reinvestment settings
+  historicalState: HistoricalDepreciationState; // 2024 baseline for continuation
+  transitionCapex: CapExTransitionEntry[]; // Manual 2025-2027 CAPEX
+  virtualAssets: CapExVirtualAsset[]; // Populated during calculation
+
+  // Legacy fields (backward compatibility, deprecated)
+  autoReinvestEnabled?: boolean;
+  reinvestFrequency?: number;
+  reinvestAmount?: Decimal;
+  reinvestAmountPercent?: Decimal;
+  existingAssets?: CapExAsset[];
+  newAssets?: CapExAsset[];
+  useCategoryReinvestment?: boolean;
+}
+
+/**
+ * Virtual asset for depreciation tracking (new design).
+ * Replaces old CapExAsset for NEW investments.
+ */
 export interface CapExAsset {
   id: string;
-  assetName: string;
-  purchaseYear: number;
+  categoryId: string;
+  purchaseYear: number; // 2025 or later (NEW investments only)
   purchaseAmount: Decimal;
-  usefulLife: number; // Years
-  depreciationMethod: DepreciationMethod;
-
-  // For declining balance
-  depreciationRate?: Decimal;
-
-  // Tracking
-  accumulatedDepreciation: Decimal;
-  netBookValue: Decimal;
-  fullyDepreciated: boolean;
+  usefulLife: number; // Copied from category at time of creation
+  depreciationMethod?: DepreciationMethod; // Default: STRAIGHT_LINE
+  depreciationRate?: Decimal; // For declining balance (if supported)
+  accumulatedDepreciation?: Decimal; // Tracking
+  netBookValue?: Decimal; // Tracking
+  fullyDepreciated?: boolean; // Tracking
+  categoryName?: string; // Denormalized for display
 }
 
 // ============================================================================
@@ -448,6 +533,8 @@ export interface SystemConfiguration {
   debtInterestRate: Decimal; // e.g., 0.05 (5%)
   depositInterestRate: Decimal; // e.g., 0.02 (2%)
   minCashBalance: Decimal; // e.g., 1,000,000 (GAP 14)
+  discountRate?: Decimal; // NPV discount rate (WACC/hurdle rate) - e.g., 0.07 (7%)
+  wacc?: Decimal; // Optional weighted average cost of capital for discounting (deprecated, use discountRate)
 }
 
 // ============================================================================
@@ -457,6 +544,9 @@ export interface SystemConfiguration {
 export interface CalculationEngineInput {
   // System configuration
   systemConfig: SystemConfiguration;
+
+  // Contract period configuration
+  contractPeriodYears: 25 | 30; // Dynamic period length: 25 years (2028-2052) or 30 years (2028-2057)
 
   // Historical data (2023-2024)
   historicalPeriods: HistoricalPeriodInput[];
@@ -487,12 +577,31 @@ export interface CalculationEngineOutput {
 
   // Summary metrics
   metrics: {
+    // Full period metrics (all years: historical + transition + dynamic)
     totalNetIncome: Decimal;
+    totalRent: Decimal; // Sum of all rent expenses across all periods
+    totalEbitda: Decimal; // Sum of all EBITDA across all periods
     averageROE: Decimal;
     peakDebt: Decimal;
+    maxDebt: Decimal; // Alias for peakDebt for UI compatibility
     finalCash: Decimal;
-    npv?: Decimal; // Optional: Net Present Value
-    irr?: Decimal; // Optional: Internal Rate of Return
+    npv?: Decimal | null; // Optional: Net Present Value
+    irr?: Decimal | null; // Optional: Internal Rate of Return
+    paybackPeriod?: Decimal | null; // Optional: Payback period in years
+
+    // Contract period metrics (2028-contractEndYear only)
+    contractTotalRent: Decimal; // Sum of rent for contract period only
+    contractTotalEbitda: Decimal; // Sum of EBITDA for contract period only
+    contractRentNPV: Decimal; // NPV of rent payments during contract period
+    contractFinalCash: Decimal; // Cash balance at end of contract period
+    contractEndYear: number; // Last year of contract period
+
+    // Contract period NPV & Annualized Metrics (Equivalent Annual Value)
+    contractEbitdaNPV: Decimal; // NPV of EBITDA over contract period
+    contractNetTenantSurplus: Decimal; // EBITDA NPV - Rent NPV (Net NPV)
+    contractAnnualizedEbitda: Decimal; // Annualized EBITDA (EAV)
+    contractAnnualizedRent: Decimal; // Annualized Rent (EAV)
+    contractNAV: Decimal; // Net Annualized Value (KEY METRIC: Annual EBITDA - Annual Rent)
   };
 
   // Validation results
@@ -556,3 +665,31 @@ export const YEAR_RANGES: Record<PeriodType, YearRange> = {
   [PeriodType.TRANSITION]: { startYear: 2025, endYear: 2027 },
   [PeriodType.DYNAMIC]: { startYear: 2028, endYear: 2053 },
 };
+
+// ============================================================================
+// PERIOD CALCULATION HELPERS
+// ============================================================================
+
+/**
+ * Calculate the dynamic period end year based on contract period length
+ * @param contractPeriodYears - Contract period: 25 or 30 years
+ * @returns End year for dynamic period (2052 for 25 years, 2057 for 30 years)
+ */
+export function getDynamicEndYear(contractPeriodYears: 25 | 30): number {
+  const DYNAMIC_START_YEAR = 2028;
+  return DYNAMIC_START_YEAR + contractPeriodYears - 1;
+  // 25 years: 2028 + 25 - 1 = 2052
+  // 30 years: 2028 + 30 - 1 = 2057
+}
+
+/**
+ * Calculate total number of periods across all three phases
+ * @param contractPeriodYears - Contract period: 25 or 30 years
+ * @returns Total periods (30 for 25 years, 35 for 30 years)
+ */
+export function getTotalPeriodCount(contractPeriodYears: 25 | 30): number {
+  // Historical (2023-2024): 2 periods
+  // Transition (2025-2027): 3 periods
+  // Dynamic: 25 or 30 periods
+  return 2 + 3 + contractPeriodYears;
+}

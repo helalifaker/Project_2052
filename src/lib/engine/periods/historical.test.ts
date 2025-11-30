@@ -99,6 +99,7 @@ function createHistoricalInput2024(): HistoricalPeriodInput {
       cash,
       accountsReceivable,
       prepaidExpenses,
+      grossPPE: ppe.plus(new Decimal(10000000)), // Gross PPE = Net + AccDep
       ppe,
       accumulatedDepreciation: new Decimal(10000000), // 10M SAR
       accountsPayable,
@@ -169,6 +170,7 @@ function createHistoricalInput2023(): HistoricalPeriodInput {
       cash,
       accountsReceivable,
       prepaidExpenses,
+      grossPPE: ppe.plus(new Decimal(10000000)), // Gross PPE = Net + AccDep
       ppe,
       accumulatedDepreciation: new Decimal(8000000), // 8M SAR
       accountsPayable,
@@ -634,6 +636,7 @@ describe("Historical Period Calculator", () => {
           cash: ZERO,
           accountsReceivable: ZERO,
           prepaidExpenses: ZERO,
+          grossPPE: ZERO,
           ppe: ZERO,
           accumulatedDepreciation: ZERO,
           accountsPayable: ZERO,

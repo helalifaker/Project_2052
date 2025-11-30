@@ -24,7 +24,7 @@ test.describe("Export to Excel/PDF (GAP 22)", () => {
     }
 
     // Look for Excel export button
-    const excelButton = page.locator('button:has-text("Excel")');
+    const excelButton = page.getByRole("button", { name: /export.*excel/i });
     await expect(excelButton.first()).toBeVisible();
   });
 
@@ -37,7 +37,7 @@ test.describe("Export to Excel/PDF (GAP 22)", () => {
     }
 
     // Look for PDF export button
-    const pdfButton = page.locator('button:has-text("PDF")');
+    const pdfButton = page.getByRole("button", { name: /export.*pdf/i });
     await expect(pdfButton.first()).toBeVisible();
   });
 
@@ -49,7 +49,7 @@ test.describe("Export to Excel/PDF (GAP 22)", () => {
       await page.waitForTimeout(500);
     }
 
-    const excelButton = page.locator('button:has-text("Excel")').first();
+    const excelButton = page.getByRole("button", { name: /export.*excel/i }).first();
 
     if (await excelButton.isVisible()) {
       // Set up download listener
@@ -81,7 +81,7 @@ test.describe("Export to Excel/PDF (GAP 22)", () => {
       await page.waitForTimeout(500);
     }
 
-    const pdfButton = page.locator('button:has-text("PDF")').first();
+    const pdfButton = page.getByRole("button", { name: /export.*pdf/i }).first();
 
     if (await pdfButton.isVisible()) {
       // Set up download listener
@@ -115,7 +115,7 @@ test.describe("Export to Excel/PDF (GAP 22)", () => {
       await page.waitForTimeout(500);
     }
 
-    const excelButton = page.locator('button:has-text("Excel")').first();
+    const excelButton = page.getByRole("button", { name: /export.*excel/i }).first();
 
     if (await excelButton.isVisible()) {
       const downloadPromise = page.waitForEvent("download", {
@@ -147,7 +147,7 @@ test.describe("Export to Excel/PDF (GAP 22)", () => {
       await page.waitForTimeout(500);
     }
 
-    const excelButton = page.locator('button:has-text("Excel")').first();
+    const excelButton = page.getByRole("button", { name: /export.*excel/i }).first();
 
     if (await excelButton.isVisible()) {
       const startTime = Date.now();
@@ -179,7 +179,7 @@ test.describe("Export to Excel/PDF (GAP 22)", () => {
       await page.waitForTimeout(500);
     }
 
-    const excelButton = page.locator('button:has-text("Excel")').first();
+    const excelButton = page.getByRole("button", { name: /export.*excel/i }).first();
 
     if (await excelButton.isVisible()) {
       await excelButton.click();
@@ -226,7 +226,7 @@ test.describe("Export to Excel/PDF (GAP 22)", () => {
       await page.waitForTimeout(500);
     }
 
-    const excelButton = page.locator('button:has-text("Excel")').first();
+    const excelButton = page.getByRole("button", { name: /export.*excel/i }).first();
 
     if (await excelButton.isVisible()) {
       await excelButton.click();
@@ -268,7 +268,7 @@ test.describe("Export to Excel/PDF (GAP 22)", () => {
   }) => {
     // This is tested by downloading and checking file content (not in scope for E2E)
     // We verify the button exists and triggers download
-    const excelButton = page.locator('button:has-text("Excel")').first();
+    const excelButton = page.getByRole("button", { name: /export.*excel/i }).first();
 
     if (await excelButton.isVisible()) {
       await excelButton.click();

@@ -1,9 +1,46 @@
-import { Page, expect } from "@playwright/test";
+import { Page, expect, test } from "@playwright/test";
 
 /**
  * Test Helpers for E2E Testing
  * Provides common utilities and helper functions for Playwright tests
  */
+
+type Role = "admin" | "planner" | "viewer";
+
+const roleEnv: Record<Role, { email?: string; password?: string }> = {
+  admin: {
+    email: process.env.E2E_ADMIN_EMAIL,
+    password: process.env.E2E_ADMIN_PASSWORD,
+  },
+  planner: {
+    email: process.env.E2E_PLANNER_EMAIL,
+    password: process.env.E2E_PLANNER_PASSWORD,
+  },
+  viewer: {
+    email: process.env.E2E_VIEWER_EMAIL,
+    password: process.env.E2E_VIEWER_PASSWORD,
+  },
+};
+
+/**
+ * Login as a specific role for E2E tests
+ * Skips the test if credentials are not provided
+ */
+export async function loginAsRole(page: Page, role: Role) {
+  const creds = roleEnv[role];
+  if (!creds.email || !creds.password) {
+    // Skip test if credentials are not configured
+    // Tests can check for this by looking for a skip message
+    test.skip(true, `Missing credentials for role: ${role}. Set E2E_${role.toUpperCase()}_EMAIL and E2E_${role.toUpperCase()}_PASSWORD environment variables.`);
+    return;
+  }
+
+  await page.goto("/login");
+  await page.fill('input[type="email"]', creds.email);
+  await page.fill('input[type="password"]', creds.password);
+  await page.getByRole("button", { name: /sign in/i }).click();
+  await page.waitForURL(/dashboard|admin|proposals/, { timeout: 10_000 });
+}
 
 /**
  * Wait for network to be idle (no pending requests)

@@ -4,10 +4,12 @@ import {
   fillFormField,
   waitForToast,
   waitForNetworkIdle,
+  loginAsRole,
 } from "../utils/test-helpers";
 
 test.describe("Admin - CapEx Module", () => {
   test.beforeEach(async ({ page }) => {
+    await loginAsRole(page, "admin");
     await page.goto(TEST_ROUTES.ADMIN_CAPEX);
     await waitForNetworkIdle(page);
   });

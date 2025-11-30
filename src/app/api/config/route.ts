@@ -59,6 +59,7 @@ export async function PUT(request: Request) {
       zakatRate?: Prisma.Decimal;
       debtInterestRate?: Prisma.Decimal;
       depositInterestRate?: Prisma.Decimal;
+      discountRate?: Prisma.Decimal;
       minCashBalance?: Prisma.Decimal;
       confirmedAt?: Date | null;
       updatedBy?: string | null;
@@ -75,6 +76,11 @@ export async function PUT(request: Request) {
     if (validatedData.depositInterestRate !== undefined) {
       updateData.depositInterestRate = new Prisma.Decimal(
         validatedData.depositInterestRate,
+      );
+    }
+    if (validatedData.discountRate !== undefined) {
+      updateData.discountRate = new Prisma.Decimal(
+        validatedData.discountRate,
       );
     }
     if (validatedData.minCashBalance !== undefined) {

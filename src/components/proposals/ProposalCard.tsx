@@ -11,8 +11,7 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { useAuth } from "@/lib/hooks/useAuth";
-import { Role } from "@/lib/types/roles";
+import { useRoleCheck } from "@/lib/hooks/useRoleCheck";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -32,6 +31,7 @@ import {
   Edit,
   Trash2,
   FileDown,
+  FileText,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
@@ -41,6 +41,11 @@ type ProposalCardMetrics = {
   totalRent?: number | Decimal;
   npv?: number | Decimal;
   totalEbitda?: number | Decimal;
+  // Contract period metrics (preferred for display)
+  contractTotalRent?: number | Decimal;
+  contractRentNPV?: number | Decimal;
+  contractTotalEbitda?: number | Decimal;
+  contractEndYear?: number;
 };
 
 export interface ProposalCardProps {
@@ -94,11 +99,7 @@ export const ProposalCard = memo(function ProposalCard({
   className,
 }: ProposalCardProps) {
   const router = useRouter();
-  const { hasRole } = useAuth();
-
-  // Check permissions
-  const canEdit = hasRole([Role.ADMIN, Role.PLANNER]);
-  const canDelete = hasRole([Role.ADMIN, Role.PLANNER]);
+  const { canEdit, canDelete } = useRoleCheck();
 
   // PERFORMANCE: Memoize event handlers to prevent child re-renders
   const handleView = useCallback(() => {
@@ -114,6 +115,9 @@ export const ProposalCard = memo(function ProposalCard({
     () => onDuplicate?.(id),
     [id, onDuplicate],
   );
+  const handleUseAsTemplate = useCallback(() => {
+    router.push(`/proposals/new?prefillId=${id}`);
+  }, [id, router]);
   const handleDelete = useCallback(() => onDelete?.(id), [id, onDelete]);
   const handleExport = useCallback(() => onExport?.(id), [id, onExport]);
 
@@ -203,65 +207,82 @@ export const ProposalCard = memo(function ProposalCard({
   return (
     <Card
       className={cn(
-        "hover:shadow-lg transition-all duration-200 cursor-pointer group",
+        "hover:shadow-lg transition-all duration-200 cursor-pointer group focus-within-ring",
         className,
       )}
       onClick={handleView}
+      role="article"
+      aria-label={`Proposal ${name || developer || "details"}`}
     >
       <CardHeader>
         <div className="flex items-start justify-between">
           <div className="space-y-1">
             <CardTitle className="text-xl flex items-center gap-2">
-              <Building2 className="h-5 w-5 text-muted-foreground" />
+              <Building2 className="h-5 w-5 text-muted-foreground" aria-hidden="true" />
               {name || developer || "Proposal"}
             </CardTitle>
             <CardDescription className="flex items-center gap-2">
-              <Calendar className="h-3 w-3" />
-              Last updated: {formattedUpdatedDate}
+              <Calendar className="h-3 w-3" aria-hidden="true" />
+              <span className="sr-only">Last updated:</span>
+              {formattedUpdatedDate}
             </CardDescription>
           </div>
           <div className="flex items-center gap-2">
             {statusBadge}
             <DropdownMenu>
               <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                <Button variant="ghost" size="icon" className="h-8 w-8">
-                  <MoreVertical className="h-4 w-4" />
-                  <span className="sr-only">Open menu</span>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 focus-ring-enhanced"
+                  aria-label="Open proposal actions menu"
+                  aria-haspopup="menu"
+                >
+                  <MoreVertical className="h-4 w-4" aria-hidden="true" />
+                  <span className="sr-only">Actions</span>
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent
                 align="end"
                 onClick={(e) => e.stopPropagation()}
+                role="menu"
+                aria-label="Proposal actions"
               >
-                <DropdownMenuItem onClick={handleView}>
-                  <Eye className="h-4 w-4 mr-2" />
+                <DropdownMenuItem onClick={handleView} role="menuitem">
+                  <Eye className="h-4 w-4 mr-2" aria-hidden="true" />
                   View Details
                 </DropdownMenuItem>
                 {canEdit && (
                   <>
-                    <DropdownMenuItem onClick={handleEdit}>
-                      <Edit className="h-4 w-4 mr-2" />
+                    <DropdownMenuItem onClick={handleEdit} role="menuitem">
+                      <Edit className="h-4 w-4 mr-2" aria-hidden="true" />
                       Edit
                     </DropdownMenuItem>
-                    <DropdownMenuItem onClick={handleDuplicate}>
-                      <Copy className="h-4 w-4 mr-2" />
+                    <DropdownMenuItem onClick={handleDuplicate} role="menuitem">
+                      <Copy className="h-4 w-4 mr-2" aria-hidden="true" />
                       Duplicate
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={handleUseAsTemplate} role="menuitem">
+                      <FileText className="h-4 w-4 mr-2" aria-hidden="true" />
+                      Use as Template
                     </DropdownMenuItem>
                   </>
                 )}
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={handleExport}>
-                  <FileDown className="h-4 w-4 mr-2" />
+                <DropdownMenuSeparator role="separator" />
+                <DropdownMenuItem onClick={handleExport} role="menuitem">
+                  <FileDown className="h-4 w-4 mr-2" aria-hidden="true" />
                   Export
                 </DropdownMenuItem>
                 {canDelete && (
                   <>
-                    <DropdownMenuSeparator />
+                    <DropdownMenuSeparator role="separator" />
                     <DropdownMenuItem
                       onClick={handleDelete}
+                      role="menuitem"
                       className="text-destructive focus:text-destructive"
+                      aria-label="Delete proposal (irreversible action)"
                     >
-                      <Trash2 className="h-4 w-4 mr-2" />
+                      <Trash2 className="h-4 w-4 mr-2" aria-hidden="true" />
                       Delete
                     </DropdownMenuItem>
                   </>
@@ -281,49 +302,60 @@ export const ProposalCard = memo(function ProposalCard({
           </Badge>
         </div>
 
-        {/* Key Metrics */}
-        <div className="grid grid-cols-3 gap-4">
-          <div className="space-y-1">
+        {/* Key Metrics - Contract Period */}
+        <div className="grid grid-cols-3 gap-4" role="list" aria-label="Key financial metrics">
+          <div className="space-y-1" role="listitem">
             <div className="flex items-center gap-1 text-xs text-muted-foreground">
-              <DollarSign className="h-3 w-3" />
-              Total Rent (30Y)
+              <DollarSign className="h-3 w-3" aria-hidden="true" />
+              <span id={`total-rent-label-${id}`}>Total Rent</span>
             </div>
-            <div className="text-lg font-bold font-mono">
-              {formatMillions(metrics?.totalRent ?? 0)}
+            <div
+              className="text-lg font-bold font-mono tabular-nums"
+              aria-labelledby={`total-rent-label-${id}`}
+              aria-label={`Total rent: ${formatMillions(metrics?.contractTotalRent ?? metrics?.totalRent ?? 0)} SAR`}
+            >
+              {formatMillions(metrics?.contractTotalRent ?? metrics?.totalRent ?? 0)}
             </div>
           </div>
 
-          <div className="space-y-1">
+          <div className="space-y-1" role="listitem">
             <div className="flex items-center gap-1 text-xs text-muted-foreground">
-              <TrendingUp className="h-3 w-3" />
-              NPV
+              <TrendingUp className="h-3 w-3" aria-hidden="true" />
+              <span id={`rent-npv-label-${id}`}>Rent NPV</span>
             </div>
             <div
               className={cn(
-                "text-lg font-bold font-mono",
-                Number(metrics?.npv ?? 0) >= 0
-                  ? "text-green-600"
-                  : "text-destructive",
+                "text-lg font-bold font-mono tabular-nums",
+                Number(metrics?.contractRentNPV ?? metrics?.npv ?? 0) >= 0
+                  ? "text-accessible-positive"
+                  : "text-accessible-negative",
               )}
+              aria-labelledby={`rent-npv-label-${id}`}
+              aria-label={`Net present value: ${Number(metrics?.contractRentNPV ?? metrics?.npv ?? 0) >= 0 ? 'positive' : 'negative'} ${formatMillions(Math.abs(Number(metrics?.contractRentNPV ?? metrics?.npv ?? 0)))} SAR`}
             >
-              {formatMillions(metrics?.npv ?? 0)}
+              {formatMillions(Math.abs(Number(metrics?.contractRentNPV ?? metrics?.npv ?? 0)))}
             </div>
           </div>
 
-          <div className="space-y-1">
+          <div className="space-y-1" role="listitem">
             <div className="flex items-center gap-1 text-xs text-muted-foreground">
-              <TrendingUp className="h-3 w-3" />
-              EBITDA (Avg)
+              <TrendingUp className="h-3 w-3" aria-hidden="true" />
+              <span id={`total-ebitda-label-${id}`}>Total EBITDA</span>
             </div>
-            <div className="text-lg font-bold font-mono">
-              {formatMillions(metrics?.totalEbitda ?? 0)}
+            <div
+              className="text-lg font-bold font-mono tabular-nums"
+              aria-labelledby={`total-ebitda-label-${id}`}
+              aria-label={`Total EBITDA: ${formatMillions(metrics?.contractTotalEbitda ?? metrics?.totalEbitda ?? 0)} SAR`}
+            >
+              {formatMillions(metrics?.contractTotalEbitda ?? metrics?.totalEbitda ?? 0)}
             </div>
           </div>
         </div>
       </CardContent>
 
       <CardFooter className="text-xs text-muted-foreground border-t pt-4">
-        Created {formattedCreatedDate}
+        <span className="sr-only">Created on:</span>
+        {formattedCreatedDate}
       </CardFooter>
     </Card>
   );

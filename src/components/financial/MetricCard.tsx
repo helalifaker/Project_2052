@@ -13,7 +13,7 @@ interface MetricCardProps {
   };
   icon?: LucideIcon;
   description?: string;
-  colorMode?: "auto" | "positive" | "negative" | "neutral" | "warning";
+  colorMode?: "auto" | "negative"; // Minimalist: auto (red for negatives) or force negative
   className?: string;
 }
 
@@ -65,9 +65,9 @@ export function MetricCard({
               <FinancialValue
                 value={Math.abs(trend.value)}
                 type="percent"
-                colorMode="neutral"
                 size="sm"
                 className="mr-1"
+                showColor={false}
               />
               <span>{trend.label}</span>
             </div>

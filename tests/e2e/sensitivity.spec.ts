@@ -122,11 +122,11 @@ test.describe("Tab 6: Sensitivity Analysis (GAP 7)", () => {
 
   test("should show positive and negative impacts", async ({ page }) => {
     // Look for positive/negative indicators
-    const positiveIndicators = page.locator(
-      'text=/\\+|positive/i, [class*="positive"]',
+    const positiveIndicators = page.getByText(/\+|positive/i).or(
+      page.locator('[class*="positive"]')
     );
-    const negativeIndicators = page.locator(
-      'text=/-|negative/i, [class*="negative"]',
+    const negativeIndicators = page.getByText(/-|negative/i).or(
+      page.locator('[class*="negative"]')
     );
 
     const hasImpactIndicators =

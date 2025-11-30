@@ -10,6 +10,7 @@ export const SystemConfigUpdateSchema = z
     zakatRate: z.number().min(0).max(1).optional(), // 0-100% as decimal (e.g., 0.025 = 2.5%)
     debtInterestRate: z.number().min(0).max(1).optional(), // 0-100% as decimal
     depositInterestRate: z.number().min(0).max(1).optional(), // 0-100% as decimal
+    discountRate: z.number().min(0).max(1).optional(), // 0-100% as decimal (NPV discount rate)
     minCashBalance: z.number().positive().optional(), // Must be positive SAR amount
     confirmedAt: z.string().datetime().nullable().optional(),
     updatedBy: z.string().nullable().optional(),
@@ -21,6 +22,7 @@ export const SystemConfigUpdateSchema = z
         data.zakatRate !== undefined ||
         data.debtInterestRate !== undefined ||
         data.depositInterestRate !== undefined ||
+        data.discountRate !== undefined ||
         data.minCashBalance !== undefined ||
         data.confirmedAt !== undefined ||
         data.updatedBy !== undefined
@@ -30,3 +32,6 @@ export const SystemConfigUpdateSchema = z
   );
 
 export type SystemConfigUpdate = z.infer<typeof SystemConfigUpdateSchema>;
+
+
+

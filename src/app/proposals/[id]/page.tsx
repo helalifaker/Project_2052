@@ -3,21 +3,25 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Button } from "@/components/ui/button";
-import { ArrowLeft, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { ProposalOverviewTab } from "@/components/proposals/detail/ProposalOverviewTab";
-import { TransitionSetupTab } from "@/components/proposals/detail/TransitionSetupTab";
 import { DynamicSetupTab } from "@/components/proposals/detail/DynamicSetupTab";
 import { FinancialStatementsTab } from "@/components/proposals/detail/FinancialStatementsTab";
 import { ScenariosTab } from "@/components/proposals/detail/ScenariosTab";
 import { SensitivityTab } from "@/components/proposals/detail/SensitivityTab";
+import { useRoleCheck } from "@/lib/hooks/useRoleCheck";
+import { InlineEditableName } from "@/components/proposals/detail/InlineEditableName";
+import { BackButton } from "@/components/navigation/BackButton";
+import { Breadcrumbs } from "@/components/navigation/Breadcrumbs";
+import { PageSkeleton } from "@/components/states/PageSkeleton";
+import { ErrorState } from "@/components/states/ErrorState";
 
 type ProposalData = {
   id: string;
   name: string;
   developer?: string | null;
   rentModel: string;
+  status: string;
   calculatedAt?: string | null;
   [key: string]: unknown;
 };
@@ -25,53 +29,68 @@ type ProposalData = {
 /**
  * Proposal Detail Page
  *
- * Week 9 Track 2B: 6-Tab Interface
+ * 5-Tab Interface
  * - Tab 1: Overview (key metrics, charts, actions)
- * - Tab 2: Transition Setup (editable form)
- * - Tab 3: Dynamic Setup (sub-tabs for enrollment, curriculum, rent, opex)
- * - Tab 4: Financial Statements (P&L, BS, CF with year range selector)
- * - Tab 5: Scenarios (interactive sliders)
- * - Tab 6: Sensitivity Analysis (tornado charts)
+ * - Tab 2: Dynamic Setup (sub-tabs for enrollment, curriculum, rent, opex)
+ * - Tab 3: Financial Statements (P&L, BS, CF with year range selector)
+ * - Tab 4: Scenarios (interactive sliders)
+ * - Tab 5: Sensitivity Analysis (tornado charts)
+ *
+ * Note: Transition period configuration is now admin-only (Admin > Transition Setup)
  */
 export default function ProposalDetailPage() {
   const params = useParams();
   const router = useRouter();
   const proposalId = params.id as string;
+  const { canEdit: _canEdit, isViewer } = useRoleCheck();
 
   const [proposal, setProposal] = useState<ProposalData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
   const [activeTab, setActiveTab] = useState("overview");
 
   // Fetch proposal data
-  useEffect(() => {
-    async function fetchProposal() {
-      try {
-        setLoading(true);
-        const response = await fetch(`/api/proposals/${proposalId}`);
+  const fetchProposal = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await fetch(`/api/proposals/${proposalId}`);
 
-        if (!response.ok) {
-          if (response.status === 404) {
-            toast.error("Proposal not found");
-            router.push("/proposals");
-            return;
-          }
-          throw new Error("Failed to fetch proposal");
+      if (!response.ok) {
+        if (response.status === 404) {
+          throw new Error("PROPOSAL_NOT_FOUND");
         }
-
-        const data = (await response.json()) as ProposalData;
-        setProposal(data);
-      } catch (error) {
-        console.error("Error fetching proposal:", error);
-        toast.error("Failed to load proposal");
-      } finally {
-        setLoading(false);
+        throw new Error("Failed to fetch proposal");
       }
-    }
 
+      const data = (await response.json()) as ProposalData;
+      setProposal(data);
+    } catch (err) {
+      console.error("Error fetching proposal:", err);
+      const errorObj = err instanceof Error ? err : new Error("Failed to load proposal");
+      setError(errorObj);
+
+      // Handle 404 specifically
+      if (errorObj.message === "PROPOSAL_NOT_FOUND") {
+        toast.error("Proposal not found");
+        // Redirect after showing error state briefly
+        setTimeout(() => {
+          router.push("/proposals");
+        }, 2000);
+      } else {
+        toast.error("Failed to load proposal");
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
     if (proposalId) {
       fetchProposal();
     }
-  }, [proposalId, router]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [proposalId]);
 
   // Handle proposal update (from edit tabs)
   const handleProposalUpdate = (updatedProposal: Record<string, unknown>) => {
@@ -81,46 +100,98 @@ export default function ProposalDetailPage() {
     toast.success("Proposal updated successfully");
   };
 
+  // Refresh proposal data (for recalculations)
+  const refreshProposal = async () => {
+    try {
+      const response = await fetch(`/api/proposals/${proposalId}`);
+
+      if (!response.ok) {
+        throw new Error("Failed to refresh proposal");
+      }
+
+      const data = (await response.json()) as ProposalData;
+      setProposal(data);
+    } catch (error) {
+      console.error("Error refreshing proposal:", error);
+      toast.error("Failed to refresh proposal data");
+    }
+  };
+
+  // Loading state - show skeleton
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center space-y-4">
-          <Loader2 className="h-12 w-12 animate-spin mx-auto text-primary" />
-          <p className="text-muted-foreground">Loading proposal...</p>
-        </div>
+      <div className="container max-w-[1920px] mx-auto px-6 py-8 space-y-6">
+        <PageSkeleton variant="detail" />
       </div>
     );
   }
 
+  // Error state - handle 404 and network errors
+  if (error) {
+    const is404 = error.message === "PROPOSAL_NOT_FOUND";
+
+    return (
+      <div className="container max-w-[1920px] mx-auto px-6 py-8">
+        <ErrorState
+          title={is404 ? "Proposal Not Found" : "Failed to Load Proposal"}
+          description={
+            is404
+              ? "The proposal you're looking for doesn't exist or has been removed. Redirecting to proposals list..."
+              : "We couldn't load the proposal data. This might be a temporary network issue."
+          }
+          reset={is404 ? undefined : fetchProposal}
+          showBackButton={!is404}
+          showHomeButton={!is404}
+          size="full-page"
+        />
+      </div>
+    );
+  }
+
+  // Data check - should not happen with proper error handling
   if (!proposal) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center space-y-4">
-          <p className="text-muted-foreground">Proposal not found</p>
-          <Button onClick={() => router.push("/proposals")}>
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Back to Proposals
-          </Button>
-        </div>
+      <div className="container max-w-[1920px] mx-auto px-6 py-8">
+        <ErrorState
+          title="No Data Available"
+          description="Unable to display proposal information."
+          showBackButton
+          showHomeButton
+          size="full-page"
+        />
       </div>
     );
   }
 
   return (
-    <div className="container mx-auto py-8 space-y-8">
+    <div className="container max-w-[1920px] mx-auto px-6 py-8 space-y-8">
+      {/* Navigation */}
+      <div className="space-y-4">
+        {/* Back Button */}
+        <BackButton href="/proposals" label="Back to Proposals" />
+
+        {/* Breadcrumbs */}
+        <Breadcrumbs
+          items={[
+            { label: "Dashboard", href: "/dashboard" },
+            { label: "Proposals", href: "/proposals" },
+            { label: proposal.name },
+          ]}
+        />
+      </div>
+
       {/* Header */}
       <div className="flex items-center justify-between">
-        <div className="space-y-1">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => router.push("/proposals")}
-            className="mb-2"
-          >
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Back to Proposals
-          </Button>
-          <h1 className="text-3xl font-bold">{proposal.name}</h1>
+        <div className="space-y-1 flex-1">
+          <InlineEditableName
+            proposalId={proposal.id}
+            initialName={proposal.name}
+            status={proposal.status}
+            canEdit={_canEdit}
+            onNameUpdated={(newName) => {
+              setProposal((prev) => ({ ...prev!, name: newName }));
+            }}
+          />
           <div className="flex items-center gap-4 text-sm text-muted-foreground">
             {proposal.developer && <span>Developer: {proposal.developer}</span>}
             <span>Model: {proposal.rentModel}</span>
@@ -134,19 +205,44 @@ export default function ProposalDetailPage() {
         </div>
       </div>
 
-      {/* 6-Tab Interface */}
+      {/* 5-Tab Interface */}
       <Tabs
         value={activeTab}
         onValueChange={setActiveTab}
         className="space-y-6"
       >
-        <TabsList className="grid w-full grid-cols-6">
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="transition">Transition Setup</TabsTrigger>
-          <TabsTrigger value="dynamic">Dynamic Setup</TabsTrigger>
-          <TabsTrigger value="financials">Financial Statements</TabsTrigger>
-          <TabsTrigger value="scenarios">Scenarios</TabsTrigger>
-          <TabsTrigger value="sensitivity">Sensitivity</TabsTrigger>
+        <TabsList className="flex w-auto justify-start border-b bg-transparent p-0">
+          <TabsTrigger
+            value="overview"
+            className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none px-4 py-2"
+          >
+            Overview
+          </TabsTrigger>
+          <TabsTrigger
+            value="dynamic"
+            disabled={isViewer}
+            className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none px-4 py-2"
+          >
+            Dynamic Setup {isViewer && "(Read-only)"}
+          </TabsTrigger>
+          <TabsTrigger
+            value="financials"
+            className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none px-4 py-2"
+          >
+            Financial Statements
+          </TabsTrigger>
+          <TabsTrigger
+            value="scenarios"
+            className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none px-4 py-2"
+          >
+            Scenarios
+          </TabsTrigger>
+          <TabsTrigger
+            value="sensitivity"
+            className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none px-4 py-2"
+          >
+            Sensitivity
+          </TabsTrigger>
         </TabsList>
 
         {/* Tab 1: Overview */}
@@ -157,15 +253,7 @@ export default function ProposalDetailPage() {
           />
         </TabsContent>
 
-        {/* Tab 2: Transition Setup (Edit Mode) */}
-        <TabsContent value="transition">
-          <TransitionSetupTab
-            proposal={proposal}
-            onUpdate={handleProposalUpdate}
-          />
-        </TabsContent>
-
-        {/* Tab 3: Dynamic Setup (Edit Mode) */}
+        {/* Tab 2: Dynamic Setup (Edit Mode) */}
         <TabsContent value="dynamic">
           <DynamicSetupTab
             proposal={proposal}
@@ -173,17 +261,20 @@ export default function ProposalDetailPage() {
           />
         </TabsContent>
 
-        {/* Tab 4: Financial Statements */}
+        {/* Tab 3: Financial Statements */}
         <TabsContent value="financials">
-          <FinancialStatementsTab proposal={proposal} />
+          <FinancialStatementsTab
+            proposal={proposal}
+            onRecalculated={refreshProposal}
+          />
         </TabsContent>
 
-        {/* Tab 5: Scenarios (Interactive Sliders) */}
+        {/* Tab 4: Scenarios (Interactive Sliders) */}
         <TabsContent value="scenarios">
           <ScenariosTab proposal={proposal} />
         </TabsContent>
 
-        {/* Tab 6: Sensitivity Analysis */}
+        {/* Tab 5: Sensitivity Analysis */}
         <TabsContent value="sensitivity">
           <SensitivityTab proposal={proposal} />
         </TabsContent>

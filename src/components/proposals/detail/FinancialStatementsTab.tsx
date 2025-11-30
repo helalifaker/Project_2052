@@ -1,15 +1,25 @@
 "use client";
 
-import { useState } from "react";
-import { Card } from "@/components/ui/card";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Download } from "lucide-react";
+import { Download, Loader2, Calculator, Calendar } from "lucide-react";
 import {
   FinancialTable,
   FinancialLineItem,
 } from "@/components/financial/FinancialTable";
 import { toast } from "sonner";
+import Decimal from "decimal.js";
+import { RevenueNetProfitGrowthChart } from "./charts/RevenueNetProfitGrowthChart";
+import {
+  ExecutiveCard,
+  ExecutiveCardContent,
+  ExecutiveCardHeader,
+  ExecutiveCardTitle,
+} from "@/components/ui/executive-card";
+import { generateComprehensiveReport } from "@/lib/pdf-service";
+import html2canvas from "html2canvas";
+import { ProposalPDFReport } from "@/components/proposals/reports/ProposalPDFReport";
 
 /**
  * Tab 4: Financial Statements
@@ -19,27 +29,40 @@ import { toast } from "sonner";
  * - P&L Statement
  * - Balance Sheet
  * - Cash Flow Statement
+ * - Profitability Analysis (Revenue vs Net Profit Growth Chart)
  * - Export buttons
  */
 
 interface FinancialStatementsTabProps {
   proposal: any;
+  onRecalculated?: () => void;
 }
 
 export function FinancialStatementsTab({
   proposal,
+  onRecalculated,
 }: FinancialStatementsTabProps) {
   const [activeStatement, setActiveStatement] = useState("pl");
   const [yearRange, setYearRange] = useState("all");
+  const [recalculating, setRecalculating] = useState(false);
+  const [proposalData, setProposalData] = useState(proposal);
+
+  // Update proposal data when prop changes
+  useEffect(() => {
+    setProposalData(proposal);
+  }, [proposal]);
 
   // Extract financial periods from proposal
-  const periods = proposal.financials || [];
+  const periods = proposalData.financials || [];
+
+  // Calculate dynamic period boundaries
+  const allYears = periods.map((p: any) => p.year);
+  const dynamicEndYear = allYears.length > 0 ? Math.max(...allYears) : 2057;
+  const dynamicMidpoint = Math.floor((2028 + dynamicEndYear) / 2);
 
   // Get year range based on selection
   const getYearRange = () => {
     if (!periods || periods.length === 0) return [];
-
-    const allYears = periods.map((p: any) => p.year);
 
     switch (yearRange) {
       case "historical":
@@ -47,9 +70,9 @@ export function FinancialStatementsTab({
       case "transition":
         return allYears.filter((y: number) => y >= 2025 && y <= 2027);
       case "early":
-        return allYears.filter((y: number) => y >= 2028 && y <= 2037);
+        return allYears.filter((y: number) => y >= 2028 && y <= dynamicMidpoint);
       case "late":
-        return allYears.filter((y: number) => y >= 2038 && y <= 2057);
+        return allYears.filter((y: number) => y > dynamicMidpoint && y <= dynamicEndYear);
       case "all":
       default:
         return allYears;
@@ -58,157 +81,75 @@ export function FinancialStatementsTab({
 
   const selectedYears = getYearRange();
 
-  // Build P&L line items
+  // Helper to build net interest values (interest income - interest expense)
+  const buildNetInterestValues = (): Record<string, number> => {
+    const values: Record<string, number> = {};
+    periods.forEach((period: any) => {
+      const income = getNestedValue(period, "profitLoss.interestIncome") || 0;
+      const expense = getNestedValue(period, "profitLoss.interestExpense") || 0;
+      const incomeNum = typeof income === "number" ? income : parseFloat(income?.toString() || "0");
+      const expenseNum = typeof expense === "number" ? expense : parseFloat(expense?.toString() || "0");
+      values[period.year] = incomeNum - expenseNum;
+    });
+    return values;
+  };
+
+  // Build P&L line items (simplified - 9 key lines)
   const buildPLLineItems = (): FinancialLineItem[] => {
     if (!periods || periods.length === 0) return [];
 
     return [
-      // REVENUE SECTION
-      {
-        id: "revenue-header",
-        label: "REVENUE",
-        values: {},
-        isHeader: true,
-      },
-      {
-        id: "tuitionRevenue",
-        label: "Tuition Revenue",
-        values: buildYearValues("profitLoss.tuitionRevenue"),
-        indent: 1,
-      },
-      {
-        id: "otherRevenue",
-        label: "Other Revenue",
-        values: buildYearValues("profitLoss.otherRevenue"),
-        indent: 1,
-      },
       {
         id: "totalRevenue",
-        label: "Total Revenue",
+        label: "Revenue",
         values: buildYearValues("profitLoss.totalRevenue"),
-        isSubtotal: true,
-      },
-
-      // OPERATING EXPENSES
-      {
-        id: "opex-header",
-        label: "OPERATING EXPENSES",
-        values: {},
-        isHeader: true,
-      },
-      {
-        id: "rentExpense",
-        label: "Rent Expense",
-        values: buildYearValues("profitLoss.rentExpense"),
-        formula: buildFormulas("Rent paid to property owner"),
-        indent: 1,
       },
       {
         id: "staffCosts",
         label: "Staff Costs",
         values: buildYearValues("profitLoss.staffCosts"),
-        formula: buildFormulas("Fixed + Variable * Students"),
-        indent: 1,
+      },
+      {
+        id: "rentExpense",
+        label: "Rent",
+        values: buildYearValues("profitLoss.rentExpense"),
       },
       {
         id: "otherOpex",
-        label: "Other OpEx",
+        label: "Other Expenses",
         values: buildYearValues("profitLoss.otherOpex"),
-        indent: 1,
       },
-      {
-        id: "totalOpex",
-        label: "Total OpEx",
-        values: buildYearValues("profitLoss.totalOpex"),
-        isSubtotal: true,
-      },
-
-      // EBITDA
       {
         id: "ebitda",
         label: "EBITDA",
         values: buildYearValues("profitLoss.ebitda"),
-        formula: buildFormulas("Total Revenue - Total OpEx"),
         isTotal: true,
       },
-
-      // DEPRECIATION
       {
         id: "depreciation",
         label: "Depreciation",
         values: buildYearValues("profitLoss.depreciation"),
-        formula: buildFormulas("PP&E depreciation expense"),
-        indent: 1,
-      },
-
-      // EBIT
-      {
-        id: "ebit",
-        label: "EBIT",
-        values: buildYearValues("profitLoss.ebit"),
-        formula: buildFormulas("EBITDA - Depreciation"),
-        isTotal: true,
-      },
-
-      // INTEREST
-      {
-        id: "interest-header",
-        label: "INTEREST",
-        values: {},
-        isHeader: true,
-      },
-      {
-        id: "interestExpense",
-        label: "Interest Expense",
-        values: buildYearValues("profitLoss.interestExpense"),
-        formula: buildFormulas("Debt * Interest Rate"),
-        indent: 1,
-      },
-      {
-        id: "interestIncome",
-        label: "Interest Income",
-        values: buildYearValues("profitLoss.interestIncome"),
-        formula: buildFormulas("Cash * Deposit Rate (GAP 16)"),
-        indent: 1,
       },
       {
         id: "netInterest",
         label: "Net Interest",
-        values: buildYearValues("profitLoss.netInterest"),
-        formula: buildFormulas("Interest Income - Interest Expense"),
-        isSubtotal: true,
+        values: buildNetInterestValues(),
       },
-
-      // EBT
       {
-        id: "ebt",
-        label: "EBT (Earnings Before Tax)",
-        values: buildYearValues("profitLoss.ebt"),
-        formula: buildFormulas("EBIT + Net Interest"),
-        isTotal: true,
-      },
-
-      // ZAKAT
-      {
-        id: "zakatExpense",
-        label: "Zakat Expense",
+        id: "zakat",
+        label: "Zakat",
         values: buildYearValues("profitLoss.zakatExpense"),
-        formula: buildFormulas("2.5% of EBT (GAP 14)"),
-        indent: 1,
       },
-
-      // NET INCOME
       {
         id: "netIncome",
-        label: "NET INCOME",
+        label: "Net Profit",
         values: buildYearValues("profitLoss.netIncome"),
-        formula: buildFormulas("EBT - Zakat"),
-        isTotal: true,
+        isGrandTotal: true,
       },
     ];
   };
 
-  // Build Balance Sheet line items
+  // Build Balance Sheet line items (simplified - 10 key lines)
   const buildBSLineItems = (): FinancialLineItem[] => {
     if (!periods || periods.length === 0) return [];
 
@@ -220,71 +161,27 @@ export function FinancialStatementsTab({
         values: {},
         isHeader: true,
       },
-
-      // Current Assets
-      {
-        id: "current-assets-header",
-        label: "Current Assets",
-        values: {},
-        indent: 1,
-      },
       {
         id: "cash",
-        label: "Cash & Cash Equivalents",
+        label: "Cash",
         values: buildYearValues("balanceSheet.cash"),
-        formula: buildFormulas("Minimum cash balance enforced (GAP 14)"),
-        indent: 2,
+        indent: 1,
       },
       {
         id: "accountsReceivable",
         label: "Accounts Receivable",
         values: buildYearValues("balanceSheet.accountsReceivable"),
-        formula: buildFormulas("AR % * Revenue"),
-        indent: 2,
-      },
-      {
-        id: "prepaidExpenses",
-        label: "Prepaid Expenses",
-        values: buildYearValues("balanceSheet.prepaidExpenses"),
-        formula: buildFormulas("Prepaid % * OpEx"),
-        indent: 2,
-      },
-      {
-        id: "totalCurrentAssets",
-        label: "Total Current Assets",
-        values: buildYearValues("balanceSheet.totalCurrentAssets"),
-        isSubtotal: true,
-      },
-
-      // Non-Current Assets
-      {
-        id: "non-current-assets-header",
-        label: "Non-Current Assets",
-        values: {},
         indent: 1,
       },
       {
-        id: "ppe",
-        label: "Property, Plant & Equipment (Gross)",
+        id: "netPPE",
+        label: "PP&E (Net)",
         values: buildYearValues("balanceSheet.propertyPlantEquipment"),
-        indent: 2,
+        indent: 1,
       },
-      {
-        id: "accumulatedDepreciation",
-        label: "Less: Accumulated Depreciation",
-        values: buildYearValues("balanceSheet.accumulatedDepreciation", true),
-        indent: 2,
-      },
-      {
-        id: "totalNonCurrentAssets",
-        label: "Total Non-Current Assets (Net PP&E)",
-        values: buildYearValues("balanceSheet.totalNonCurrentAssets"),
-        isSubtotal: true,
-      },
-
       {
         id: "totalAssets",
-        label: "TOTAL ASSETS",
+        label: "Total Assets",
         values: buildYearValues("balanceSheet.totalAssets"),
         isTotal: true,
       },
@@ -296,281 +193,73 @@ export function FinancialStatementsTab({
         values: {},
         isHeader: true,
       },
-
-      // Current Liabilities
-      {
-        id: "current-liabilities-header",
-        label: "Current Liabilities",
-        values: {},
-        indent: 1,
-      },
       {
         id: "accountsPayable",
         label: "Accounts Payable",
         values: buildYearValues("balanceSheet.accountsPayable"),
-        formula: buildFormulas("AP % * OpEx"),
-        indent: 2,
-      },
-      {
-        id: "accruedExpenses",
-        label: "Accrued Expenses",
-        values: buildYearValues("balanceSheet.accruedExpenses"),
-        formula: buildFormulas("Accrued % * OpEx"),
-        indent: 2,
-      },
-      {
-        id: "deferredRevenue",
-        label: "Deferred Revenue",
-        values: buildYearValues("balanceSheet.deferredRevenue"),
-        formula: buildFormulas("Deferred % * Revenue"),
-        indent: 2,
-      },
-      {
-        id: "totalCurrentLiabilities",
-        label: "Total Current Liabilities",
-        values: buildYearValues("balanceSheet.totalCurrentLiabilities"),
-        isSubtotal: true,
-      },
-
-      // Non-Current Liabilities
-      {
-        id: "non-current-liabilities-header",
-        label: "Non-Current Liabilities",
-        values: {},
         indent: 1,
       },
       {
         id: "debtBalance",
-        label: "Debt Balance (PLUG)",
+        label: "Debt",
         values: buildYearValues("balanceSheet.debtBalance"),
-        formula: buildFormulas("Balancing plug to match Assets (GAP 12)"),
-        indent: 2,
-      },
-      {
-        id: "totalNonCurrentLiabilities",
-        label: "Total Non-Current Liabilities",
-        values: buildYearValues("balanceSheet.totalNonCurrentLiabilities"),
-        isSubtotal: true,
-      },
-
-      {
-        id: "totalLiabilities",
-        label: "TOTAL LIABILITIES",
-        values: buildYearValues("balanceSheet.totalLiabilities"),
-        isTotal: true,
-      },
-
-      // Equity
-      {
-        id: "equity-header",
-        label: "Equity",
-        values: {},
         indent: 1,
       },
       {
-        id: "retainedEarnings",
-        label: "Retained Earnings",
-        values: buildYearValues("balanceSheet.retainedEarnings"),
-        indent: 2,
-      },
-      {
-        id: "netIncomeCurrentYear",
-        label: "Net Income (Current Year)",
-        values: buildYearValues("balanceSheet.netIncomeCurrentYear"),
-        indent: 2,
-      },
-      {
         id: "totalEquity",
-        label: "Total Equity",
+        label: "Equity",
         values: buildYearValues("balanceSheet.totalEquity"),
-        isSubtotal: true,
+        indent: 1,
       },
-
       {
         id: "totalLiabilitiesEquity",
-        label: "TOTAL LIABILITIES & EQUITY",
+        label: "Total Liab. & Equity",
         values: buildYearValues(
           "balanceSheet.totalLiabilities",
           false,
           "balanceSheet.totalEquity",
         ),
-        isTotal: true,
-      },
-
-      // Balance Check
-      {
-        id: "balanceDifference",
-        label: "Balance Check (Should be ~0)",
-        values: buildYearValues("balanceSheet.balanceDifference"),
-        formula: buildFormulas(
-          "Total Assets - (Total Liabilities + Total Equity)",
-        ),
-        isTotal: true,
+        isGrandTotal: true,
       },
     ];
   };
 
-  // Build Cash Flow line items
+  // Build Cash Flow line items (simplified - 6 key lines)
   const buildCFLineItems = (): FinancialLineItem[] => {
     if (!periods || periods.length === 0) return [];
 
     return [
-      // OPERATING ACTIVITIES
-      {
-        id: "operating-header",
-        label: "CASH FLOW FROM OPERATING ACTIVITIES",
-        values: {},
-        isHeader: true,
-      },
-      {
-        id: "netIncome",
-        label: "Net Income",
-        values: buildYearValues("cashFlow.netIncome"),
-        indent: 1,
-      },
-      {
-        id: "adjustments-header",
-        label: "Adjustments for non-cash items:",
-        values: {},
-        indent: 1,
-      },
-      {
-        id: "depreciation",
-        label: "Depreciation",
-        values: buildYearValues("cashFlow.depreciation"),
-        indent: 2,
-      },
-      {
-        id: "working-capital-header",
-        label: "Changes in working capital:",
-        values: {},
-        indent: 1,
-      },
-      {
-        id: "changeInAR",
-        label: "(Increase) / Decrease in AR",
-        values: buildYearValues("cashFlow.changeInAR", true),
-        indent: 2,
-      },
-      {
-        id: "changeInPrepaid",
-        label: "(Increase) / Decrease in Prepaid",
-        values: buildYearValues("cashFlow.changeInPrepaid", true),
-        indent: 2,
-      },
-      {
-        id: "changeInAP",
-        label: "Increase / (Decrease) in AP",
-        values: buildYearValues("cashFlow.changeInAP"),
-        indent: 2,
-      },
-      {
-        id: "changeInAccrued",
-        label: "Increase / (Decrease) in Accrued",
-        values: buildYearValues("cashFlow.changeInAccrued"),
-        indent: 2,
-      },
-      {
-        id: "changeInDeferredRevenue",
-        label: "Increase / (Decrease) in Deferred",
-        values: buildYearValues("cashFlow.changeInDeferredRevenue"),
-        indent: 2,
-      },
       {
         id: "cashFlowFromOperations",
-        label: "Net Cash from Operating Activities",
+        label: "Cash from Operations",
         values: buildYearValues("cashFlow.cashFlowFromOperations"),
-        isTotal: true,
-      },
-
-      // INVESTING ACTIVITIES
-      {
-        id: "investing-header",
-        label: "CASH FLOW FROM INVESTING ACTIVITIES",
-        values: {},
-        isHeader: true,
-      },
-      {
-        id: "capex",
-        label: "Capital Expenditures (CapEx)",
-        values: buildYearValues("cashFlow.capex", true),
-        indent: 1,
       },
       {
         id: "cashFlowFromInvesting",
-        label: "Net Cash from Investing Activities",
+        label: "Cash from Investing",
         values: buildYearValues("cashFlow.cashFlowFromInvesting"),
-        isTotal: true,
-      },
-
-      // FINANCING ACTIVITIES
-      {
-        id: "financing-header",
-        label: "CASH FLOW FROM FINANCING ACTIVITIES",
-        values: {},
-        isHeader: true,
-      },
-      {
-        id: "debtIssuance",
-        label: "Debt Issuance",
-        values: buildYearValues("cashFlow.debtIssuance"),
-        indent: 1,
-      },
-      {
-        id: "debtRepayment",
-        label: "Debt Repayment",
-        values: buildYearValues("cashFlow.debtRepayment", true),
-        indent: 1,
       },
       {
         id: "cashFlowFromFinancing",
-        label: "Net Cash from Financing Activities",
+        label: "Cash from Financing",
         values: buildYearValues("cashFlow.cashFlowFromFinancing"),
-        isTotal: true,
       },
-
-      // NET CHANGE
       {
         id: "netChangeInCash",
-        label: "NET CHANGE IN CASH",
+        label: "Net Change in Cash",
         values: buildYearValues("cashFlow.netChangeInCash"),
-        formula: buildFormulas("Operating + Investing + Financing"),
         isTotal: true,
-      },
-
-      // RECONCILIATION
-      {
-        id: "reconciliation-header",
-        label: "CASH RECONCILIATION",
-        values: {},
-        isHeader: true,
       },
       {
         id: "beginningCash",
-        label: "Beginning Cash Balance",
+        label: "Beginning Cash",
         values: buildYearValues("cashFlow.beginningCash"),
-        indent: 1,
-      },
-      {
-        id: "netChangeInCash2",
-        label: "Net Change in Cash",
-        values: buildYearValues("cashFlow.netChangeInCash"),
-        indent: 1,
       },
       {
         id: "endingCash",
-        label: "Ending Cash Balance",
+        label: "Ending Cash",
         values: buildYearValues("cashFlow.endingCash"),
-        isTotal: true,
-      },
-
-      // VALIDATION
-      {
-        id: "cashReconciliationDiff",
-        label: "Cash Reconciliation Check (Should be ~0)",
-        values: buildYearValues("cashFlow.cashReconciliationDiff"),
-        formula: buildFormulas("Ending Cash - Balance Sheet Cash"),
-        isTotal: true,
+        isGrandTotal: true,
       },
     ];
   };
@@ -590,9 +279,41 @@ export function FinancialStatementsTab({
         ? getNestedValue(period, additionalFieldPath)
         : 0;
 
+      // Handle various value types: string (from API serialization), number, Decimal object, or null/undefined
+      let numValue = 0;
       if (value !== undefined && value !== null) {
-        const numValue = parseFloat(value);
-        const numAdditional = parseFloat(additionalValue || 0);
+        // If it's already a number, use it directly
+        if (typeof value === "number") {
+          numValue = value;
+        }
+        // If it's a string, parse it
+        else if (typeof value === "string") {
+          const parsed = parseFloat(value);
+          numValue = isNaN(parsed) ? 0 : parsed;
+        }
+        // If it's an object with toString (like Decimal.js), convert to string first
+        else if (typeof value === "object" && value !== null && typeof value.toString === "function") {
+          const parsed = parseFloat(value.toString());
+          numValue = isNaN(parsed) ? 0 : parsed;
+        }
+      }
+
+      // Handle additional value similarly
+      let numAdditional = 0;
+      if (additionalValue !== undefined && additionalValue !== null) {
+        if (typeof additionalValue === "number") {
+          numAdditional = additionalValue;
+        } else if (typeof additionalValue === "string") {
+          const parsed = parseFloat(additionalValue);
+          numAdditional = isNaN(parsed) ? 0 : parsed;
+        } else if (typeof additionalValue === "object" && additionalValue !== null && typeof additionalValue.toString === "function") {
+          const parsed = parseFloat(additionalValue.toString());
+          numAdditional = isNaN(parsed) ? 0 : parsed;
+        }
+      }
+
+      // Only set the value if we have a valid number (including 0)
+      if (value !== undefined && value !== null) {
         values[year] = negate
           ? -(numValue + numAdditional)
           : numValue + numAdditional;
@@ -620,8 +341,33 @@ export function FinancialStatementsTab({
     try {
       toast.info(`Generating ${format.toUpperCase()} export...`);
 
+      if (format === "pdf") {
+        // 1. Capture Chart
+        const chartElement = document.getElementById("proposal-pdf-report-fs");
+        let chartImage = undefined;
+
+        if (chartElement) {
+          try {
+            const canvas = await html2canvas(chartElement, {
+              scale: 2, // High resolution
+              logging: false,
+              useCORS: true,
+              backgroundColor: "#ffffff"
+            });
+            chartImage = canvas.toDataURL("image/png");
+          } catch (e) {
+            console.error("Failed to capture chart:", e);
+            toast.error("Chart capture failed, generating report without chart.");
+          }
+        }
+
+        await generateComprehensiveReport(proposalData, chartImage);
+        toast.success("PDF export downloaded");
+        return;
+      }
+
       const response = await fetch(
-        `/api/proposals/${proposal.id}/export/${format}`,
+        `/api/proposals/${proposalData.id}/export/${format}`,
       );
 
       if (!response.ok) {
@@ -632,8 +378,7 @@ export function FinancialStatementsTab({
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      const extension = format === "excel" ? "xlsx" : "pdf";
-      a.download = `${proposal.developer}_${proposal.rentModel}_${new Date().toISOString().split("T")[0]}.${extension}`;
+      a.download = `${proposalData.developer || "proposal"}_${proposalData.rentModel}_${new Date().toISOString().split("T")[0]}.xlsx`;
       document.body.appendChild(a);
       a.click();
       a.remove();
@@ -643,6 +388,60 @@ export function FinancialStatementsTab({
     } catch (error) {
       console.error(`Error exporting to ${format}:`, error);
       toast.error(`Failed to export to ${format.toUpperCase()}`);
+    }
+  };
+
+  // Handle recalculate
+  const handleRecalculate = async () => {
+    try {
+      setRecalculating(true);
+      toast.info("Recalculating financial projections...");
+
+      const response = await fetch(
+        `/api/proposals/${proposalData.id}/recalculate`,
+        {
+          method: "POST",
+        },
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Failed to recalculate");
+      }
+
+      const result = await response.json();
+
+      // Update proposal data with new financials
+      if (result.proposal) {
+        setProposalData(result.proposal);
+        toast.success("Financial projections recalculated successfully");
+        // Notify parent to refresh
+        if (onRecalculated) {
+          onRecalculated();
+        }
+      } else if (result.data) {
+        // If proposal is not returned, update local state
+        setProposalData((prev: typeof proposal) => ({
+          ...prev,
+          financials: result.data.periods,
+          metrics: result.data.metrics,
+          calculatedAt: result.data.calculatedAt,
+        }));
+        toast.success("Financial projections recalculated successfully");
+        // Notify parent to refresh
+        if (onRecalculated) {
+          onRecalculated();
+        }
+      }
+    } catch (error) {
+      console.error("Error recalculating:", error);
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Failed to recalculate financial projections",
+      );
+    } finally {
+      setRecalculating(false);
     }
   };
 
@@ -656,10 +455,30 @@ export function FinancialStatementsTab({
         <div>
           <h2 className="text-2xl font-bold">Financial Statements</h2>
           <p className="text-muted-foreground mt-1">
-            View complete financial projections over 30 years
+            View complete financial projections ({2023}-{dynamicEndYear})
           </p>
         </div>
         <div className="flex gap-2">
+          {!hasFinancialData && (
+            <Button
+              variant="default"
+              size="sm"
+              onClick={handleRecalculate}
+              disabled={recalculating}
+            >
+              {recalculating ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Calculating...
+                </>
+              ) : (
+                <>
+                  <Calculator className="h-4 w-4 mr-2" />
+                  Calculate
+                </>
+              )}
+            </Button>
+          )}
           <Button
             variant="outline"
             size="sm"
@@ -682,28 +501,49 @@ export function FinancialStatementsTab({
       </div>
 
       {!hasFinancialData && (
-        <Card className="p-8">
+        <ExecutiveCard className="p-8">
           <div className="text-center text-muted-foreground">
             <p className="text-lg font-semibold mb-2">No Financial Data</p>
-            <p className="text-sm">
-              This proposal has not been calculated yet. Please run the 30-year
-              calculation first.
+            <p className="text-sm mb-4">
+              This proposal has not been calculated yet. Click the Calculate
+              button above to run the financial projection.
             </p>
+            <Button
+              variant="default"
+              onClick={handleRecalculate}
+              disabled={recalculating}
+            >
+              {recalculating ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Calculating...
+                </>
+              ) : (
+                <>
+                  <Calculator className="h-4 w-4 mr-2" />
+                  Calculate Financial Projections
+                </>
+              )}
+            </Button>
           </div>
-        </Card>
+        </ExecutiveCard>
       )}
 
       {hasFinancialData && (
         <>
           {/* Year Range Selector (GAP 9) */}
-          <Card className="p-4">
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-medium">Year Range:</span>
+          <ExecutiveCard>
+            <ExecutiveCardContent className="p-4 flex items-center gap-4">
+              <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                <Calendar className="h-4 w-4" />
+                <span>Period:</span>
+              </div>
               <div className="flex gap-2">
                 <Button
                   variant={yearRange === "historical" ? "default" : "outline"}
                   size="sm"
                   onClick={() => setYearRange("historical")}
+                  className={yearRange === "historical" ? "bg-primary text-primary-foreground" : "hover:bg-muted"}
                 >
                   Historical (2023-2024)
                 </Button>
@@ -711,6 +551,7 @@ export function FinancialStatementsTab({
                   variant={yearRange === "transition" ? "default" : "outline"}
                   size="sm"
                   onClick={() => setYearRange("transition")}
+                  className={yearRange === "transition" ? "bg-primary text-primary-foreground" : "hover:bg-muted"}
                 >
                   Transition (2025-2027)
                 </Button>
@@ -718,70 +559,130 @@ export function FinancialStatementsTab({
                   variant={yearRange === "early" ? "default" : "outline"}
                   size="sm"
                   onClick={() => setYearRange("early")}
+                  className={yearRange === "early" ? "bg-primary text-primary-foreground" : "hover:bg-muted"}
                 >
-                  Early Dynamic (2028-2037)
+                  Early Dynamic (2028-{dynamicMidpoint})
                 </Button>
                 <Button
                   variant={yearRange === "late" ? "default" : "outline"}
                   size="sm"
                   onClick={() => setYearRange("late")}
+                  className={yearRange === "late" ? "bg-primary text-primary-foreground" : "hover:bg-muted"}
                 >
-                  Late Dynamic (2038-2057)
+                  Late Dynamic ({dynamicMidpoint + 1}-{dynamicEndYear})
                 </Button>
                 <Button
                   variant={yearRange === "all" ? "default" : "outline"}
                   size="sm"
                   onClick={() => setYearRange("all")}
+                  className={yearRange === "all" ? "bg-primary text-primary-foreground" : "hover:bg-muted"}
                 >
                   All Years
                 </Button>
               </div>
-            </div>
-          </Card>
+            </ExecutiveCardContent>
+          </ExecutiveCard>
 
           {/* Statement Tabs */}
           <Tabs value={activeStatement} onValueChange={setActiveStatement}>
-            <TabsList className="grid w-full grid-cols-3">
-              <TabsTrigger value="pl">Profit & Loss</TabsTrigger>
-              <TabsTrigger value="bs">Balance Sheet</TabsTrigger>
-              <TabsTrigger value="cf">Cash Flow</TabsTrigger>
+            <TabsList className="flex w-auto justify-start border-b bg-transparent p-0 mb-6">
+              <TabsTrigger
+                value="pl"
+                className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none px-4 py-2"
+              >
+                Profit & Loss
+              </TabsTrigger>
+              <TabsTrigger
+                value="bs"
+                className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none px-4 py-2"
+              >
+                Balance Sheet
+              </TabsTrigger>
+              <TabsTrigger
+                value="cf"
+                className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none px-4 py-2"
+              >
+                Cash Flow
+              </TabsTrigger>
+              <TabsTrigger
+                value="profitability"
+                className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none px-4 py-2"
+              >
+                Profitability
+              </TabsTrigger>
             </TabsList>
 
             {/* P&L Statement */}
-            <TabsContent value="pl" className="mt-6">
-              <FinancialTable
-                title="Profit & Loss Statement"
-                years={selectedYears}
-                lineItems={buildPLLineItems()}
-                showTooltips={true}
-                highlightTotals={true}
-              />
+            <TabsContent value="pl">
+              <ExecutiveCard>
+                <ExecutiveCardContent className="p-0 overflow-hidden">
+                  <FinancialTable
+                    title="Profit & Loss Statement"
+                    years={selectedYears}
+                    lineItems={buildPLLineItems()}
+                    showTooltips={true}
+                    highlightTotals={true}
+                  />
+                </ExecutiveCardContent>
+              </ExecutiveCard>
             </TabsContent>
 
             {/* Balance Sheet */}
-            <TabsContent value="bs" className="mt-6">
-              <FinancialTable
-                title="Balance Sheet"
-                years={selectedYears}
-                lineItems={buildBSLineItems()}
-                showTooltips={true}
-                highlightTotals={true}
-              />
+            <TabsContent value="bs">
+              <ExecutiveCard>
+                <ExecutiveCardContent className="p-0 overflow-hidden">
+                  <FinancialTable
+                    title="Balance Sheet"
+                    years={selectedYears}
+                    lineItems={buildBSLineItems()}
+                    showTooltips={true}
+                    highlightTotals={true}
+                  />
+                </ExecutiveCardContent>
+              </ExecutiveCard>
             </TabsContent>
 
             {/* Cash Flow Statement */}
-            <TabsContent value="cf" className="mt-6">
-              <FinancialTable
-                title="Cash Flow Statement (Indirect Method)"
-                years={selectedYears}
-                lineItems={buildCFLineItems()}
-                showTooltips={true}
-                highlightTotals={true}
-              />
+            <TabsContent value="cf">
+              <ExecutiveCard>
+                <ExecutiveCardContent className="p-0 overflow-hidden">
+                  <FinancialTable
+                    title="Cash Flow Statement (Indirect Method)"
+                    years={selectedYears}
+                    lineItems={buildCFLineItems()}
+                    showTooltips={true}
+                    highlightTotals={true}
+                  />
+                </ExecutiveCardContent>
+              </ExecutiveCard>
+            </TabsContent>
+
+            {/* Profitability Analysis */}
+            <TabsContent value="profitability">
+              <ExecutiveCard>
+                <ExecutiveCardContent className="p-6">
+                  <RevenueNetProfitGrowthChart
+                    data={periods.map((period: any) => ({
+                      year: period.year,
+                      revenue: new Decimal(
+                        getNestedValue(period, "profitLoss.totalRevenue") || 0
+                      ),
+                      netProfit: new Decimal(
+                        getNestedValue(period, "profitLoss.netIncome") || 0
+                      ),
+                    }))}
+                    proposalId={proposalData.id}
+                    proposalName={proposalData.name}
+                  />
+                </ExecutiveCardContent>
+              </ExecutiveCard>
             </TabsContent>
           </Tabs>
         </>
       )}
+
+      {/* Hidden Report Component for PDF Generation */}
+      <ProposalPDFReport proposal={proposalData} id="proposal-pdf-report-fs" />
     </div>
   );
 }

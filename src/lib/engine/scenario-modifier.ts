@@ -38,6 +38,36 @@ export interface BaselineMetrics {
 }
 
 /**
+ * Deep clone an object while preserving Decimal.js instances
+ * This is safer than JSON serialization which can lose type information
+ */
+function deepCloneWithDecimals<T>(obj: T): T {
+  if (obj === null || typeof obj !== "object") {
+    return obj;
+  }
+
+  // Preserve Decimal instances
+  if (obj instanceof Decimal) {
+    return new Decimal(obj) as T;
+  }
+
+  // Handle arrays
+  if (Array.isArray(obj)) {
+    return obj.map((item) => deepCloneWithDecimals(item)) as T;
+  }
+
+  // Handle objects
+  const cloned = {} as T;
+  for (const key in obj) {
+    if (Object.prototype.hasOwnProperty.call(obj, key)) {
+      cloned[key] = deepCloneWithDecimals(obj[key]);
+    }
+  }
+
+  return cloned;
+}
+
+/**
  * Apply scenario variables to calculation engine input
  *
  * This function modifies the input configuration based on scenario slider values
@@ -51,19 +81,16 @@ export function applyScenarioVariables(
   baselineInput: CalculationEngineInput,
   variables: ScenarioVariables,
 ): CalculationEngineInput {
-  // Deep clone to avoid mutation
-  const modifiedInput: CalculationEngineInput = JSON.parse(
-    JSON.stringify(baselineInput, (key, value) => {
-      // Handle Decimal.js serialization
-      if (value && typeof value === "object" && value.d !== undefined) {
-        return value.toString();
-      }
-      return value;
-    }),
-  );
+  // Deep clone to avoid mutation - preserve Decimal instances
+  const modifiedInput = deepCloneWithDecimals(baselineInput);
 
-  // Reconstruct Decimal values
-  reconstructDecimals(modifiedInput);
+  // Log scenario application for debugging
+  console.log("📊 Applying scenario variables:", {
+    enrollmentPercent: variables.enrollmentPercent,
+    tuitionGrowthPercent: variables.tuitionGrowthPercent,
+    cpiPercent: variables.cpiPercent,
+    rentEscalationPercent: variables.rentEscalationPercent,
+  });
 
   // ============================================================================
   // 1. ENROLLMENT ADJUSTMENT
@@ -72,78 +99,278 @@ export function applyScenarioVariables(
     100,
   );
 
-  // Adjust steady state students
-  modifiedInput.dynamicPeriodConfig.enrollment.steadyStateStudents = Math.round(
-    modifiedInput.dynamicPeriodConfig.enrollment.steadyStateStudents *
-      enrollmentMultiplier.toNumber(),
-  );
+  // Log before values
+  const beforeSteadyState =
+    modifiedInput.dynamicPeriodConfig.enrollment.steadyStateStudents;
+  const beforeRampUp = modifiedInput.dynamicPeriodConfig.enrollment
+    .rampUpTargetStudents;
 
-  // Adjust ramp-up target (if enabled)
+  // Adjust steady state students - keep in Decimal space
+  const currentSteadyState = new Decimal(
+    modifiedInput.dynamicPeriodConfig.enrollment.steadyStateStudents,
+  );
+  const newSteadyState = currentSteadyState.times(enrollmentMultiplier);
+  modifiedInput.dynamicPeriodConfig.enrollment.steadyStateStudents =
+    Math.round(newSteadyState.toNumber());
+
+  // Adjust ramp-up target (if enabled) - keep in Decimal space
   if (modifiedInput.dynamicPeriodConfig.enrollment.rampUpEnabled) {
+    const currentRampUp = new Decimal(
+      modifiedInput.dynamicPeriodConfig.enrollment.rampUpTargetStudents,
+    );
+    const newRampUp = currentRampUp.times(enrollmentMultiplier);
     modifiedInput.dynamicPeriodConfig.enrollment.rampUpTargetStudents =
-      Math.round(
-        modifiedInput.dynamicPeriodConfig.enrollment.rampUpTargetStudents *
-          enrollmentMultiplier.toNumber(),
-      );
+      Math.round(newRampUp.toNumber());
+  }
+
+  // Log after values and validate
+  console.log("📊 Enrollment adjustment:", {
+    multiplier: enrollmentMultiplier.toString(),
+    steadyState: {
+      before: beforeSteadyState,
+      after: modifiedInput.dynamicPeriodConfig.enrollment.steadyStateStudents,
+    },
+    rampUp: modifiedInput.dynamicPeriodConfig.enrollment.rampUpEnabled
+      ? {
+        before: beforeRampUp,
+        after:
+          modifiedInput.dynamicPeriodConfig.enrollment.rampUpTargetStudents,
+      }
+      : "disabled",
+  });
+
+  // Validate enrollment values are reasonable
+  if (
+    modifiedInput.dynamicPeriodConfig.enrollment.steadyStateStudents > 100000
+  ) {
+    console.error(
+      "❌ Suspicious enrollment value after scenario application:",
+      modifiedInput.dynamicPeriodConfig.enrollment.steadyStateStudents,
+    );
+  }
+  if (
+    modifiedInput.dynamicPeriodConfig.enrollment.rampUpEnabled &&
+    modifiedInput.dynamicPeriodConfig.enrollment.rampUpTargetStudents > 100000
+  ) {
+    console.error(
+      "❌ Suspicious ramp-up target after scenario application:",
+      modifiedInput.dynamicPeriodConfig.enrollment.rampUpTargetStudents,
+    );
   }
 
   // ============================================================================
   // 2. TUITION GROWTH ADJUSTMENT
   // ============================================================================
-  // Note: The baseline has fixed tuition fees. To apply growth, we need to
-  // create a compound growth factor that will be applied during calculation.
-  // This is handled implicitly by adjusting the base fees in dynamic config.
+  // Treat the slider value as the NEW absolute rate.
+  // Example: Slider 5% -> New Rate 0.05
 
-  const tuitionGrowthRate = new Decimal(variables.tuitionGrowthPercent).div(
-    100,
-  );
-  const baseYear = modifiedInput.dynamicPeriodConfig.year;
+  const newNationalRate = new Decimal(variables.tuitionGrowthPercent).div(100);
 
-  // Calculate compounded growth from base year
-  // For simplicity, we'll apply the growth rate directly to the curriculum fees
-  // The calculation engine will use these as starting points
+  // Log before values
+  const beforeNationalRate =
+    modifiedInput.dynamicPeriodConfig.curriculum.nationalTuitionGrowthRate;
 
-  modifiedInput.dynamicPeriodConfig.curriculum.nationalCurriculumFee =
-    new Decimal(
-      modifiedInput.dynamicPeriodConfig.curriculum.nationalCurriculumFee,
-    ).mul(new Decimal(1).add(tuitionGrowthRate));
+  // Set growth rates - preserve original frequency from baseline
+  modifiedInput.dynamicPeriodConfig.curriculum.nationalTuitionGrowthRate =
+    newNationalRate;
+  // DO NOT override nationalTuitionGrowthFrequency - keep baseline value
 
-  modifiedInput.dynamicPeriodConfig.curriculum.ibCurriculumFee = new Decimal(
-    modifiedInput.dynamicPeriodConfig.curriculum.ibCurriculumFee,
-  ).mul(new Decimal(1).add(tuitionGrowthRate));
+  // Also set IB tuition growth rate if IB program is enabled
+  if (modifiedInput.dynamicPeriodConfig.curriculum.ibProgramEnabled) {
+    const beforeIBRate =
+      modifiedInput.dynamicPeriodConfig.curriculum.ibTuitionGrowthRate;
+
+    // For IB, we apply the same rate as National for simplicity in this scenario tool,
+    // or we could apply a delta. Given the UI has one slider for "Tuition Growth",
+    // applying it to both is the most intuitive behavior.
+    const newIBRate = newNationalRate;
+
+    modifiedInput.dynamicPeriodConfig.curriculum.ibTuitionGrowthRate =
+      newIBRate;
+    // DO NOT override ibTuitionGrowthFrequency - keep baseline value
+
+    console.log("📊 Tuition growth adjustment:", {
+      newRate: newNationalRate.toString(),
+      national: {
+        before: beforeNationalRate?.toString(),
+        after: newNationalRate.toString(),
+      },
+      ib: {
+        before: beforeIBRate?.toString(),
+        after: newIBRate.toString(),
+      },
+    });
+  } else {
+    console.log("📊 Tuition growth adjustment:", {
+      newRate: newNationalRate.toString(),
+      national: {
+        before: beforeNationalRate?.toString(),
+        after: newNationalRate.toString(),
+      },
+      ib: "disabled",
+    });
+  }
+
+  // Validate growth rate is reasonable (0-50%)
+  if (newNationalRate.greaterThan(0.5) || newNationalRate.lessThan(0)) {
+    console.warn(
+      "⚠️ Tuition growth rate outside expected range:",
+      newNationalRate.toString(),
+    );
+  }
 
   // ============================================================================
-  // 3. RENT ESCALATION ADJUSTMENT (Fixed Rent Model only)
+  // 3. RENT ESCALATION ADJUSTMENT
   // ============================================================================
+  // Treat the slider value as the NEW absolute rate.
+  // Example: Slider 5% -> New Rate 0.05
+
+  const newRentRate = new Decimal(variables.rentEscalationPercent).div(100);
+
   if (modifiedInput.rentModel === RentModelEnum.FIXED_ESCALATION) {
     const rentParams = modifiedInput.rentParams as FixedRentParams;
-    rentParams.growthRate = new Decimal(variables.rentEscalationPercent).div(
-      100,
-    );
+    const beforeRate = rentParams.growthRate;
+
+    rentParams.growthRate = newRentRate;
 
     // Also update dynamic period rent params
     const dynamicRentParams = modifiedInput.dynamicPeriodConfig
       .rentParams as FixedRentParams;
-    dynamicRentParams.growthRate = new Decimal(
-      variables.rentEscalationPercent,
-    ).div(100);
+    dynamicRentParams.growthRate = newRentRate;
+
+    console.log("📊 Rent escalation adjustment (FIXED_ESCALATION):", {
+      newRate: newRentRate.toString(),
+      before: beforeRate?.toString(),
+      after: newRentRate.toString(),
+    });
+  } else if (modifiedInput.rentModel === RentModelEnum.PARTNER_INVESTMENT) {
+    const rentParams = modifiedInput.rentParams as PartnerInvestmentParams;
+    const beforeRate = rentParams.growthRate;
+
+    rentParams.growthRate = newRentRate;
+
+    // Also update dynamic period rent params
+    const dynamicRentParams = modifiedInput.dynamicPeriodConfig
+      .rentParams as PartnerInvestmentParams;
+    dynamicRentParams.growthRate = newRentRate;
+
+    console.log("📊 Rent escalation adjustment (PARTNER_INVESTMENT):", {
+      newRate: newRentRate.toString(),
+      before: beforeRate?.toString(),
+      after: newRentRate.toString(),
+    });
+  } else {
+    // REVENUE_SHARE - no growth rate adjustment needed
+    console.log("📊 Rent escalation adjustment (REVENUE_SHARE):", {
+      note: "Rent scales automatically with revenue, no growth rate adjustment",
+    });
+  }
+
+  // Validate growth rate is reasonable (0-20%)
+  // Only validate if we actually set a rate
+  if (
+    modifiedInput.rentModel === RentModelEnum.FIXED_ESCALATION ||
+    modifiedInput.rentModel === RentModelEnum.PARTNER_INVESTMENT
+  ) {
+    if (newRentRate.greaterThan(0.2) || newRentRate.lessThan(0)) {
+      console.warn(
+        "⚠️ Rent escalation rate outside expected range:",
+        newRentRate.toString(),
+      );
+    }
   }
 
   // ============================================================================
-  // 4. CPI ADJUSTMENT (affects OpEx inflation)
+  // 4. CPI ADJUSTMENT (affects Staff Costs)
   // ============================================================================
-  // CPI affects operating expenses growth. We can model this by adjusting
-  // the otherOpex with a compound growth factor.
-  // For simplicity, apply a single-year adjustment to the base otherOpex
+  // Treat the slider value as the NEW absolute rate.
+  // Example: Slider 2% -> New Rate 0.02
 
-  const cpiGrowthRate = new Decimal(variables.cpiPercent).div(100);
+  const newCpiRate = new Decimal(variables.cpiPercent).div(100);
 
-  // Apply CPI growth to other operating expenses
-  modifiedInput.dynamicPeriodConfig.otherOpex = new Decimal(
-    modifiedInput.dynamicPeriodConfig.otherOpex,
-  ).mul(new Decimal(1).add(cpiGrowthRate));
+  // Log before value
+  const beforeCpiRate = modifiedInput.dynamicPeriodConfig.staff.cpiRate;
+
+  // Set CPI rate for staff cost calculation - preserve original frequency
+  modifiedInput.dynamicPeriodConfig.staff.cpiRate = newCpiRate;
+  // DO NOT override cpiFrequency - keep baseline value
+
+  console.log("📊 CPI adjustment:", {
+    newRate: newCpiRate.toString(),
+    before: beforeCpiRate?.toString(),
+    after: newCpiRate.toString(),
+  });
+
+  // Validate CPI rate is reasonable (0-10%)
+  if (newCpiRate.greaterThan(0.1) || newCpiRate.lessThan(0)) {
+    console.warn(
+      "⚠️ CPI rate outside expected range:",
+      newCpiRate.toString(),
+    );
+  }
+
+  // Final validation summary
+  console.log("✅ Scenario application complete:", {
+    enrollment: modifiedInput.dynamicPeriodConfig.enrollment.steadyStateStudents,
+    tuitionGrowth: modifiedInput.dynamicPeriodConfig.curriculum
+      .nationalTuitionGrowthRate?.toString(),
+    cpi: modifiedInput.dynamicPeriodConfig.staff.cpiRate?.toString(),
+    rentModel: modifiedInput.rentModel,
+  });
 
   return modifiedInput;
+}
+
+/**
+ * Check if a field name should be converted to Decimal
+ */
+function shouldBeDecimal(key: string): boolean {
+  const decimalPatterns = [
+    "Rate",
+    "Percent",
+    "Fee",
+    "Cost",
+    "Opex",
+    "Rent",
+    "Amount",
+    "Balance",
+    "Interest",
+    "Escalation",
+    "Share",
+    "Ratio",
+    "Size",
+    "Sqm",
+    "Yield",
+    "Salary",
+    "Revenue",
+    "Income",
+    "Expense",
+    "Price",
+    "Value",
+    "percentage",
+    "baseRent",
+    "growthRate",
+    "revenueSharePercent",
+    "yieldRate",
+    "Tolerance",
+    "Factor",
+    // Balance sheet fields
+    "cash",
+    "ppe",
+    "equity",
+    "debt",
+    "depreciation",
+    "Receivable",
+    "Payable",
+    // P&L fields
+    "zakat",
+    "Tuition",
+  ];
+  return decimalPatterns.some(
+    (pattern) =>
+      key.includes(pattern) ||
+      key.toLowerCase().includes(pattern.toLowerCase()),
+  );
 }
 
 /**
@@ -152,6 +379,16 @@ export function applyScenarioVariables(
 function reconstructDecimals(obj: unknown): void {
   if (!obj || typeof obj !== "object") return;
 
+  // Handle arrays
+  if (Array.isArray(obj)) {
+    for (const item of obj) {
+      if (typeof item === "object" && item !== null) {
+        reconstructDecimals(item);
+      }
+    }
+    return;
+  }
+
   const record = obj as Record<string, unknown>;
 
   for (const key in record) {
@@ -159,26 +396,16 @@ function reconstructDecimals(obj: unknown): void {
 
     // Check if value is a string that looks like a Decimal number
     if (typeof value === "string" && /^-?\d+(\.\d+)?$/.test(value)) {
-      // Check if the key name suggests it should be a Decimal
-      if (
-        key.includes("Rate") ||
-        key.includes("Percent") ||
-        key.includes("Fee") ||
-        key.includes("Cost") ||
-        key.includes("Opex") ||
-        key.includes("Rent") ||
-        key.includes("Amount") ||
-        key.includes("Balance") ||
-        key.includes("Interest") ||
-        key.includes("Escalation") ||
-        key.includes("Share") ||
-        key.includes("Ratio")
-      ) {
+      if (shouldBeDecimal(key)) {
         try {
           record[key] = new Decimal(value);
-        } catch (e) {
+        } catch {
           // Keep as string if conversion fails
         }
+      }
+    } else if (typeof value === "number") {
+      if (shouldBeDecimal(key)) {
+        record[key] = new Decimal(value);
       }
     } else if (value && typeof value === "object") {
       reconstructDecimals(value);

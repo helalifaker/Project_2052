@@ -19,7 +19,7 @@ import type {
   HistoricalPeriodInput,
   TransitionPeriodInput,
 } from "./core/types";
-import { RentModel } from "./core/types";
+import { RentModel, CapExCategoryType } from "./core/types";
 import Decimal from "decimal.js";
 
 // ============================================================================
@@ -67,6 +67,7 @@ function createHistoricalPeriods(overrides?: {
         cash: new Decimal(4500000),
         accountsReceivable: new Decimal(4500000),
         prepaidExpenses: new Decimal(1575000),
+        grossPPE: new Decimal(36000000), // Gross = Net + AccDep
         ppe: new Decimal(27000000),
         accumulatedDepreciation: new Decimal(9000000),
         accountsPayable: new Decimal(2520000),
@@ -92,6 +93,7 @@ function createHistoricalPeriods(overrides?: {
         cash: new Decimal(5000000),
         accountsReceivable: new Decimal(5000000),
         prepaidExpenses: new Decimal(1750000),
+        grossPPE: new Decimal(40000000), // Gross = Net + AccDep
         ppe: new Decimal(30000000),
         accumulatedDepreciation: new Decimal(10000000),
         accountsPayable: new Decimal(2800000),
@@ -154,7 +156,7 @@ function createDynamicPeriodConfig(overrides?: {
       fixedStaffCost: new Decimal(20000000),
       variableStaffCostPerStudent: new Decimal(10000),
     },
-    otherOpex: new Decimal(5000000),
+    otherOpexPercent: new Decimal(0.10), // 10% of revenue
     rentModel: RentModel.FIXED_ESCALATION,
     rentParams: {
       baseRent: new Decimal(10000000),
@@ -167,6 +169,24 @@ function createDynamicPeriodConfig(overrides?: {
       reinvestFrequency: 5,
       existingAssets: [],
       newAssets: [],
+      categories: [
+        {
+          id: "cat-it",
+          type: CapExCategoryType.IT_EQUIPMENT,
+          name: "IT Equipment",
+          usefulLife: 5,
+          reinvestFrequency: undefined,
+          reinvestAmount: undefined,
+        },
+      ],
+      historicalState: {
+        grossPPE2024: new Decimal(40000000),
+        accumulatedDepreciation2024: new Decimal(10000000),
+        annualDepreciation: new Decimal(1000000),
+        remainingToDepreciate: new Decimal(30000000),
+      },
+      transitionCapex: [],
+      virtualAssets: [],
     },
   };
 }
@@ -214,6 +234,24 @@ function buildEngineInput(
       reinvestFrequency: 5,
       existingAssets: [],
       newAssets: [],
+      categories: [
+        {
+          id: "cat-it",
+          type: CapExCategoryType.IT_EQUIPMENT,
+          name: "IT Equipment",
+          usefulLife: 5,
+          reinvestFrequency: undefined,
+          reinvestAmount: undefined,
+        },
+      ],
+      historicalState: {
+        grossPPE2024: new Decimal(40000000),
+        accumulatedDepreciation2024: new Decimal(10000000),
+        annualDepreciation: new Decimal(1000000),
+        remainingToDepreciate: new Decimal(30000000),
+      },
+      transitionCapex: [],
+      virtualAssets: [],
     },
     circularSolverConfig: {
       maxIterations: 100,
@@ -248,7 +286,7 @@ describe("Edge Case Tests", () => {
       const result = await calculateFinancialProjections(input);
 
       expect(result).toBeDefined();
-      expect(result.periods).toHaveLength(31); // 2 historical + 3 transition + 26 dynamic (2028-2053)
+      expect(result.periods).toHaveLength(35); // 2 historical + 3 transition + 26 dynamic (2028-2053)
 
       // Dynamic periods should have minimal revenue
       const dynamicPeriods = result.periods.slice(5);

@@ -98,6 +98,7 @@ export async function GET(request: Request) {
         id: true,
         name: true,
         rentModel: true,
+        contractPeriodYears: true, // For comparison page period mismatch detection
         developer: true,
         property: true,
         status: true,
@@ -173,8 +174,11 @@ export async function POST(request: Request) {
 
     const validatedData = validationResult.data;
 
-    // Convert otherOpex to Prisma.Decimal
-    const otherOpexDecimal = new Prisma.Decimal(validatedData.otherOpex);
+    // Convert otherOpexPercent to Prisma.Decimal
+    const otherOpexPercentDecimal = new Prisma.Decimal(validatedData.otherOpexPercent);
+
+    // Fetch TransitionConfig to record audit timestamp
+    const transitionConfig = await prisma.transitionConfig.findFirst();
 
     // Create proposal (use authenticated user's ID)
     const proposal = await prisma.leaseProposal.create({
@@ -182,12 +186,11 @@ export async function POST(request: Request) {
         name: validatedData.name,
         rentModel: validatedData.rentModel,
         createdBy: user.id,
-        transition: validatedData.transition as Prisma.InputJsonValue,
         enrollment: validatedData.enrollment as Prisma.InputJsonValue,
         curriculum: validatedData.curriculum as Prisma.InputJsonValue,
         staff: validatedData.staff as Prisma.InputJsonValue,
         rentParams: validatedData.rentParams as Prisma.InputJsonValue,
-        otherOpex: otherOpexDecimal,
+        otherOpexPercent: otherOpexPercentDecimal,
         financials: validatedData.financials as
           | Prisma.InputJsonValue
           | undefined,
@@ -195,6 +198,7 @@ export async function POST(request: Request) {
         calculatedAt: validatedData.calculatedAt
           ? new Date(validatedData.calculatedAt)
           : null,
+        transitionConfigUpdatedAt: transitionConfig?.updatedAt || new Date(),
       },
     });
 
@@ -212,7 +216,7 @@ export async function POST(request: Request) {
 
     console.error("Error creating proposal:", error);
     return NextResponse.json(
-      { error: "Failed to create proposal" },
+      { error: "Failed to create proposal", details: String(error) },
       { status: 500 },
     );
   }

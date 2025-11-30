@@ -63,6 +63,7 @@ describe("Profit & Loss Statement", () => {
       depreciation: new Decimal(800000),
       interestExpense: new Decimal(200000),
       interestIncome: new Decimal(50000),
+      zakatExpense: new Decimal(38750), // 2.5% of EBT (1,550,000 × 0.025)
     };
 
     const pl = generateProfitLossStatement(input);
@@ -89,6 +90,7 @@ describe("Profit & Loss Statement", () => {
       depreciation: new Decimal(50000),
       interestExpense: new Decimal(25000),
       interestIncome: new Decimal(0),
+      zakatExpense: new Decimal(13125), // 2.5% of EBT (525,000 × 0.025)
     };
 
     const pl = generateProfitLossStatement(input);
@@ -111,6 +113,7 @@ describe("Profit & Loss Statement", () => {
       depreciation: new Decimal(20000),
       interestExpense: new Decimal(10000),
       interestIncome: new Decimal(0),
+      zakatExpense: new Decimal(0), // Zero for negative EBT
     };
 
     const pl = generateProfitLossStatement(input);
@@ -132,6 +135,7 @@ describe("Profit & Loss Statement", () => {
       depreciation: new Decimal(400000),
       interestExpense: new Decimal(100000),
       interestIncome: new Decimal(25000),
+      zakatExpense: new Decimal(19375), // 2.5% of EBT (775,000 × 0.025)
     };
 
     const pl = generateProfitLossStatement(input);
@@ -168,7 +172,7 @@ describe("Balance Sheet", () => {
       cash: new Decimal(3000000),
       accountsReceivable: new Decimal(1000000),
       prepaidExpenses: new Decimal(200000),
-      propertyPlantEquipment: new Decimal(15000000),
+      grossPPE: new Decimal(15000000),
       accumulatedDepreciation: new Decimal(3000000),
       accountsPayable: new Decimal(500000),
       accruedExpenses: new Decimal(300000),
@@ -196,7 +200,7 @@ describe("Balance Sheet", () => {
       cash: new Decimal(3000000),
       accountsReceivable: new Decimal(1000000),
       prepaidExpenses: new Decimal(200000),
-      propertyPlantEquipment: new Decimal(15000000),
+      grossPPE: new Decimal(15000000),
       accumulatedDepreciation: new Decimal(3000000),
       accountsPayable: new Decimal(500000),
       accruedExpenses: new Decimal(300000),
@@ -222,7 +226,7 @@ describe("Balance Sheet", () => {
       cash: new Decimal(1000000),
       accountsReceivable: new Decimal(500000),
       prepaidExpenses: new Decimal(100000),
-      propertyPlantEquipment: new Decimal(10000000),
+      grossPPE: new Decimal(10000000),
       accumulatedDepreciation: new Decimal(2000000),
       accountsPayable: new Decimal(300000),
       accruedExpenses: new Decimal(200000),
@@ -262,7 +266,7 @@ describe("Balance Sheet", () => {
       cash: new Decimal(1000000),
       accountsReceivable: new Decimal(500000),
       prepaidExpenses: new Decimal(100000),
-      propertyPlantEquipment: new Decimal(5000000),
+      grossPPE: new Decimal(5000000),
       accumulatedDepreciation: new Decimal(1000000),
       accountsPayable: new Decimal(200000),
       accruedExpenses: new Decimal(100000),
@@ -462,6 +466,7 @@ describe("Comprehensive Validators", () => {
       depreciation: new Decimal(800000),
       interestExpense: new Decimal(200000),
       interestIncome: new Decimal(50000),
+      zakatExpense: new Decimal(38750), // 2.5% of EBT (1,550,000 × 0.025)
     });
 
     // Generate cash flow first to get the calculated ending cash
@@ -488,7 +493,7 @@ describe("Comprehensive Validators", () => {
         cash: cf.endingCash, // Use calculated ending cash from CF
         accountsReceivable: new Decimal(1000000),
         prepaidExpenses: new Decimal(200000),
-        propertyPlantEquipment: new Decimal(15000000),
+        grossPPE: new Decimal(15000000),
         accumulatedDepreciation: new Decimal(3000000),
         accountsPayable: new Decimal(500000),
         accruedExpenses: new Decimal(300000),
@@ -552,6 +557,7 @@ describe("Comprehensive Validators", () => {
       depreciation: new Decimal(800000),
       interestExpense: new Decimal(200000),
       interestIncome: new Decimal(50000),
+      zakatExpense: new Decimal(38750), // 2.5% of EBT (1,550,000 × 0.025)
     });
 
     // Generate cash flow for 2025 with proper beginning cash from 2024
@@ -577,7 +583,7 @@ describe("Comprehensive Validators", () => {
         cash: cf2025.endingCash, // Use calculated ending cash from CF
         accountsReceivable: new Decimal(1000000),
         prepaidExpenses: new Decimal(200000),
-        propertyPlantEquipment: new Decimal(15000000),
+        grossPPE: new Decimal(15000000),
         accumulatedDepreciation: new Decimal(3000000),
         accountsPayable: new Decimal(500000),
         accruedExpenses: new Decimal(300000),

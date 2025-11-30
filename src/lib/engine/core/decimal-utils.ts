@@ -423,6 +423,64 @@ export function calculateNPV(
 }
 
 /**
+ * Calculate annualization factor using the annuity formula
+ * Factor = r / (1 - (1 + r)^(-n))
+ *
+ * This converts a Net Present Value into an Equivalent Annual Value (EAV),
+ * allowing fair comparison of proposals with different contract lengths.
+ *
+ * @param discountRate - Discount rate as Decimal (e.g., 0.08 for 8%)
+ * @param periods - Number of periods (years)
+ * @returns Annualization factor as Decimal
+ *
+ * @example
+ * // For 8% discount rate over 25 years
+ * const factor = calculateAnnualizationFactor(new Decimal(0.08), 25);
+ * // Returns approximately 0.093679 (9.37%)
+ */
+export function calculateAnnualizationFactor(
+  discountRate: Decimal,
+  periods: number,
+): Decimal {
+  // Edge case: if discount rate is zero, use 1/n
+  // (equal distribution across periods)
+  if (discountRate.equals(ZERO)) {
+    return divide(ONE, new Decimal(periods));
+  }
+
+  // Calculate: r / (1 - (1 + r)^(-n))
+  const onePlusRate = add(ONE, discountRate);
+  const denominator = subtract(ONE, power(onePlusRate, -periods));
+  return divide(discountRate, denominator);
+}
+
+/**
+ * Calculate Equivalent Annual Value (EAV) from NPV
+ * EAV = NPV × annualizationFactor
+ *
+ * Converts a lump-sum NPV into a constant annual amount, adjusting for
+ * the time value of money. Useful for comparing projects of different durations.
+ *
+ * @param npv - Net Present Value as Decimal
+ * @param discountRate - Discount rate as Decimal
+ * @param periods - Number of periods (years)
+ * @returns Equivalent Annual Value as Decimal
+ *
+ * @example
+ * // Convert 100M SAR NPV to annual equivalent
+ * const eav = calculateEAV(new Decimal(100_000_000), new Decimal(0.08), 25);
+ * // Returns approximately 9,367,900 SAR/year
+ */
+export function calculateEAV(
+  npv: Decimal,
+  discountRate: Decimal,
+  periods: number,
+): Decimal {
+  const factor = calculateAnnualizationFactor(discountRate, periods);
+  return multiply(npv, factor);
+}
+
+/**
  * Calculate Internal Rate of Return (IRR) using Newton-Raphson method
  * @param cashFlows Array of cash flows (index 0 = initial investment, typically negative)
  * @param guess Initial guess for IRR (default 0.1 = 10%)
@@ -463,6 +521,7 @@ export function calculateIRR(
     rate = newRate;
   }
 
+  console.warn("⚠️ IRR calculation did not converge within max iterations");
   return null; // Did not converge
 }
 

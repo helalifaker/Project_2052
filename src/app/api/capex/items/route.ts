@@ -23,6 +23,7 @@ const ManualCapExItemSchema = z.object({
   amount: z.number().min(0, "Amount must be positive"),
   usefulLife: z.number().min(1, "Useful life must be at least 1 year").max(50),
   depreciationMethod: z.enum(["OLD", "NEW"]).optional(),
+  categoryId: z.string().uuid(),  // Required - all assets must have a category
 });
 
 // ============================================================================
@@ -50,18 +51,32 @@ export async function POST(request: Request) {
     const data = validationResult.data;
 
     // Determine depreciation method based on year if not provided
-    const depreciationMethod =
+    const _depreciationMethod =
       data.depreciationMethod ?? (data.year < 2028 ? "OLD" : "NEW");
+
+    // Validate categoryId if provided
+    if (data.categoryId) {
+      const categoryExists = await prisma.capExCategory.findUnique({
+        where: { id: data.categoryId },
+      });
+      if (!categoryExists) {
+        return NextResponse.json(
+          { error: "Invalid category ID" },
+          { status: 400 }
+        );
+      }
+    }
 
     const item = await prisma.capExAsset.create({
       data: {
         proposalId: null, // Global item, not attached to a proposal
-        year: data.year,
-        assetName: data.assetName,
-        amount: data.amount,
+        purchaseYear: data.year,
+        purchaseAmount: data.amount,
         usefulLife: data.usefulLife,
-        depreciationMethod,
-        nbv: data.amount, // Initial NBV equals amount
+        categoryId: data.categoryId,
+      },
+      include: {
+        category: true,
       },
     });
 
@@ -69,13 +84,12 @@ export async function POST(request: Request) {
       success: true,
       item: {
         id: item.id,
-        year: item.year,
-        assetName: item.assetName,
-        amount: Number(item.amount),
+        purchaseYear: item.purchaseYear,
+        purchaseAmount: Number(item.purchaseAmount),
         usefulLife: item.usefulLife,
-        depreciationMethod: item.depreciationMethod,
-        nbv: Number(item.nbv),
         createdAt: item.createdAt,
+        categoryId: item.categoryId,
+        categoryName: item.category?.name ?? null,
       },
     });
   } catch (error) {

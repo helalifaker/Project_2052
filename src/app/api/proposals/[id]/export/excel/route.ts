@@ -3,38 +3,48 @@ import { prisma } from "@/lib/prisma";
 import { authenticateUserWithRole } from "@/middleware/auth";
 import { Role } from "@prisma/client";
 import ExcelJS from "exceljs";
-import Decimal from "decimal.js";
+import type { Prisma } from "@prisma/client";
+import type { StoredFinancialPeriod, ExcelExportData } from "@/lib/excel/types";
+import { createSummarySheet } from "@/lib/excel/summary-builder";
+import { createInputsSheet } from "@/lib/excel/inputs-builder";
+import {
+  createTransposedSheet,
+  PROFIT_LOSS_LINE_ITEMS,
+  BALANCE_SHEET_LINE_ITEMS,
+  CASH_FLOW_LINE_ITEMS,
+} from "@/lib/excel/sheet-builders";
+import { addChartNamedRanges } from "@/lib/excel/chart-ranges";
 
-type ProposalMetrics = {
-  npv?: number | string;
-  irr?: number | string;
-  paybackPeriod?: number | string;
-  roiPercent?: number | string;
-};
+/**
+ * Normalize stored financial periods from Prisma JSON
+ */
+const normalizeStoredPeriods = (
+  financials: Prisma.JsonValue,
+): StoredFinancialPeriod[] => {
+  if (!Array.isArray(financials)) return [];
 
-type ProfitLossRow = {
-  revenue: Decimal.Value;
-  rent: Decimal.Value;
-  operatingCosts: Decimal.Value;
-  ebitda: Decimal.Value;
-  netIncome: Decimal.Value;
-};
-
-type CashFlowRow = {
-  operating: Decimal.Value;
-  investing: Decimal.Value;
-  free: Decimal.Value;
-  cumulative: Decimal.Value;
-};
-
-const toNumber = (value: unknown): number => {
-  if (value instanceof Decimal) return value.toNumber();
-  if (typeof value === "number") return value;
-  if (typeof value === "string") {
-    const parsed = Number(value);
-    return Number.isFinite(parsed) ? parsed : 0;
-  }
-  return 0;
+  return financials
+    .map((period) =>
+      typeof period === "object" && period !== null
+        ? (period as Record<string, unknown>)
+        : null,
+    )
+    .filter((period): period is Record<string, unknown> => period !== null)
+    .map((period) => ({
+      year: typeof period.year === "number" ? period.year : 0,
+      profitLoss:
+        period.profitLoss && typeof period.profitLoss === "object"
+          ? (period.profitLoss as Record<string, unknown>)
+          : {},
+      balanceSheet:
+        period.balanceSheet && typeof period.balanceSheet === "object"
+          ? (period.balanceSheet as Record<string, unknown>)
+          : {},
+      cashFlow:
+        period.cashFlow && typeof period.cashFlow === "object"
+          ? (period.cashFlow as Record<string, unknown>)
+          : {},
+    }));
 };
 
 export async function GET(
@@ -53,6 +63,7 @@ export async function GET(
   const { id } = await params;
 
   try {
+    // Fetch proposal with all related data
     const proposal = await prisma.leaseProposal.findUnique({
       where: { id },
       include: {
@@ -71,172 +82,114 @@ export async function GET(
       );
     }
 
+    // Fetch system config and transition config
+    const systemConfig = await prisma.systemConfig.findFirst();
+    const transitionConfig = await prisma.transitionConfig.findFirst();
+
+    // Normalize financial periods
+    const periods = normalizeStoredPeriods(proposal.financials);
+
+    if (periods.length === 0) {
+      return NextResponse.json(
+        { error: "No financial data available for this proposal" },
+        { status: 400 },
+      );
+    }
+
+    // Prepare export data
+    const exportData: ExcelExportData = {
+      proposal,
+      periods,
+      systemConfig,
+      transitionConfig,
+    };
+
     // Create workbook
     const workbook = new ExcelJS.Workbook();
     workbook.creator = "CapEx Advisor";
     workbook.created = new Date();
+    workbook.company = "CapEx Advisor";
+    workbook.description = `Financial analysis for ${proposal.name}`;
 
-    // Summary Sheet
-    const summarySheet = workbook.addWorksheet("Summary");
-    summarySheet.columns = [
-      { header: "Property", key: "property", width: 30 },
-      { header: "Value", key: "value", width: 30 },
-    ];
-
-    // Add summary data
-    summarySheet.addRow({ property: "Proposal Name", value: proposal.name });
-    summarySheet.addRow({
-      property: "Rent Model",
-      value: proposal.rentModel,
+    // --- SHEET 1: EXECUTIVE SUMMARY ---
+    const summarySheet = workbook.addWorksheet("Executive Summary", {
+      properties: { tabColor: { argb: "FFC9A86C" } }, // Copper (Chart-1)
     });
-    summarySheet.addRow({
-      property: "Created Date",
-      value: proposal.createdAt.toISOString().split("T")[0],
+    createSummarySheet(summarySheet, exportData);
+
+    // --- SHEET 2: INPUTS & ASSUMPTIONS ---
+    const inputsSheet = workbook.addWorksheet("Inputs & Assumptions", {
+      properties: { tabColor: { argb: "FFE4D4B8" } }, // Copper-300 (Light accent)
     });
-    summarySheet.addRow({
-      property: "Created By",
-      value: proposal.creator.email,
+    createInputsSheet(inputsSheet, exportData);
+
+    // --- SHEET 3: PROFIT & LOSS ---
+    const plSheet = workbook.addWorksheet("Profit & Loss", {
+      properties: { tabColor: { argb: "FF2D7A4F" } }, // Desert Sage (Financial positive)
     });
-    summarySheet.addRow({ property: "", value: "" });
+    createTransposedSheet(
+      {
+        worksheet: plSheet,
+        periods,
+        lineItems: PROFIT_LOSS_LINE_ITEMS,
+        freezePanes: true,
+      },
+      "profitLoss",
+    );
 
-    // Financial Metrics
-    if (proposal.metrics) {
-      const metrics = proposal.metrics as ProposalMetrics;
-      summarySheet.addRow({ property: "Financial Metrics", value: "" });
-      if (metrics.npv !== undefined) {
-        summarySheet.addRow({
-          property: "NPV",
-          value: `€${(toNumber(metrics.npv) / 1_000_000).toFixed(2)}M`,
-        });
-      }
-      if (metrics.irr !== undefined) {
-        summarySheet.addRow({
-          property: "IRR",
-          value: `${toNumber(metrics.irr).toFixed(2)}%`,
-        });
-      }
-      if (metrics.paybackPeriod !== undefined) {
-        summarySheet.addRow({
-          property: "Payback Period",
-          value: `${toNumber(metrics.paybackPeriod).toFixed(1)} years`,
-        });
-      }
-      if (metrics.roiPercent !== undefined) {
-        summarySheet.addRow({
-          property: "ROI",
-          value: `${toNumber(metrics.roiPercent).toFixed(2)}%`,
-        });
-      }
-    }
+    // --- SHEET 4: BALANCE SHEET ---
+    const bsSheet = workbook.addWorksheet("Balance Sheet", {
+      properties: { tabColor: { argb: "FF4A7C96" } }, // Twilight Blue (Chart-2)
+    });
+    createTransposedSheet(
+      {
+        worksheet: bsSheet,
+        periods,
+        lineItems: BALANCE_SHEET_LINE_ITEMS,
+        freezePanes: true,
+      },
+      "balanceSheet",
+    );
 
-    // Style the header row
-    summarySheet.getRow(1).font = { bold: true };
-    summarySheet.getRow(1).fill = {
-      type: "pattern",
-      pattern: "solid",
-      fgColor: { argb: "FF4F46E5" },
-    };
-    summarySheet.getRow(1).font = { color: { argb: "FFFFFFFF" }, bold: true };
+    // --- SHEET 5: CASH FLOW ---
+    const cfSheet = workbook.addWorksheet("Cash Flow", {
+      properties: { tabColor: { argb: "FF7A9E8A" } }, // Sage (Chart-3)
+    });
+    createTransposedSheet(
+      {
+        worksheet: cfSheet,
+        periods,
+        lineItems: CASH_FLOW_LINE_ITEMS,
+        freezePanes: true,
+      },
+      "cashFlow",
+    );
 
-    // Financial Statements Sheet
-    if (proposal.financials) {
-      const financials = proposal.financials as {
-        profitAndLoss?: ProfitLossRow[];
-        cashFlow?: CashFlowRow[];
-      };
-
-      // P&L Sheet
-      if (financials.profitAndLoss) {
-        const plSheet = workbook.addWorksheet("Profit & Loss");
-        const plData = financials.profitAndLoss;
-
-        plSheet.columns = [
-          { header: "Year", key: "year", width: 10 },
-          { header: "Revenue", key: "revenue", width: 15 },
-          { header: "Rent Expense", key: "rent", width: 15 },
-          { header: "Operating Costs", key: "opex", width: 15 },
-          { header: "EBITDA", key: "ebitda", width: 15 },
-          { header: "Net Income", key: "netIncome", width: 15 },
-        ];
-
-        // Add data rows
-        plData.forEach((row, index) => {
-          plSheet.addRow({
-            year: index + 1,
-            revenue: toNumber(row.revenue) / 1_000_000,
-            rent: toNumber(row.rent) / 1_000_000,
-            opex: toNumber(row.operatingCosts) / 1_000_000,
-            ebitda: toNumber(row.ebitda) / 1_000_000,
-            netIncome: toNumber(row.netIncome) / 1_000_000,
-          });
-        });
-
-        // Style header
-        plSheet.getRow(1).font = { bold: true };
-        plSheet.getRow(1).fill = {
-          type: "pattern",
-          pattern: "solid",
-          fgColor: { argb: "FF4F46E5" },
-        };
-        plSheet.getRow(1).font = {
-          color: { argb: "FFFFFFFF" },
-          bold: true,
-        };
-      }
-
-      // Cash Flow Sheet
-      if (financials.cashFlow) {
-        const cfSheet = workbook.addWorksheet("Cash Flow");
-        const cfData = financials.cashFlow;
-
-        cfSheet.columns = [
-          { header: "Year", key: "year", width: 10 },
-          { header: "Operating CF", key: "operating", width: 15 },
-          { header: "Investing CF", key: "investing", width: 15 },
-          { header: "Free CF", key: "free", width: 15 },
-          { header: "Cumulative CF", key: "cumulative", width: 15 },
-        ];
-
-        cfData.forEach((row, index) => {
-          cfSheet.addRow({
-            year: index + 1,
-            operating: toNumber(row.operating) / 1_000_000,
-            investing: toNumber(row.investing) / 1_000_000,
-            free: toNumber(row.free) / 1_000_000,
-            cumulative: toNumber(row.cumulative) / 1_000_000,
-          });
-        });
-
-        // Style header
-        cfSheet.getRow(1).font = { bold: true };
-        cfSheet.getRow(1).fill = {
-          type: "pattern",
-          pattern: "solid",
-          fgColor: { argb: "FF4F46E5" },
-        };
-        cfSheet.getRow(1).font = {
-          color: { argb: "FFFFFFFF" },
-          bold: true,
-        };
-      }
-    }
+    // --- ADD CHART NAMED RANGES ---
+    addChartNamedRanges(workbook, periods.length);
 
     // Generate Excel buffer
     const buffer = await workbook.xlsx.writeBuffer();
 
     // Return Excel file
+    const filename = `${proposal.name.replace(/[^a-zA-Z0-9]/g, "_")}_Financial_Report.xlsx`;
+
     return new NextResponse(buffer, {
       status: 200,
       headers: {
         "Content-Type":
           "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        "Content-Disposition": `attachment; filename="${proposal.name.replace(/\s+/g, "_")}_Report.xlsx"`,
+        "Content-Disposition": `attachment; filename="${filename}"`,
+        "Cache-Control": "no-cache",
       },
     });
   } catch (error) {
     console.error("Error generating Excel:", error);
     return NextResponse.json(
-      { error: "Failed to generate Excel file" },
+      {
+        error: "Failed to generate Excel file",
+        details: error instanceof Error ? error.message : "Unknown error",
+      },
       { status: 500 },
     );
   }

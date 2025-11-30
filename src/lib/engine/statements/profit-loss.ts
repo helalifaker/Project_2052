@@ -51,6 +51,9 @@ export interface ProfitLossInput {
   // Interest
   interestExpense: Decimal;
   interestIncome: Decimal;
+
+  // Zakat (pre-calculated by circular solver)
+  zakatExpense: Decimal;
 }
 
 // ============================================================================
@@ -118,8 +121,9 @@ export function generateProfitLossStatement(
   // ZAKAT
   // ==========================================================================
 
-  // Zakat = 2.5% of EBT (only if EBT is positive)
-  const zakatExpense = ebt.greaterThan(ZERO) ? multiply(ebt, ZAKAT_RATE) : ZERO;
+  // Zakat is pre-calculated by the circular solver using the formula:
+  // (Equity - Non-Current Assets) × zakatRate
+  const zakatExpense = input.zakatExpense;
 
   // ==========================================================================
   // NET INCOME
@@ -258,13 +262,10 @@ export function validateProfitLossStatement(
     return false;
   }
 
-  // Check Zakat
-  const expectedZakat = statement.ebt.greaterThan(ZERO)
-    ? multiply(statement.ebt, ZAKAT_RATE)
-    : ZERO;
-  if (!isEqual(statement.zakatExpense, expectedZakat)) {
+  // Check Zakat (must be non-negative)
+  if (statement.zakatExpense.lessThan(ZERO)) {
     console.error(
-      `P&L Validation Error (Year ${statement.year}): Zakat mismatch`,
+      `P&L Validation Error (Year ${statement.year}): Zakat cannot be negative`,
     );
     return false;
   }
@@ -299,6 +300,7 @@ export function createSimpleProfitLoss(
   expenses: Decimal,
   depreciation: Decimal,
   interestExpense: Decimal = ZERO,
+  zakatExpense: Decimal = ZERO,
 ): ProfitLossStatement {
   return generateProfitLossStatement({
     year,
@@ -310,5 +312,6 @@ export function createSimpleProfitLoss(
     depreciation,
     interestExpense,
     interestIncome: ZERO,
+    zakatExpense,
   });
 }

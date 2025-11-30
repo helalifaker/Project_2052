@@ -63,12 +63,12 @@ export async function POST(
         createdBy: authResult.user.id, // Current user becomes creator
 
         // Copy all configuration data
-        transition: original.transition as Prisma.InputJsonValue,
         enrollment: original.enrollment as Prisma.InputJsonValue,
         curriculum: original.curriculum as Prisma.InputJsonValue,
         staff: original.staff as Prisma.InputJsonValue,
         rentParams: original.rentParams as Prisma.InputJsonValue,
-        otherOpex: original.otherOpex,
+        otherOpexPercent: original.otherOpexPercent,
+        transitionConfigUpdatedAt: original.transitionConfigUpdatedAt,
 
         // Copy negotiation context
         developer: original.developer,
@@ -95,14 +95,10 @@ export async function POST(
         // Copy CapEx assets if any
         assets: {
           create: original.assets.map((asset) => ({
-            year: asset.year,
-            assetName: asset.assetName,
-            amount: asset.amount,
+            purchaseYear: asset.purchaseYear,
+            purchaseAmount: asset.purchaseAmount,
             usefulLife: asset.usefulLife,
-            depreciationMethod: asset.depreciationMethod,
-            fixedAmount: asset.fixedAmount,
-            rate: asset.rate,
-            nbv: asset.nbv,
+            categoryId: asset.categoryId,
           })),
         },
       },

@@ -95,18 +95,23 @@ export function FinancialStatementsComparison({
       : parseFloat(String(value)) || null;
   };
 
-  // P&L Line Items Definition
-  const plLineItems: Array<{
+  // Line Item Type with grand total support
+  type LineItemDef = {
     id: string;
     label: string;
     path: string | null;
     isHeader?: boolean;
     isSubtotal?: boolean;
     isTotal?: boolean;
+    isGrandTotal?: boolean;
+    isSectionStart?: boolean;
     indent?: number;
     negate?: boolean;
-  }> = [
-    { id: "revenue-header", label: "REVENUE", path: null, isHeader: true },
+  };
+
+  // P&L Line Items Definition
+  const plLineItems: LineItemDef[] = [
+    { id: "revenue-header", label: "REVENUE", path: null, isHeader: true, isSectionStart: true },
     {
       id: "tuitionRevenue",
       label: "Tuition Revenue",
@@ -130,6 +135,7 @@ export function FinancialStatementsComparison({
       label: "OPERATING EXPENSES",
       path: null,
       isHeader: true,
+      isSectionStart: true,
     },
     {
       id: "rentExpense",
@@ -192,22 +198,13 @@ export function FinancialStatementsComparison({
       id: "netIncome",
       label: "NET INCOME",
       path: "profitLoss.netIncome",
-      isTotal: true,
+      isGrandTotal: true,
     },
   ];
 
   // Balance Sheet Line Items Definition
-  const bsLineItems: Array<{
-    id: string;
-    label: string;
-    path: string | null;
-    isHeader?: boolean;
-    isSubtotal?: boolean;
-    isTotal?: boolean;
-    indent?: number;
-    negate?: boolean;
-  }> = [
-    { id: "assets-header", label: "ASSETS", path: null, isHeader: true },
+  const bsLineItems: LineItemDef[] = [
+    { id: "assets-header", label: "ASSETS", path: null, isHeader: true, isSectionStart: true },
     {
       id: "current-assets-header",
       label: "Current Assets",
@@ -245,9 +242,9 @@ export function FinancialStatementsComparison({
       indent: 1,
     },
     {
-      id: "ppe",
+      id: "grossPPE",
       label: "PP&E (Gross)",
-      path: "balanceSheet.propertyPlantEquipment",
+      path: "balanceSheet.grossPPE",
       indent: 2,
     },
     {
@@ -256,6 +253,13 @@ export function FinancialStatementsComparison({
       path: "balanceSheet.accumulatedDepreciation",
       indent: 2,
       negate: true,
+    },
+    {
+      id: "netPPE",
+      label: "Net PP&E",
+      path: "balanceSheet.propertyPlantEquipment",
+      indent: 2,
+      isSubtotal: true,
     },
     {
       id: "totalNonCurrentAssets",
@@ -267,13 +271,14 @@ export function FinancialStatementsComparison({
       id: "totalAssets",
       label: "TOTAL ASSETS",
       path: "balanceSheet.totalAssets",
-      isTotal: true,
+      isGrandTotal: true,
     },
     {
       id: "liabilities-header",
       label: "LIABILITIES & EQUITY",
       path: null,
       isHeader: true,
+      isSectionStart: true,
     },
     {
       id: "current-liabilities-header",
@@ -346,26 +351,18 @@ export function FinancialStatementsComparison({
       id: "totalLiabilitiesEquity",
       label: "TOTAL LIABILITIES & EQUITY",
       path: "balanceSheet.totalLiabilitiesEquity",
-      isTotal: true,
+      isGrandTotal: true,
     },
   ];
 
   // Cash Flow Line Items Definition
-  const cfLineItems: Array<{
-    id: string;
-    label: string;
-    path: string | null;
-    isHeader?: boolean;
-    isSubtotal?: boolean;
-    isTotal?: boolean;
-    indent?: number;
-    negate?: boolean;
-  }> = [
+  const cfLineItems: LineItemDef[] = [
     {
       id: "operating-header",
       label: "OPERATING ACTIVITIES",
       path: null,
       isHeader: true,
+      isSectionStart: true,
     },
     {
       id: "netIncome",
@@ -422,6 +419,7 @@ export function FinancialStatementsComparison({
       label: "INVESTING ACTIVITIES",
       path: null,
       isHeader: true,
+      isSectionStart: true,
     },
     {
       id: "capex",
@@ -441,6 +439,7 @@ export function FinancialStatementsComparison({
       label: "FINANCING ACTIVITIES",
       path: null,
       isHeader: true,
+      isSectionStart: true,
     },
     {
       id: "debtIssuance",
@@ -465,7 +464,7 @@ export function FinancialStatementsComparison({
       id: "netChangeInCash",
       label: "NET CHANGE IN CASH",
       path: "cashFlow.netChangeInCash",
-      isTotal: true,
+      isGrandTotal: true,
     },
     {
       id: "beginningCash",
@@ -526,27 +525,23 @@ export function FinancialStatementsComparison({
         </TabsList>
 
         <TabsContent value={activeStatement} className="mt-6">
-          <Card className="overflow-hidden">
+          {/* Minimalist card container */}
+          <div className="rounded-lg border border-[var(--financial-border)] bg-[var(--financial-card-bg)] overflow-hidden">
             <div className="overflow-x-auto">
               <Table>
-                <TableHeader>
-                  <TableRow>
+                <TableHeader className="bg-[var(--financial-card-bg)]">
+                  <TableRow className="border-b border-[var(--financial-border)]">
                     {/* First column: Line Item labels */}
-                    <TableHead className="sticky left-0 z-20 bg-background min-w-[250px] border-r-2">
+                    <TableHead className="sticky left-0 z-20 bg-[var(--financial-card-bg)] min-w-[250px] border-r border-[var(--financial-border)] font-medium text-sm py-3 px-4">
                       Line Item
                     </TableHead>
 
-                    {/* Year columns for each proposal */}
-                    {proposals.map((proposal, proposalIdx) => (
+                    {/* Year columns for each proposal - minimal styling */}
+                    {proposals.map((proposal) => (
                       <TableHead
                         key={proposal.id}
                         colSpan={selectedYears.length}
-                        className={cn(
-                          "text-center border-r-2 bg-muted/50",
-                          proposalIdx % 2 === 0
-                            ? "bg-blue-50/50 dark:bg-blue-950/20"
-                            : "bg-green-50/50 dark:bg-green-950/20",
-                        )}
+                        className="text-center border-r border-[var(--financial-border)] py-3"
                       >
                         <div className="font-semibold text-sm">
                           {proposal.name}
@@ -558,22 +553,18 @@ export function FinancialStatementsComparison({
                     ))}
                   </TableRow>
 
-                  {/* Year sub-headers */}
-                  <TableRow>
-                    <TableHead className="sticky left-0 z-20 bg-background border-r-2">
+                  {/* Year sub-headers - clean and minimal */}
+                  <TableRow className="border-b border-[var(--financial-border)]">
+                    <TableHead className="sticky left-0 z-20 bg-[var(--financial-card-bg)] border-r border-[var(--financial-border)] font-medium text-sm py-2.5">
                       Years
                     </TableHead>
-                    {proposals.map((proposal, proposalIdx) =>
+                    {proposals.map((proposal) =>
                       selectedYears.map((year, yearIdx) => (
                         <TableHead
                           key={`${proposal.id}-${year}`}
                           className={cn(
-                            "text-right font-mono text-xs",
-                            yearIdx === selectedYears.length - 1 &&
-                              "border-r-2",
-                            proposalIdx % 2 === 0
-                              ? "bg-blue-50/30 dark:bg-blue-950/10"
-                              : "bg-green-50/30 dark:bg-green-950/10",
+                            "text-center font-mono text-sm py-2.5",
+                            yearIdx === selectedYears.length - 1 && "border-r border-[var(--financial-border)]",
                           )}
                         >
                           {year}
@@ -585,28 +576,54 @@ export function FinancialStatementsComparison({
 
                 <TableBody>
                   {lineItems.map((item) => {
-                    const isSpecial =
-                      item.isSubtotal || item.isTotal || item.isHeader;
-                    const indentClass = item.indent
-                      ? `pl-${Math.min(item.indent * 4, 12)}`
-                      : "";
+                    // Minimalist row styles - typography creates hierarchy, not backgrounds
+                    const getComparisonRowStyles = () => {
+                      const baseHover = "hover:bg-[var(--financial-hover-row)] transition-colors duration-100";
+
+                      // Grand totals and totals get subtle background
+                      if (item.isGrandTotal || item.isTotal) {
+                        return cn(
+                          "bg-[var(--financial-total-bg)]",
+                          "border-t border-[var(--financial-border)]"
+                        );
+                      }
+                      // Subtotals: top border only
+                      if (item.isSubtotal) {
+                        return cn("border-t border-[var(--financial-border)]", baseHover);
+                      }
+                      // Headers: top border only
+                      if (item.isHeader) {
+                        return "border-t border-[var(--financial-border)]";
+                      }
+                      // Regular rows: simple hover (no alternating)
+                      return baseHover;
+                    };
 
                     return (
                       <TableRow
                         key={item.id}
-                        className={cn(
-                          isSpecial && "bg-muted/30",
-                          item.isTotal && "font-bold bg-primary/5",
-                        )}
+                        className={getComparisonRowStyles()}
                       >
-                        {/* Line Item Label */}
+                        {/* Line Item Label - minimalist typography-first approach */}
                         <TableCell
                           className={cn(
-                            "sticky left-0 z-10 bg-background border-r-2",
-                            indentClass,
-                            item.isSubtotal && "font-semibold",
-                            item.isTotal && "font-bold",
-                            item.isHeader && "font-bold uppercase text-xs",
+                            "sticky left-0 z-10",
+                            "bg-[var(--financial-card-bg)]",
+                            "border-r border-[var(--financial-border)]",
+                            // Simple padding-only indentation (no lines)
+                            item.indent === 1 && "pl-8",
+                            item.indent === 2 && "pl-12",
+                            item.indent === 3 && "pl-16",
+                            !item.indent && "pl-4",
+                            "py-2.5",
+                            // Typography creates hierarchy
+                            item.isHeader && "uppercase text-xs font-medium tracking-wider text-muted-foreground",
+                            item.isGrandTotal && "font-bold text-sm",
+                            item.isTotal && "font-semibold text-sm",
+                            item.isSubtotal && "font-medium text-sm",
+                            !item.isHeader && !item.isTotal && !item.isSubtotal && !item.isGrandTotal && "text-sm",
+                            // Match total background on sticky cell
+                            (item.isGrandTotal || item.isTotal) && "bg-[var(--financial-total-bg)]"
                           )}
                         >
                           {item.label}
@@ -632,28 +649,24 @@ export function FinancialStatementsComparison({
                               <TableCell
                                 key={`${proposal.id}-${year}-${item.id}`}
                                 className={cn(
-                                  "text-right font-mono tabular-nums text-xs",
-                                  item.isSubtotal && "font-semibold",
-                                  item.isTotal && "font-bold",
-                                  yearIdx === selectedYears.length - 1 &&
-                                    "border-r-2",
-                                  proposalIdx % 2 === 0
-                                    ? "bg-blue-50/10 dark:bg-blue-950/5"
-                                    : "bg-green-50/10 dark:bg-green-950/5",
+                                  "text-right font-mono tabular-nums min-w-[85px] px-3 py-2.5",
+                                  // Typography hierarchy
+                                  item.isGrandTotal && "font-bold text-sm",
+                                  item.isTotal && "font-semibold text-sm",
+                                  item.isSubtotal && "font-medium text-sm",
+                                  !item.isHeader && !item.isTotal && !item.isSubtotal && !item.isGrandTotal && "text-sm",
+                                  // Subtle period separator
+                                  yearIdx === selectedYears.length - 1 && "border-r border-r-[var(--financial-border)]",
+                                  // Very subtle proposal alternating (minimal)
+                                  proposalIdx % 2 === 1 && "bg-muted/5",
                                 )}
                               >
                                 {value !== null ? (
-                                  <span
-                                    className={cn(
-                                      getFinancialColorClass(value),
-                                    )}
-                                  >
+                                  <span className={getFinancialColorClass(value)}>
                                     {formatMillions(value)}
                                   </span>
                                 ) : (
-                                  <span className="text-muted-foreground">
-                                    —
-                                  </span>
+                                  <span className="text-muted-foreground/50">—</span>
                                 )}
                               </TableCell>
                             );
@@ -665,7 +678,7 @@ export function FinancialStatementsComparison({
                 </TableBody>
               </Table>
             </div>
-          </Card>
+          </div>
         </TabsContent>
       </Tabs>
     </div>

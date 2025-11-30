@@ -1,18 +1,10 @@
 export interface ProposalFormData {
   // Step 1: Basics
   developerName: string;
+  contractPeriodYears: 25 | 30;
   rentModel: "Fixed" | "RevShare" | "Partner" | "";
 
-  // Step 2: Transition
-  transition2025Students: number;
-  transition2025AvgTuition: number;
-  transition2026Students: number;
-  transition2026AvgTuition: number;
-  transition2027Students: number;
-  transition2027AvgTuition: number;
-  transitionRentGrowthPercent?: number;
-
-  // Step 3: Enrollment
+  // Step 2: Enrollment (previously Step 3)
   frenchCapacity: number;
   ibCapacity: number;
   rampUpFRYear1Percentage: number;
@@ -26,7 +18,7 @@ export interface ProposalFormData {
   rampUpIBYear4Percentage: number;
   rampUpIBYear5Percentage: number;
 
-  // Step 4: Curriculum
+  // Step 3: Curriculum (previously Step 4)
   frenchProgramEnabled: boolean;
   frenchProgramPercentage: number;
   ibProgramEnabled: boolean;
@@ -39,7 +31,7 @@ export interface ProposalFormData {
   ibTuitionGrowthRate?: number;
   ibTuitionGrowthFrequency?: number;
 
-  // Step 5: Rent Model Parameters
+  // Step 4: Rent Model Parameters (previously Step 5)
   baseRent?: number;
   rentGrowthRate?: number;
   rentFrequency?: number;
@@ -52,7 +44,7 @@ export interface ProposalFormData {
   partnerGrowthRate?: number;
   partnerFrequency?: number;
 
-  // Step 6: Operating Costs
+  // Step 5: Operating Costs (previously Step 6)
   studentsPerTeacher?: number;
   studentsPerNonTeacher?: number;
   avgTeacherSalary?: number;

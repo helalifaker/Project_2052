@@ -44,6 +44,7 @@ describe("Profit & Loss - Validation Failures", () => {
       depreciation: new Decimal(50000),
       interestExpense: new Decimal(25000),
       interestIncome: new Decimal(0),
+      zakatExpense: new Decimal(13125), // 2.5% of EBT (525,000 × 0.025)
     });
 
     // Corrupt the Zakat value
@@ -67,6 +68,7 @@ describe("Profit & Loss - Validation Failures", () => {
       depreciation: new Decimal(50000),
       interestExpense: new Decimal(25000),
       interestIncome: new Decimal(0),
+      zakatExpense: new Decimal(13125), // 2.5% of EBT (525,000 × 0.025)
     });
 
     // Corrupt the Net Income value
@@ -90,6 +92,7 @@ describe("Profit & Loss - Validation Failures", () => {
       depreciation: new Decimal(50000),
       interestExpense: new Decimal(25000),
       interestIncome: new Decimal(0),
+      zakatExpense: new Decimal(15625), // 2.5% of EBT (625,000 × 0.025)
     });
 
     // Corrupt the Total Revenue value
@@ -113,6 +116,7 @@ describe("Profit & Loss - Validation Failures", () => {
       depreciation: new Decimal(50000),
       interestExpense: new Decimal(25000),
       interestIncome: new Decimal(0),
+      zakatExpense: new Decimal(13125), // 2.5% of EBT (525,000 × 0.025)
     });
 
     // Corrupt the Total OpEx value
@@ -136,6 +140,7 @@ describe("Profit & Loss - Validation Failures", () => {
       depreciation: new Decimal(50000),
       interestExpense: new Decimal(25000),
       interestIncome: new Decimal(0),
+      zakatExpense: new Decimal(13125), // 2.5% of EBT (525,000 × 0.025)
     });
 
     // Corrupt the EBITDA value
@@ -159,6 +164,7 @@ describe("Profit & Loss - Validation Failures", () => {
       depreciation: new Decimal(50000),
       interestExpense: new Decimal(25000),
       interestIncome: new Decimal(0),
+      zakatExpense: new Decimal(13125), // 2.5% of EBT (525,000 × 0.025)
     });
 
     // Corrupt the EBIT value
@@ -182,6 +188,7 @@ describe("Profit & Loss - Validation Failures", () => {
       depreciation: new Decimal(50000),
       interestExpense: new Decimal(25000),
       interestIncome: new Decimal(5000),
+      zakatExpense: new Decimal(13250), // 2.5% of EBT (530,000 × 0.025)
     });
 
     // Corrupt the Net Interest value
@@ -205,6 +212,7 @@ describe("Profit & Loss - Validation Failures", () => {
       depreciation: new Decimal(50000),
       interestExpense: new Decimal(25000),
       interestIncome: new Decimal(0),
+      zakatExpense: new Decimal(13125), // 2.5% of EBT (525,000 × 0.025)
     });
 
     // Corrupt the EBT value
@@ -226,7 +234,7 @@ describe("Balance Sheet - Validation Failures", () => {
         cash: new Decimal(1000000),
         accountsReceivable: new Decimal(500000),
         prepaidExpenses: new Decimal(100000),
-        propertyPlantEquipment: new Decimal(10000000),
+        grossPPE: new Decimal(10000000),
         accumulatedDepreciation: new Decimal(2000000),
         accountsPayable: new Decimal(300000),
         accruedExpenses: new Decimal(200000),
@@ -256,7 +264,7 @@ describe("Balance Sheet - Validation Failures", () => {
         cash: new Decimal(1000000),
         accountsReceivable: new Decimal(500000),
         prepaidExpenses: new Decimal(100000),
-        propertyPlantEquipment: new Decimal(10000000),
+        grossPPE: new Decimal(10000000),
         accumulatedDepreciation: new Decimal(2000000),
         accountsPayable: new Decimal(300000),
         accruedExpenses: new Decimal(200000),
@@ -285,7 +293,7 @@ describe("Balance Sheet - Validation Failures", () => {
         cash: new Decimal(1000000),
         accountsReceivable: new Decimal(500000),
         prepaidExpenses: new Decimal(100000),
-        propertyPlantEquipment: new Decimal(10000000),
+        grossPPE: new Decimal(10000000),
         accumulatedDepreciation: new Decimal(2000000),
         accountsPayable: new Decimal(300000),
         accruedExpenses: new Decimal(200000),
@@ -313,7 +321,7 @@ describe("Balance Sheet - Validation Failures", () => {
         cash: new Decimal(1000000),
         accountsReceivable: new Decimal(500000),
         prepaidExpenses: new Decimal(100000),
-        propertyPlantEquipment: new Decimal(10000000),
+        grossPPE: new Decimal(10000000),
         accumulatedDepreciation: new Decimal(2000000),
         accountsPayable: new Decimal(300000),
         accruedExpenses: new Decimal(200000),
@@ -341,7 +349,7 @@ describe("Balance Sheet - Validation Failures", () => {
         cash: new Decimal(1000000),
         accountsReceivable: new Decimal(500000),
         prepaidExpenses: new Decimal(100000),
-        propertyPlantEquipment: new Decimal(10000000),
+        grossPPE: new Decimal(10000000),
         accumulatedDepreciation: new Decimal(2000000),
         accountsPayable: new Decimal(300000),
         accruedExpenses: new Decimal(200000),
@@ -369,7 +377,7 @@ describe("Balance Sheet - Validation Failures", () => {
         cash: new Decimal(1000000),
         accountsReceivable: new Decimal(500000),
         prepaidExpenses: new Decimal(100000),
-        propertyPlantEquipment: new Decimal(10000000),
+        grossPPE: new Decimal(10000000),
         accumulatedDepreciation: new Decimal(2000000),
         accountsPayable: new Decimal(300000),
         accruedExpenses: new Decimal(200000),
@@ -397,7 +405,7 @@ describe("Balance Sheet - Validation Failures", () => {
         cash: new Decimal(1000000),
         accountsReceivable: new Decimal(500000),
         prepaidExpenses: new Decimal(100000),
-        propertyPlantEquipment: new Decimal(10000000),
+        grossPPE: new Decimal(10000000),
         accumulatedDepreciation: new Decimal(2000000),
         accountsPayable: new Decimal(300000),
         accruedExpenses: new Decimal(200000),
@@ -425,7 +433,7 @@ describe("Balance Sheet - Validation Failures", () => {
         cash: new Decimal(1000000),
         accountsReceivable: new Decimal(500000),
         prepaidExpenses: new Decimal(100000),
-        propertyPlantEquipment: new Decimal(10000000),
+        grossPPE: new Decimal(10000000),
         accumulatedDepreciation: new Decimal(2000000),
         accountsPayable: new Decimal(300000),
         accruedExpenses: new Decimal(200000),
@@ -592,6 +600,7 @@ describe("Period Linkage - Validation Failures", () => {
       depreciation: new Decimal(400000),
       interestExpense: new Decimal(100000),
       interestIncome: new Decimal(25000),
+      zakatExpense: new Decimal(19375), // 2.5% of EBT (775,000 × 0.025)
     });
 
     const cf2024 = generateCashFlowStatement({
@@ -615,7 +624,7 @@ describe("Period Linkage - Validation Failures", () => {
         cash: cf2024.endingCash,
         accountsReceivable: new Decimal(1000000),
         prepaidExpenses: new Decimal(200000),
-        propertyPlantEquipment: new Decimal(15000000),
+        grossPPE: new Decimal(15000000),
         accumulatedDepreciation: new Decimal(3000000),
         accountsPayable: new Decimal(500000),
         accruedExpenses: new Decimal(300000),
@@ -649,6 +658,7 @@ describe("Period Linkage - Validation Failures", () => {
       depreciation: new Decimal(450000),
       interestExpense: new Decimal(110000),
       interestIncome: new Decimal(30000),
+      zakatExpense: new Decimal(21125), // 2.5% of EBT (845,000 × 0.025)
     });
 
     const cf2025 = generateCashFlowStatement({
@@ -672,7 +682,7 @@ describe("Period Linkage - Validation Failures", () => {
         cash: cf2025.endingCash,
         accountsReceivable: new Decimal(1100000),
         prepaidExpenses: new Decimal(220000),
-        propertyPlantEquipment: new Decimal(16000000),
+        grossPPE: new Decimal(16000000),
         accumulatedDepreciation: new Decimal(3450000),
         accountsPayable: new Decimal(550000),
         accruedExpenses: new Decimal(330000),
@@ -714,6 +724,7 @@ describe("Period Linkage - Validation Failures", () => {
       depreciation: new Decimal(400000),
       interestExpense: new Decimal(100000),
       interestIncome: new Decimal(25000),
+      zakatExpense: new Decimal(19375), // 2.5% of EBT (775,000 × 0.025)
     });
 
     const cf2024 = generateCashFlowStatement({
@@ -737,7 +748,7 @@ describe("Period Linkage - Validation Failures", () => {
         cash: cf2024.endingCash,
         accountsReceivable: new Decimal(1000000),
         prepaidExpenses: new Decimal(200000),
-        propertyPlantEquipment: new Decimal(15000000),
+        grossPPE: new Decimal(15000000),
         accumulatedDepreciation: new Decimal(5000000), // High accumulated depreciation
         accountsPayable: new Decimal(500000),
         accruedExpenses: new Decimal(300000),
@@ -771,6 +782,7 @@ describe("Period Linkage - Validation Failures", () => {
       depreciation: new Decimal(450000),
       interestExpense: new Decimal(110000),
       interestIncome: new Decimal(30000),
+      zakatExpense: new Decimal(21125), // 2.5% of EBT (845,000 × 0.025)
     });
 
     const cf2025 = generateCashFlowStatement({
@@ -794,7 +806,7 @@ describe("Period Linkage - Validation Failures", () => {
         cash: cf2025.endingCash,
         accountsReceivable: new Decimal(1100000),
         prepaidExpenses: new Decimal(220000),
-        propertyPlantEquipment: new Decimal(16000000),
+        grossPPE: new Decimal(16000000),
         accumulatedDepreciation: new Decimal(2000000), // DECREASED! Should be >= 5M
         accountsPayable: new Decimal(550000),
         accruedExpenses: new Decimal(330000),
@@ -839,6 +851,7 @@ describe("Period Linkage - Validation Failures", () => {
       depreciation: new Decimal(400000),
       interestExpense: new Decimal(100000),
       interestIncome: new Decimal(25000),
+      zakatExpense: new Decimal(19375), // 2.5% of EBT (775,000 × 0.025)
     });
 
     const cf2024 = generateCashFlowStatement({
@@ -862,7 +875,7 @@ describe("Period Linkage - Validation Failures", () => {
         cash: cf2024.endingCash,
         accountsReceivable: new Decimal(1000000),
         prepaidExpenses: new Decimal(200000),
-        propertyPlantEquipment: new Decimal(15000000),
+        grossPPE: new Decimal(15000000),
         accumulatedDepreciation: new Decimal(3000000),
         accountsPayable: new Decimal(500000),
         accruedExpenses: new Decimal(300000),
@@ -896,6 +909,7 @@ describe("Period Linkage - Validation Failures", () => {
       depreciation: new Decimal(450000),
       interestExpense: new Decimal(110000),
       interestIncome: new Decimal(30000),
+      zakatExpense: new Decimal(21125), // 2.5% of EBT (845,000 × 0.025)
     });
 
     const cf2025 = generateCashFlowStatement({
@@ -919,7 +933,7 @@ describe("Period Linkage - Validation Failures", () => {
         cash: cf2025.endingCash,
         accountsReceivable: new Decimal(1100000),
         prepaidExpenses: new Decimal(220000),
-        propertyPlantEquipment: new Decimal(16000000),
+        grossPPE: new Decimal(16000000),
         accumulatedDepreciation: new Decimal(3450000),
         accountsPayable: new Decimal(550000),
         accruedExpenses: new Decimal(330000),
@@ -963,6 +977,7 @@ describe("Financial Period - Validation Warnings", () => {
       depreciation: new Decimal(400000),
       interestExpense: new Decimal(100000),
       interestIncome: new Decimal(25000),
+      zakatExpense: new Decimal(19375), // 2.5% of EBT (775,000 × 0.025)
     });
 
     const cf = generateCashFlowStatement({
@@ -986,7 +1001,7 @@ describe("Financial Period - Validation Warnings", () => {
         cash: cf.endingCash,
         accountsReceivable: new Decimal(1000000),
         prepaidExpenses: new Decimal(200000),
-        propertyPlantEquipment: new Decimal(15000000),
+        grossPPE: new Decimal(15000000),
         accumulatedDepreciation: new Decimal(3000000),
         accountsPayable: new Decimal(500000),
         accruedExpenses: new Decimal(300000),
@@ -1031,6 +1046,7 @@ describe("Financial Period - Validation Warnings", () => {
       depreciation: new Decimal(400000),
       interestExpense: new Decimal(100000),
       interestIncome: new Decimal(25000),
+      zakatExpense: new Decimal(19375), // 2.5% of EBT (775,000 × 0.025)
     });
 
     const cf = generateCashFlowStatement({
@@ -1054,7 +1070,7 @@ describe("Financial Period - Validation Warnings", () => {
         cash: cf.endingCash,
         accountsReceivable: new Decimal(1000000),
         prepaidExpenses: new Decimal(200000),
-        propertyPlantEquipment: new Decimal(15000000),
+        grossPPE: new Decimal(15000000),
         accumulatedDepreciation: new Decimal(3000000),
         accountsPayable: new Decimal(500000),
         accruedExpenses: new Decimal(300000),

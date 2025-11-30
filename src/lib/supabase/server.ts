@@ -20,8 +20,8 @@ export async function createClient() {
   // Use SUPABASE_URL if available, otherwise fall back to NEXT_PUBLIC_SUPABASE_URL
   const url = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
 
-  // Use NEW SUPABASE_SECRET_KEY (no fallback to legacy keys)
-  const key = process.env.SUPABASE_SECRET_KEY;
+  // Use NEW SUPABASE_SECRET_KEY, fallback to ANON key if missing (for client-context ops)
+  const key = process.env.SUPABASE_SECRET_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
   if (!url) {
     throw new Error(
@@ -31,8 +31,7 @@ export async function createClient() {
 
   if (!key) {
     throw new Error(
-      "Missing SUPABASE_SECRET_KEY environment variable. " +
-        "This is a NEW API key. Legacy service_role keys are not supported in this code path.",
+      "Missing SUPABASE_SECRET_KEY or NEXT_PUBLIC_SUPABASE_ANON_KEY environment variable.",
     );
   }
 

@@ -72,8 +72,8 @@ test.describe("Proposal Detail Page", () => {
     }
 
     // Look for export buttons
-    const excelButton = page.locator('button:has-text("Excel")');
-    const pdfButton = page.locator('button:has-text("PDF")');
+    const excelButton = page.getByRole("button", { name: /export.*excel/i });
+    const pdfButton = page.getByRole("button", { name: /export.*pdf/i });
 
     const hasExportButtons =
       (await excelButton.count()) > 0 || (await pdfButton.count()) > 0;
@@ -321,9 +321,7 @@ test.describe("Tab 4: Financial Statements (GAP 5)", () => {
     page,
   }) => {
     // Look for export buttons
-    const exportButtons = page.locator(
-      'button:has-text("Export"), button:has-text("Excel"), button:has-text("PDF")',
-    );
+    const exportButtons = page.getByRole("button", { name: /export/i });
     const hasExportButtons = (await exportButtons.count()) > 0;
 
     expect(hasExportButtons).toBeTruthy();

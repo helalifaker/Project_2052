@@ -112,8 +112,29 @@ export const HISTORICAL_END_YEAR = 2024;
 export const TRANSITION_START_YEAR = 2025;
 export const TRANSITION_END_YEAR = 2027;
 export const DYNAMIC_START_YEAR = 2028;
-export const DYNAMIC_END_YEAR = 2053;
-export const TOTAL_PROJECTION_YEARS = 30; // 2024-2053
+
+// REMOVED: export const DYNAMIC_END_YEAR = 2053;
+// REMOVED: export const TOTAL_PROJECTION_YEARS = 30;
+// These are now calculated dynamically based on contractPeriodYears
+// Use getDynamicEndYear() and getTotalPeriodCount() from types.ts instead
+
+/**
+ * Calculate the dynamic period end year based on contract period length
+ * @param contractPeriodYears - Contract period: 25 or 30 years
+ * @returns End year for dynamic period (2052 for 25 years, 2057 for 30 years)
+ */
+export function getDynamicEndYear(contractPeriodYears: 25 | 30): number {
+  return DYNAMIC_START_YEAR + contractPeriodYears - 1;
+}
+
+/**
+ * Calculate total number of periods across all three phases
+ * @param contractPeriodYears - Contract period: 25 or 30 years
+ * @returns Total periods (30 for 25 years, 35 for 30 years)
+ */
+export function getTotalPeriodCount(contractPeriodYears: 25 | 30): number {
+  return 2 + 3 + contractPeriodYears; // Historical + Transition + Dynamic
+}
 
 // ============================================================================
 // VALIDATION CONSTANTS

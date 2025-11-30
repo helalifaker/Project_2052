@@ -33,6 +33,9 @@ import type {
   PartnerInvestmentParams,
   CapExConfiguration,
   CapExAsset,
+  HistoricalDepreciationState,
+  CapExVirtualAsset,
+  CapExYearResult,
 } from "../core/types";
 import { PeriodType, DepreciationMethod } from "../core/types";
 import {
@@ -40,6 +43,7 @@ import {
   ONE,
   BALANCE_SHEET_TOLERANCE,
   CASH_FLOW_TOLERANCE,
+  DYNAMIC_START_YEAR,
 } from "../core/constants";
 import {
   add,
@@ -52,8 +56,13 @@ import {
   max,
   min,
 } from "../core/decimal-utils";
-import type Decimal from "decimal.js";
+import Decimal from "decimal.js";
 import { Decimal as D } from "decimal.js";
+// Legacy: calculateTotalCategoryReinvestment removed (use capex-calculator instead)
+import {
+  calculateCapexYearResult,
+  updateHistoricalDepreciationState,
+} from "../capex/capex-calculator";
 
 // ============================================================================
 // ENROLLMENT ENGINE (GAP 20: Ramp-up Logic)
@@ -413,62 +422,8 @@ function calculatePartnerInvestmentRent(
   return baseRent.times(growthFactor);
 }
 
-// ============================================================================
-// DEPRECIATION CALCULATION (Integrated - Full implementation in capex module)
-// ============================================================================
-
-/**
- * Calculate total depreciation expense for a given year.
- * This is a simplified version - full implementation in capex/depreciation.ts
- */
-export function calculateDepreciation(
-  year: number,
-  capexConfig: CapExConfiguration,
-): Decimal {
-  let totalDepreciation = ZERO;
-
-  // Depreciate existing assets
-  for (const asset of capexConfig.existingAssets) {
-    const assetDepreciation = calculateAssetDepreciation(asset, year);
-    totalDepreciation = add(totalDepreciation, assetDepreciation);
-  }
-
-  // Depreciate new assets
-  for (const asset of capexConfig.newAssets) {
-    const assetDepreciation = calculateAssetDepreciation(asset, year);
-    totalDepreciation = add(totalDepreciation, assetDepreciation);
-  }
-
-  return totalDepreciation;
-}
-
-function calculateAssetDepreciation(asset: CapExAsset, year: number): Decimal {
-  // Asset purchased after this year - no depreciation yet
-  if (year < asset.purchaseYear) {
-    return ZERO;
-  }
-
-  // Asset fully depreciated
-  if (asset.fullyDepreciated) {
-    return ZERO;
-  }
-
-  const age = year - asset.purchaseYear + 1; // +1 because we depreciate in purchase year
-
-  // Asset exceeded useful life
-  if (age > asset.usefulLife) {
-    return ZERO;
-  }
-
-  // Straight line depreciation
-  if (asset.depreciationMethod === DepreciationMethod.STRAIGHT_LINE) {
-    return divide(asset.purchaseAmount, new D(asset.usefulLife));
-  }
-
-  // Declining balance (if needed later)
-  return ZERO;
-}
-
+// DEPRECIATION CALCULATION: Moved to capex-calculator.ts
+// All depreciation is now handled via capexYearResult.totalDepreciation
 // ============================================================================
 // PROFIT & LOSS STATEMENT
 // ============================================================================
@@ -483,6 +438,8 @@ export function calculateProfitLoss(
   workingCapitalRatios: WorkingCapitalRatios,
   priorDebt: Decimal,
   priorCash: Decimal,
+  zakatExpense: Decimal,  // Zakat calculated iteratively by caller
+  depreciation: Decimal = ZERO,  // Pre-calculated depreciation (optional)
 ): ProfitLossStatement {
   // Calculate enrollment
   const totalStudents = calculateEnrollment(year, input.enrollment);
@@ -522,18 +479,15 @@ export function calculateProfitLoss(
     RENT_BASE_YEAR,
   );
 
-  const otherOpex = input.otherOpexPercent
-    ? multiply(totalRevenue, input.otherOpexPercent)
-    : input.otherOpex;
+  // Calculate Other OpEx as percentage of revenue
+  const otherOpex = multiply(totalRevenue, input.otherOpexPercent);
   const totalOpex = add(add(rentExpense, staffCosts), otherOpex);
 
   // EBITDA
   const ebitda = subtract(totalRevenue, totalOpex);
 
-  // Depreciation
-  const depreciation = calculateDepreciation(year, input.capexConfig);
-
   // EBIT
+  // (depreciation is passed in as parameter from calculateDynamicPeriod)
   const ebit = subtract(ebitda, depreciation);
 
   // Interest (simplified - will be refined with circular solver)
@@ -548,11 +502,7 @@ export function calculateProfitLoss(
   // EBT
   const ebt = subtract(ebit, netInterest);
 
-  // Zakat (2.5% of EBT if positive)
-  const zakatExpense = ebt.greaterThan(ZERO)
-    ? multiply(ebt, systemConfig.zakatRate)
-    : ZERO;
-
+  // Zakat is passed in as a parameter (calculated iteratively by caller)
   // Net Income
   const netIncome = subtract(ebt, zakatExpense);
 
@@ -591,6 +541,7 @@ export function calculateBalanceSheet(
   workingCapitalRatios: WorkingCapitalRatios,
   capexConfig: CapExConfiguration,
   capexSpending: Decimal,
+  capexYearResult?: CapExYearResult,  // Optional CAPEX result
 ): BalanceSheet {
   // Working Capital calculation using ratios
   const accountsReceivable = multiply(
@@ -615,19 +566,31 @@ export function calculateBalanceSheet(
   );
 
   // PP&E calculation
-  // Prior period stores NET PP&E, so we need to calculate GROSS first
-  const priorNetPPE = priorBS.propertyPlantEquipment;
+  // Prior period now stores grossPPE directly
+  const priorGrossPPE = priorBS.grossPPE;
   const priorAccumDepreciation = priorBS.accumulatedDepreciation;
-  const priorGrossPPE = add(priorNetPPE, priorAccumDepreciation);
 
-  // Current Gross PP&E = Prior Gross PP&E + CapEx
-  const currentGrossPPE = add(priorGrossPPE, capexSpending);
+  // PPE calculation (use CAPEX result if available, otherwise legacy logic)
+  let grossPPE: Decimal;
+  let accumulatedDepreciation: Decimal;
+  let netPPE: Decimal;
 
-  // Accumulated Depreciation grows each period
-  const accumulatedDepreciation = add(priorAccumDepreciation, pl.depreciation);
+  if (capexYearResult) {
+    // Use PPE from CAPEX calculation (already includes this year's CAPEX and depreciation)
+    grossPPE = capexYearResult.grossPPE;
+    accumulatedDepreciation = capexYearResult.accumulatedDepreciation;
+    netPPE = capexYearResult.netPPE;
+  } else {
+    // Legacy path: calculate PPE without CAPEX result
+    // Current Gross PP&E = Prior Gross PP&E + CapEx
+    grossPPE = add(priorGrossPPE, capexSpending);
 
-  // Net PP&E = Gross PP&E - Accumulated Depreciation
-  const netPPE = subtract(currentGrossPPE, accumulatedDepreciation);
+    // Accumulated Depreciation grows each period
+    accumulatedDepreciation = add(priorAccumDepreciation, pl.depreciation);
+
+    // Net PP&E = Gross PP&E - Accumulated Depreciation
+    netPPE = subtract(grossPPE, accumulatedDepreciation);
+  }
 
   // Store NET PP&E (to maintain consistency across periods)
   const ppe = netPPE;
@@ -689,8 +652,9 @@ export function calculateBalanceSheet(
     accountsReceivable,
     prepaidExpenses,
     totalCurrentAssets: add(add(cash, accountsReceivable), prepaidExpenses),
-    propertyPlantEquipment: ppe,
+    grossPPE,
     accumulatedDepreciation,
+    propertyPlantEquipment: ppe,
     totalNonCurrentAssets: netPPE,
     totalAssets: totalAssetsWithCash,
     accountsPayable,
@@ -720,6 +684,7 @@ export function calculateCashFlow(
   bs: BalanceSheet,
   priorBS: BalanceSheet,
   capexSpending: Decimal,
+  capexYearResult?: CapExYearResult,  // Optional CAPEX result
 ): CashFlowStatement {
   // Operating Activities (Indirect Method)
   const netIncome = pl.netIncome;
@@ -749,7 +714,15 @@ export function calculateCashFlow(
   );
 
   // Investing Activities
-  const capex = multiply(capexSpending, new D(-1)); // CapEx is cash outflow
+  // CapEx is cash outflow (negative)
+  let capex: Decimal;
+  if (capexYearResult) {
+    // Use CAPEX spending from CAPEX calculation
+    capex = multiply(capexYearResult.spending, new D(-1));
+  } else {
+    // Legacy path: use calculated capexSpending
+    capex = multiply(capexSpending, new D(-1));
+  }
   const cashFlowFromInvesting = capex;
 
   // Financing Activities
@@ -801,12 +774,22 @@ export function calculateCashFlow(
 
 /**
  * Calculate complete financial period for a dynamic year.
+ *
+ * @param input Dynamic period input data
+ * @param priorPeriod Previous year's period
+ * @param systemConfig System configuration
+ * @param workingCapitalRatios Working capital ratios
+ * @param historicalDepreciationState Historical depreciation state (optional for backward compatibility)
+ * @param virtualAssets Virtual assets accumulated from prior periods (optional for backward compatibility)
+ * @returns Complete financial period
  */
 export function calculateDynamicPeriod(
   input: DynamicPeriodInput,
   priorPeriod: FinancialPeriod,
   systemConfig: SystemConfiguration,
   workingCapitalRatios: WorkingCapitalRatios,
+  historicalDepreciationState?: HistoricalDepreciationState,
+  virtualAssets?: CapExVirtualAsset[],
 ): FinancialPeriod {
   const { year } = input;
 
@@ -825,27 +808,129 @@ export function calculateDynamicPeriod(
     );
   }
 
-  // Calculate P&L
-  const profitLoss = calculateProfitLoss(
+  // ========================================================================
+  // CAPEX & DEPRECIATION CALCULATION (happens before P&L)
+  // ========================================================================
+  let capexYearResult: CapExYearResult | undefined;
+  let depreciation = ZERO;
+
+  if (input.capexConfig && historicalDepreciationState) {
+    const priorGrossPPE = priorPeriod.balanceSheet.grossPPE;
+    const priorAccumulatedDepr = priorPeriod.balanceSheet.accumulatedDepreciation;
+
+    capexYearResult = calculateCapexYearResult(
+      year,
+      input.capexConfig,
+      "dynamic",
+      priorGrossPPE,
+      priorAccumulatedDepr,
+      historicalDepreciationState,
+    );
+
+    depreciation = capexYearResult.totalDepreciation;
+  }
+
+  // ==========================================================================
+  // ITERATIVE ZAKAT CALCULATION
+  // ==========================================================================
+  // Zakat depends on current period's Equity, which depends on Net Income,
+  // which depends on Zakat (circular dependency). We solve this iteratively.
+
+  const MAX_ZAKAT_ITERATIONS = 10;
+  const ZAKAT_CONVERGENCE_TOLERANCE = new Decimal(0.01); // 1 cent
+
+  let zakatEstimate = ZERO; // Initial estimate
+  let profitLoss: ProfitLossStatement;
+  let balanceSheet: BalanceSheet;
+  let converged = false;
+
+  for (let iteration = 0; iteration < MAX_ZAKAT_ITERATIONS; iteration++) {
+    // Calculate P&L with current Zakat estimate
+    profitLoss = calculateProfitLoss(
+      year,
+      input,
+      systemConfig,
+      workingCapitalRatios,
+      priorPeriod.balanceSheet.debtBalance,
+      priorPeriod.balanceSheet.cash,
+      zakatEstimate,  // Use current estimate
+      depreciation,
+    );
+
+    // CAPEX spending from capexYearResult
+    const capexSpending = capexYearResult ? capexYearResult.spending : ZERO;
+
+    // Calculate Balance Sheet using the P&L
+    balanceSheet = calculateBalanceSheet(
+      year,
+      profitLoss,
+      priorPeriod.balanceSheet,
+      workingCapitalRatios,
+      input.capexConfig,
+      capexSpending,
+      capexYearResult,
+    );
+
+    // Calculate NEW Zakat using CURRENT period's balance sheet (3-tier formula)
+    const equity = balanceSheet.totalEquity;
+    const nonCurrentAssets = balanceSheet.totalNonCurrentAssets;
+    const ebt = profitLoss.ebt;
+    const zakatRate = systemConfig.zakatRate;
+
+    const zakatBase = subtract(equity, nonCurrentAssets);
+    let newZakat: Decimal;
+
+    if (zakatBase.greaterThan(ZERO)) {
+      // Tier 1: Positive net assets
+      newZakat = multiply(zakatBase, zakatRate);
+    } else if (ebt.greaterThan(ZERO)) {
+      // Tier 2: Negative net assets but profitable
+      newZakat = multiply(ebt, zakatRate);
+    } else {
+      // Tier 3: Both negative
+      newZakat = ZERO;
+    }
+
+    // Check convergence
+    const difference = abs(subtract(newZakat, zakatEstimate));
+    if (difference.lessThanOrEqualTo(ZAKAT_CONVERGENCE_TOLERANCE)) {
+      converged = true;
+      zakatEstimate = newZakat;
+      break;
+    }
+
+    // Update estimate for next iteration
+    zakatEstimate = newZakat;
+  }
+
+  if (!converged) {
+    console.warn(
+      `⚠️ Zakat calculation for year ${year} did not converge within ${MAX_ZAKAT_ITERATIONS} iterations`
+    );
+  }
+
+  // Recalculate final P&L and Balance Sheet with converged Zakat
+  profitLoss = calculateProfitLoss(
     year,
     input,
     systemConfig,
     workingCapitalRatios,
     priorPeriod.balanceSheet.debtBalance,
     priorPeriod.balanceSheet.cash,
+    zakatEstimate,  // Use final converged value
+    depreciation,
   );
 
-  // Calculate CapEx spending (simplified - can be enhanced)
-  const capexSpending = ZERO; // TODO: Implement auto-reinvestment logic
+  const capexSpending = capexYearResult ? capexYearResult.spending : ZERO;
 
-  // Calculate Balance Sheet
-  const balanceSheet = calculateBalanceSheet(
+  balanceSheet = calculateBalanceSheet(
     year,
     profitLoss,
     priorPeriod.balanceSheet,
     workingCapitalRatios,
     input.capexConfig,
     capexSpending,
+    capexYearResult,
   );
 
   // Calculate Cash Flow
@@ -855,6 +940,7 @@ export function calculateDynamicPeriod(
     balanceSheet,
     priorPeriod.balanceSheet,
     capexSpending,
+    capexYearResult,  // Pass CAPEX result for spending calculation
   );
 
   // Validate balance sheet balancing
@@ -890,7 +976,8 @@ export function calculateDynamicPeriod(
     );
   }
 
-  return {
+  // Store CAPEX result on period for engine to accumulate assets
+  const returnPeriod = {
     year,
     periodType: PeriodType.DYNAMIC,
     profitLoss,
@@ -901,7 +988,10 @@ export function calculateDynamicPeriod(
     converged: true,
     balanceSheetBalanced,
     cashFlowReconciled,
-  };
+    ...(capexYearResult && { capexResult: capexYearResult }),
+  } as any;
+
+  return returnPeriod;
 }
 
 // ============================================================================
@@ -967,7 +1057,7 @@ export const dynamicPeriodExports = {
   validateCurriculumConfig,
   calculateStaffCosts,
   calculateRentExpense,
-  calculateDepreciation,
+  // calculateDepreciation removed (moved to capex-calculator)
   calculateProfitLoss,
   calculateBalanceSheet,
   calculateCashFlow,

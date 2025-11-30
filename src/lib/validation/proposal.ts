@@ -53,29 +53,7 @@ export const CreateProposalSchema = z
   .object({
     name: z.string().min(1, "Name is required"),
     rentModel: RentModelSchema,
-    transition: z.object({
-      year2025: z
-        .object({
-          students: z.number().int().positive().optional(),
-          avgTuition: z.number().positive().optional(),
-          rentGrowth: z.number().min(0).max(1).optional(),
-        })
-        .passthrough(), // Allow additional fields
-      year2026: z
-        .object({
-          students: z.number().int().positive().optional(),
-          avgTuition: z.number().positive().optional(),
-          rentGrowth: z.number().min(0).max(1).optional(),
-        })
-        .passthrough(),
-      year2027: z
-        .object({
-          students: z.number().int().positive().optional(),
-          avgTuition: z.number().positive().optional(),
-          rentGrowth: z.number().min(0).max(1).optional(),
-        })
-        .passthrough(),
-    }),
+    contractPeriodYears: z.union([z.literal(25), z.literal(30)]).default(30), // Dynamic period: 25 or 30 years
     enrollment: z.object({
       capacity: z.number().int().positive(),
       rampUp: z.array(z.number().min(0).max(200)).length(5), // 5 years of ramp-up percentages
@@ -113,7 +91,7 @@ export const CreateProposalSchema = z
         PartnerParamsSchema.extend({ model: z.literal("PARTNER") }),
       ])
       .or(z.record(z.string(), z.unknown())), // Fallback for JSON storage flexibility
-    otherOpex: z.number().min(0).max(1), // % of revenue as decimal
+    otherOpexPercent: z.number().min(0).max(1), // % of revenue as decimal (e.g., 0.31 = 31%)
     financials: z.record(z.string(), z.unknown()).optional(),
     metrics: z.record(z.string(), z.unknown()).optional(),
     calculatedAt: z.string().datetime().nullable().optional(),

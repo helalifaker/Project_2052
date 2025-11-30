@@ -49,7 +49,7 @@ export interface BalanceSheetInput {
   prepaidExpenses: Decimal;
 
   // Non-Current Assets
-  propertyPlantEquipment: Decimal; // Gross PP&E
+  grossPPE: Decimal; // Gross PP&E (total cost of assets)
   accumulatedDepreciation: Decimal;
 
   // Current Liabilities
@@ -126,11 +126,9 @@ export function generateBalanceSheet(
   );
 
   // Non-Current Assets (PP&E Net = Gross PP&E - Accumulated Depreciation)
-  const propertyPlantEquipment = subtract(
-    input.propertyPlantEquipment,
-    input.accumulatedDepreciation,
-  );
+  const grossPPE = input.grossPPE;
   const accumulatedDepreciation = input.accumulatedDepreciation;
+  const propertyPlantEquipment = subtract(grossPPE, accumulatedDepreciation);
   const totalNonCurrentAssets = propertyPlantEquipment;
 
   const totalAssets = add(totalCurrentAssets, totalNonCurrentAssets);
@@ -219,8 +217,9 @@ export function generateBalanceSheet(
     totalCurrentAssets,
 
     // Non-Current Assets
-    propertyPlantEquipment,
+    grossPPE,
     accumulatedDepreciation,
+    propertyPlantEquipment,
     totalNonCurrentAssets,
 
     totalAssets,

@@ -4,17 +4,19 @@ import {
   fillFormField,
   waitForToast,
   waitForNetworkIdle,
+  loginAsRole,
 } from "../utils/test-helpers";
 
 test.describe("Admin - System Configuration", () => {
   test.beforeEach(async ({ page }) => {
+    await loginAsRole(page, "admin");
     await page.goto(TEST_ROUTES.ADMIN_CONFIG);
     await waitForNetworkIdle(page);
   });
 
   test("should display system configuration form", async ({ page }) => {
     // Check page title
-    await expect(page.locator("h1, h2")).toContainText(/config/i);
+    await expect(page.locator("h1")).toContainText(/system.*config/i);
 
     // Check form elements exist
     const inputs = page.locator('input[type="number"]');
@@ -48,7 +50,7 @@ test.describe("Admin - System Configuration", () => {
   test("should configure interest rate (GAP 16)", async ({ page }) => {
     // Look for interest rate field
     const interestField = page.locator(
-      'input[name*="interest"], label:has-text(/interest/i) ~ input',
+      'input[name*="interest"]',
     );
 
     if ((await interestField.count()) > 0) {
@@ -62,15 +64,15 @@ test.describe("Admin - System Configuration", () => {
       const value = await field.inputValue();
       expect(parseFloat(value)).toBeCloseTo(TEST_DATA.CONFIG.interestRate, 1);
     } else {
-      const interestLabel = page.locator("text=/interest/i");
-      expect(await interestLabel.count()).toBeGreaterThan(0);
+      const interestText = page.getByText(/interest/i);
+      expect(await interestText.count()).toBeGreaterThan(0);
     }
   });
 
   test("should configure minimum cash balance (GAP 18)", async ({ page }) => {
     // Look for min cash field
     const minCashField = page.locator(
-      'input[name*="minCash"], input[name*="minimum"], label:has-text(/min.*cash/i) ~ input',
+      'input[name*="minCash"], input[name*="minimum"]',
     );
 
     if ((await minCashField.count()) > 0) {
@@ -84,15 +86,13 @@ test.describe("Admin - System Configuration", () => {
       const value = await field.inputValue();
       expect(parseFloat(value)).toBeGreaterThan(0);
     } else {
-      const minCashLabel = page.locator("text=/minimum.*cash/i");
-      expect(await minCashLabel.count()).toBeGreaterThan(0);
+      const minCashText = page.getByText(/minimum.*cash/i);
+      expect(await minCashText.count()).toBeGreaterThan(0);
     }
   });
 
   test("should have save button", async ({ page }) => {
-    const saveButton = page.locator(
-      'button:has-text("Save"), button:has-text("Update")',
-    );
+    const saveButton = page.getByRole("button", { name: /save/i });
     await expect(saveButton).toBeVisible();
   });
 
@@ -104,9 +104,7 @@ test.describe("Admin - System Configuration", () => {
       await fillFormField(page, 'input[type="number"]', "-100");
 
       // Try to save
-      const saveButton = page.locator(
-        'button:has-text("Save"), button:has-text("Update")',
-      );
+      const saveButton = page.getByRole("button", { name: /save/i });
       if (await saveButton.isVisible()) {
         await saveButton.click();
         await page.waitForTimeout(500);
