@@ -18,7 +18,6 @@ import {
   ExecutiveCardTitle,
 } from "@/components/ui/executive-card";
 import { generateComprehensiveReport } from "@/lib/pdf-service";
-import html2canvas from "html2canvas";
 import { ProposalPDFReport } from "@/components/proposals/reports/ProposalPDFReport";
 
 /**
@@ -70,9 +69,13 @@ export function FinancialStatementsTab({
       case "transition":
         return allYears.filter((y: number) => y >= 2025 && y <= 2027);
       case "early":
-        return allYears.filter((y: number) => y >= 2028 && y <= dynamicMidpoint);
+        return allYears.filter(
+          (y: number) => y >= 2028 && y <= dynamicMidpoint,
+        );
       case "late":
-        return allYears.filter((y: number) => y > dynamicMidpoint && y <= dynamicEndYear);
+        return allYears.filter(
+          (y: number) => y > dynamicMidpoint && y <= dynamicEndYear,
+        );
       case "all":
       default:
         return allYears;
@@ -87,8 +90,14 @@ export function FinancialStatementsTab({
     periods.forEach((period: any) => {
       const income = getNestedValue(period, "profitLoss.interestIncome") || 0;
       const expense = getNestedValue(period, "profitLoss.interestExpense") || 0;
-      const incomeNum = typeof income === "number" ? income : parseFloat(income?.toString() || "0");
-      const expenseNum = typeof expense === "number" ? expense : parseFloat(expense?.toString() || "0");
+      const incomeNum =
+        typeof income === "number"
+          ? income
+          : parseFloat(income?.toString() || "0");
+      const expenseNum =
+        typeof expense === "number"
+          ? expense
+          : parseFloat(expense?.toString() || "0");
       values[period.year] = incomeNum - expenseNum;
     });
     return values;
@@ -292,7 +301,11 @@ export function FinancialStatementsTab({
           numValue = isNaN(parsed) ? 0 : parsed;
         }
         // If it's an object with toString (like Decimal.js), convert to string first
-        else if (typeof value === "object" && value !== null && typeof value.toString === "function") {
+        else if (
+          typeof value === "object" &&
+          value !== null &&
+          typeof value.toString === "function"
+        ) {
           const parsed = parseFloat(value.toString());
           numValue = isNaN(parsed) ? 0 : parsed;
         }
@@ -306,7 +319,11 @@ export function FinancialStatementsTab({
         } else if (typeof additionalValue === "string") {
           const parsed = parseFloat(additionalValue);
           numAdditional = isNaN(parsed) ? 0 : parsed;
-        } else if (typeof additionalValue === "object" && additionalValue !== null && typeof additionalValue.toString === "function") {
+        } else if (
+          typeof additionalValue === "object" &&
+          additionalValue !== null &&
+          typeof additionalValue.toString === "function"
+        ) {
           const parsed = parseFloat(additionalValue.toString());
           numAdditional = isNaN(parsed) ? 0 : parsed;
         }
@@ -348,16 +365,19 @@ export function FinancialStatementsTab({
 
         if (chartElement) {
           try {
+            const html2canvas = (await import("html2canvas")).default;
             const canvas = await html2canvas(chartElement, {
               scale: 2, // High resolution
               logging: false,
               useCORS: true,
-              backgroundColor: "#ffffff"
+              backgroundColor: "#ffffff",
             });
             chartImage = canvas.toDataURL("image/png");
           } catch (e) {
             console.error("Failed to capture chart:", e);
-            toast.error("Chart capture failed, generating report without chart.");
+            toast.error(
+              "Chart capture failed, generating report without chart.",
+            );
           }
         }
 
@@ -543,7 +563,11 @@ export function FinancialStatementsTab({
                   variant={yearRange === "historical" ? "default" : "outline"}
                   size="sm"
                   onClick={() => setYearRange("historical")}
-                  className={yearRange === "historical" ? "bg-primary text-primary-foreground" : "hover:bg-muted"}
+                  className={
+                    yearRange === "historical"
+                      ? "bg-primary text-primary-foreground"
+                      : "hover:bg-muted"
+                  }
                 >
                   Historical (2023-2024)
                 </Button>
@@ -551,7 +575,11 @@ export function FinancialStatementsTab({
                   variant={yearRange === "transition" ? "default" : "outline"}
                   size="sm"
                   onClick={() => setYearRange("transition")}
-                  className={yearRange === "transition" ? "bg-primary text-primary-foreground" : "hover:bg-muted"}
+                  className={
+                    yearRange === "transition"
+                      ? "bg-primary text-primary-foreground"
+                      : "hover:bg-muted"
+                  }
                 >
                   Transition (2025-2027)
                 </Button>
@@ -559,7 +587,11 @@ export function FinancialStatementsTab({
                   variant={yearRange === "early" ? "default" : "outline"}
                   size="sm"
                   onClick={() => setYearRange("early")}
-                  className={yearRange === "early" ? "bg-primary text-primary-foreground" : "hover:bg-muted"}
+                  className={
+                    yearRange === "early"
+                      ? "bg-primary text-primary-foreground"
+                      : "hover:bg-muted"
+                  }
                 >
                   Early Dynamic (2028-{dynamicMidpoint})
                 </Button>
@@ -567,7 +599,11 @@ export function FinancialStatementsTab({
                   variant={yearRange === "late" ? "default" : "outline"}
                   size="sm"
                   onClick={() => setYearRange("late")}
-                  className={yearRange === "late" ? "bg-primary text-primary-foreground" : "hover:bg-muted"}
+                  className={
+                    yearRange === "late"
+                      ? "bg-primary text-primary-foreground"
+                      : "hover:bg-muted"
+                  }
                 >
                   Late Dynamic ({dynamicMidpoint + 1}-{dynamicEndYear})
                 </Button>
@@ -575,7 +611,11 @@ export function FinancialStatementsTab({
                   variant={yearRange === "all" ? "default" : "outline"}
                   size="sm"
                   onClick={() => setYearRange("all")}
-                  className={yearRange === "all" ? "bg-primary text-primary-foreground" : "hover:bg-muted"}
+                  className={
+                    yearRange === "all"
+                      ? "bg-primary text-primary-foreground"
+                      : "hover:bg-muted"
+                  }
                 >
                   All Years
                 </Button>
@@ -665,10 +705,10 @@ export function FinancialStatementsTab({
                     data={periods.map((period: any) => ({
                       year: period.year,
                       revenue: new Decimal(
-                        getNestedValue(period, "profitLoss.totalRevenue") || 0
+                        getNestedValue(period, "profitLoss.totalRevenue") || 0,
                       ),
                       netProfit: new Decimal(
-                        getNestedValue(period, "profitLoss.netIncome") || 0
+                        getNestedValue(period, "profitLoss.netIncome") || 0,
                       ),
                     }))}
                     proposalId={proposalData.id}

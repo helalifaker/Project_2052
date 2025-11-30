@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { authenticateUserWithRole } from "@/middleware/auth";
-import { Role } from "@prisma/client";
+import { Role } from "@/lib/types/roles";
 import { z } from "zod";
 
 /**

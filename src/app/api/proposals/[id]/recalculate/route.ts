@@ -9,7 +9,8 @@ import { NextResponse } from "next/server";
 import Decimal from "decimal.js";
 import { prisma } from "@/lib/prisma";
 import { authenticateUserWithRole } from "@/middleware/auth";
-import { Role, Prisma } from "@prisma/client";
+import { Role } from "@/lib/types/roles";
+import type { InputJsonValue } from "@/lib/types/prisma-helpers";
 import { calculateFinancialProjections } from "@/lib/engine";
 import type { CalculationEngineOutput } from "@/lib/engine/core/types";
 import {
@@ -20,6 +21,7 @@ import {
   invalidateProposalCache,
   setCachedCalculation,
 } from "@/lib/cache/calculation-cache";
+import { RecalculateProposalSchema } from "@/lib/validation/proposal";
 
 // ============================================================================
 // API HANDLER
@@ -46,6 +48,27 @@ export async function POST(
         { error: "Invalid proposal ID" },
         { status: 400 },
       );
+    }
+
+    // Parse and validate optional request body (for future extensibility)
+    const contentType = request.headers.get("content-type");
+    if (contentType?.includes("application/json")) {
+      try {
+        const body = await request.json();
+        const validationResult = RecalculateProposalSchema.safeParse(body);
+        if (!validationResult.success) {
+          return NextResponse.json(
+            {
+              error: "Validation failed",
+              details: validationResult.error.issues,
+            },
+            { status: 400 },
+          );
+        }
+        // Future: Use validationResult.data.force, validationResult.data.skipCache, etc.
+      } catch {
+        // Empty body is acceptable - ignore parse errors
+      }
     }
 
     // Fetch proposal
@@ -89,9 +112,8 @@ export async function POST(
     const updatedProposal = await prisma.leaseProposal.update({
       where: { id: proposalId },
       data: {
-        financials:
-          serializedResult.periods as unknown as Prisma.InputJsonValue,
-        metrics: serializedResult.metrics as unknown as Prisma.InputJsonValue,
+        financials: serializedResult.periods as unknown as InputJsonValue,
+        metrics: serializedResult.metrics as unknown as InputJsonValue,
         calculatedAt: new Date(),
         transitionConfigUpdatedAt: transitionConfig?.updatedAt || new Date(),
       },

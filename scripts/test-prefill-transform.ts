@@ -50,8 +50,14 @@ async function testTransform() {
     console.log("  Ramp FR Year 5:", formData.rampUpFRYear5Percentage + "%");
     console.log("\nCurriculum:");
     console.log("  French Base Tuition 2028:", formData.frenchBaseTuition2028);
-    console.log("  French Growth Rate:", formData.frenchTuitionGrowthRate + "%");
-    console.log("  French Growth Frequency:", formData.frenchTuitionGrowthFrequency);
+    console.log(
+      "  French Growth Rate:",
+      formData.frenchTuitionGrowthRate + "%",
+    );
+    console.log(
+      "  French Growth Frequency:",
+      formData.frenchTuitionGrowthFrequency,
+    );
     console.log("\nStaff:");
     console.log("  Students per Teacher:", formData.studentsPerTeacher);
     console.log("  Avg Teacher Salary:", formData.avgTeacherSalary);
@@ -103,7 +109,7 @@ async function testTransform() {
       const pass = check.actual === check.expected;
       const status = pass ? "✓" : "✗";
       console.log(
-        `${status} ${check.name}: expected ${check.expected}, got ${check.actual}`
+        `${status} ${check.name}: expected ${check.expected}, got ${check.actual}`,
       );
       if (!pass) allPass = false;
     });

@@ -1,5 +1,6 @@
 "use client";
 
+import { memo, useMemo } from "react";
 import { Card } from "@/components/ui/card";
 import {
   BarChart,
@@ -15,10 +16,7 @@ import {
 } from "recharts";
 import type { Payload } from "recharts/types/component/DefaultTooltipContent";
 import { formatMillions } from "@/lib/utils/financial";
-import {
-  chartColorMappings,
-  chartColors,
-} from "@/lib/design-tokens/chart-colors";
+import { chartColorMappings } from "@/lib/design-tokens/chart-colors";
 import {
   getAxisProps,
   getGridProps,
@@ -64,7 +62,9 @@ const CustomTooltip = ({ active, payload, label }: ChartTooltipProps) => {
         <p className="text-xs text-muted-foreground mb-3">{data.proposal}</p>
         <div className="space-y-2 text-sm">
           <div className="flex justify-between gap-4">
-            <span style={{ color: chartColorMappings.sensitivity.negativeImpact }}>
+            <span
+              style={{ color: chartColorMappings.sensitivity.negativeImpact }}
+            >
               Downside:
             </span>
             <span className="font-medium tabular-nums">
@@ -72,7 +72,9 @@ const CustomTooltip = ({ active, payload, label }: ChartTooltipProps) => {
             </span>
           </div>
           <div className="flex justify-between gap-4">
-            <span style={{ color: chartColorMappings.sensitivity.positiveImpact }}>
+            <span
+              style={{ color: chartColorMappings.sensitivity.positiveImpact }}
+            >
               Upside:
             </span>
             <span className="font-medium tabular-nums">
@@ -98,7 +100,53 @@ const CustomTooltip = ({ active, payload, label }: ChartTooltipProps) => {
  * Shows sensitivity of NPV to key variables
  * Bars extend left/right from center showing positive/negative impact
  */
-export function NPVSensitivityChart({ data }: NPVSensitivityChartProps) {
+export const NPVSensitivityChart = memo(function NPVSensitivityChart({
+  data,
+}: NPVSensitivityChartProps) {
+  // Process sensitivity data into tornado format (memoized for performance)
+  const processedData: ProcessedDataPoint[] = useMemo(() => {
+    if (!data || data.length === 0) {
+      return [];
+    }
+
+    return data
+      .map((analysis) => {
+        if (!analysis.dataPoints || !Array.isArray(analysis.dataPoints)) {
+          return null;
+        }
+
+        // Get baseline (middle value)
+        const sortedPoints = [...analysis.dataPoints].sort(
+          (a, b) => a.variablePercent - b.variablePercent,
+        );
+        const baselineIndex = Math.floor(sortedPoints.length / 2);
+        const baseline = parseFloat(
+          sortedPoints[baselineIndex]?.metricValue || "0",
+        );
+
+        // Get min and max impacts
+        const minPoint = sortedPoints[0];
+        const maxPoint = sortedPoints[sortedPoints.length - 1];
+
+        const minValue = parseFloat(minPoint?.metricValue || "0");
+        const maxValue = parseFloat(maxPoint?.metricValue || "0");
+
+        const negativeImpact = minValue - baseline;
+        const positiveImpact = maxValue - baseline;
+
+        return {
+          variable: getVariableName(analysis.variable),
+          proposal: analysis.proposalName,
+          negativeImpact: negativeImpact / 1_000_000, // Convert to millions
+          positiveImpact: positiveImpact / 1_000_000,
+          totalRange: Math.abs(positiveImpact - negativeImpact) / 1_000_000,
+        };
+      })
+      .filter(Boolean)
+      .map((entry) => entry as ProcessedDataPoint)
+      .sort((a, b) => b.totalRange - a.totalRange); // Sort by total impact range
+  }, [data]);
+
   if (!data || data.length === 0) {
     return (
       <Card className="p-6">
@@ -109,44 +157,6 @@ export function NPVSensitivityChart({ data }: NPVSensitivityChartProps) {
       </Card>
     );
   }
-
-  // Process sensitivity data into tornado format
-  const processedData: ProcessedDataPoint[] = data
-    .map((analysis) => {
-      if (!analysis.dataPoints || !Array.isArray(analysis.dataPoints)) {
-        return null;
-      }
-
-      // Get baseline (middle value)
-      const sortedPoints = [...analysis.dataPoints].sort(
-        (a, b) => a.variablePercent - b.variablePercent,
-      );
-      const baselineIndex = Math.floor(sortedPoints.length / 2);
-      const baseline = parseFloat(
-        sortedPoints[baselineIndex]?.metricValue || "0",
-      );
-
-      // Get min and max impacts
-      const minPoint = sortedPoints[0];
-      const maxPoint = sortedPoints[sortedPoints.length - 1];
-
-      const minValue = parseFloat(minPoint?.metricValue || "0");
-      const maxValue = parseFloat(maxPoint?.metricValue || "0");
-
-      const negativeImpact = minValue - baseline;
-      const positiveImpact = maxValue - baseline;
-
-      return {
-        variable: getVariableName(analysis.variable),
-        proposal: analysis.proposalName,
-        negativeImpact: negativeImpact / 1_000_000, // Convert to millions
-        positiveImpact: positiveImpact / 1_000_000,
-        totalRange: Math.abs(positiveImpact - negativeImpact) / 1_000_000,
-      };
-    })
-    .filter(Boolean)
-    .map((entry) => entry as ProcessedDataPoint)
-    .sort((a, b) => b.totalRange - a.totalRange); // Sort by total impact range
 
   if (processedData.length === 0) {
     return (
@@ -169,10 +179,7 @@ export function NPVSensitivityChart({ data }: NPVSensitivityChartProps) {
             margin={{ left: 120, right: 20 }}
           >
             {/* Minimal vertical grid only for tornado */}
-            <CartesianGrid
-              {...getGridProps()}
-              horizontal={false}
-            />
+            <CartesianGrid {...getGridProps()} horizontal={false} />
             <XAxis
               {...getAxisProps("x")}
               type="number"
@@ -227,7 +234,9 @@ export function NPVSensitivityChart({ data }: NPVSensitivityChartProps) {
         <h4 className="font-semibold text-sm mb-2">Key Insights:</h4>
         <ul className="text-xs text-muted-foreground space-y-1">
           <li>
-            <span className="font-semibold text-foreground">Most Sensitive Variable: </span>
+            <span className="font-semibold text-foreground">
+              Most Sensitive Variable:{" "}
+            </span>
             {processedData[0]?.variable || "N/A"} (highest impact range)
           </li>
           <li>
@@ -253,7 +262,7 @@ export function NPVSensitivityChart({ data }: NPVSensitivityChartProps) {
       </div>
     </div>
   );
-}
+});
 
 function getVariableName(variable: string): string {
   const names: Record<string, string> = {

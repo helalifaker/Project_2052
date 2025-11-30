@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { authenticateUserWithRole } from "@/middleware/auth";
-import { Role, Prisma } from "@prisma/client";
+import { Role } from "@/lib/types/roles";
 import { SystemConfigUpdateSchema } from "@/lib/validation/config";
 import { z } from "zod";
 
@@ -54,39 +54,33 @@ export async function PUT(request: Request) {
 
     const validatedData = validationResult.data;
 
-    // Build update data object, converting numbers to Prisma.Decimal
+    // Build update data object - Prisma automatically converts numbers to Decimal
+    /* eslint-disable no-restricted-syntax -- DTO type for Prisma update operation, not used in calculations */
     const updateData: {
-      zakatRate?: Prisma.Decimal;
-      debtInterestRate?: Prisma.Decimal;
-      depositInterestRate?: Prisma.Decimal;
-      discountRate?: Prisma.Decimal;
-      minCashBalance?: Prisma.Decimal;
+      zakatRate?: number;
+      debtInterestRate?: number;
+      depositInterestRate?: number;
+      discountRate?: number;
+      minCashBalance?: number;
       confirmedAt?: Date | null;
       updatedBy?: string | null;
     } = {};
+    /* eslint-enable no-restricted-syntax */
 
     if (validatedData.zakatRate !== undefined) {
-      updateData.zakatRate = new Prisma.Decimal(validatedData.zakatRate);
+      updateData.zakatRate = validatedData.zakatRate;
     }
     if (validatedData.debtInterestRate !== undefined) {
-      updateData.debtInterestRate = new Prisma.Decimal(
-        validatedData.debtInterestRate,
-      );
+      updateData.debtInterestRate = validatedData.debtInterestRate;
     }
     if (validatedData.depositInterestRate !== undefined) {
-      updateData.depositInterestRate = new Prisma.Decimal(
-        validatedData.depositInterestRate,
-      );
+      updateData.depositInterestRate = validatedData.depositInterestRate;
     }
     if (validatedData.discountRate !== undefined) {
-      updateData.discountRate = new Prisma.Decimal(
-        validatedData.discountRate,
-      );
+      updateData.discountRate = validatedData.discountRate;
     }
     if (validatedData.minCashBalance !== undefined) {
-      updateData.minCashBalance = new Prisma.Decimal(
-        validatedData.minCashBalance,
-      );
+      updateData.minCashBalance = validatedData.minCashBalance;
     }
     if (validatedData.confirmedAt !== undefined) {
       updateData.confirmedAt = validatedData.confirmedAt

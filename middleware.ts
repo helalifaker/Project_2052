@@ -44,48 +44,47 @@ export async function middleware(request: NextRequest) {
       request,
     });
 
-    const url = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://ssxwmxqvafesyldycqzy.supabase.co";
-    const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || "sb_publishable_80OaSML8y7OdJH52Rtr-jQ_B5YM15eD";
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
     if (!url || !key) {
-      console.error("Middleware: Missing Supabase env vars", { url: !!url, key: !!key });
+      console.error("Middleware: Missing Supabase env vars", {
+        url: !!url,
+        key: !!key,
+      });
       return NextResponse.json(
         { error: "Configuration Error: Missing Supabase URL or Key" },
-        { status: 500 }
+        { status: 500 },
       );
     }
 
     // Create Supabase client with proper cookie handling
-    const supabase = createServerClient(
-      url,
-      key,
-      {
-        cookies: {
-          getAll() {
-            return request.cookies.getAll();
-          },
-          setAll(cookiesToSet) {
-            cookiesToSet.forEach(({ name, value, options }) => {
-              // Set on the request for immediate use
-              request.cookies.set({
-                name,
-                value,
-                ...options,
-              });
-              // Set on the response to persist
-              supabaseResponse = NextResponse.next({
-                request,
-              });
-              supabaseResponse.cookies.set({
-                name,
-                value,
-                ...options,
-              });
+    const supabase = createServerClient(url, key, {
+      cookies: {
+        getAll() {
+          return request.cookies.getAll();
+        },
+        setAll(cookiesToSet) {
+          cookiesToSet.forEach(({ name, value, options }) => {
+            // Set on the request for immediate use
+            request.cookies.set({
+              name,
+              value,
+              ...options,
             });
-          },
+            // Set on the response to persist
+            supabaseResponse = NextResponse.next({
+              request,
+            });
+            supabaseResponse.cookies.set({
+              name,
+              value,
+              ...options,
+            });
+          });
         },
       },
-    );
+    });
 
     // Allow access to public routes regardless of auth status
     if (isPublicRoute(pathname)) {
@@ -136,8 +135,8 @@ export async function middleware(request: NextRequest) {
   } catch (error) {
     console.error("Middleware error:", error);
     return NextResponse.json(
-      { error: "Middleware Error", details: String(error) },
-      { status: 500 }
+      { error: "Internal server error. Please try again." },
+      { status: 500 },
     );
   }
 }

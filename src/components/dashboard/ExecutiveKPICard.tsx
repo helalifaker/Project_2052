@@ -1,8 +1,12 @@
 "use client";
 
+import { memo } from "react";
 import { cn } from "@/lib/utils";
 import { LucideIcon } from "lucide-react";
-import { ExecutiveCard, ExecutiveCardContent } from "@/components/ui/executive-card";
+import {
+  ExecutiveCard,
+  ExecutiveCardContent,
+} from "@/components/ui/executive-card";
 
 interface ExecutiveKPICardProps {
   title: string;
@@ -28,7 +32,7 @@ interface ExecutiveKPICardProps {
  * - Warm copper accent instead of generic blue
  * - Tabular figures for number alignment
  */
-export function ExecutiveKPICard({
+export const ExecutiveKPICard = memo(function ExecutiveKPICard({
   title,
   value,
   subtitle,
@@ -41,9 +45,13 @@ export function ExecutiveKPICard({
     <ExecutiveCard
       className={cn(
         "group relative transition-all duration-500 hover:border-[var(--executive-accent)]",
-        className
+        className,
       )}
-      style={accentColor ? { "--card-accent": accentColor } as React.CSSProperties : undefined}
+      style={
+        accentColor
+          ? ({ "--card-accent": accentColor } as React.CSSProperties)
+          : undefined
+      }
     >
       <ExecutiveCardContent className="p-5 lg:p-6">
         {/* Optional icon - subtle, top right */}
@@ -80,7 +88,7 @@ export function ExecutiveKPICard({
               "mt-4 flex items-center gap-2 text-sm",
               trend.value >= 0
                 ? "text-[var(--executive-positive)]"
-                : "text-[var(--executive-negative)]"
+                : "text-[var(--executive-negative)]",
             )}
           >
             <span className="text-lg">{trend.value >= 0 ? "↑" : "↓"}</span>
@@ -104,14 +112,14 @@ export function ExecutiveKPICard({
       </ExecutiveCardContent>
     </ExecutiveCard>
   );
-}
+});
 
 /**
  * Executive KPI Grid
  *
  * Wrapper for consistent KPI card layouts
  */
-export function ExecutiveKPIGrid({
+export const ExecutiveKPIGrid = memo(function ExecutiveKPIGrid({
   children,
   className,
 }: {
@@ -122,10 +130,10 @@ export function ExecutiveKPIGrid({
     <div
       className={cn(
         "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6",
-        className
+        className,
       )}
     >
       {children}
     </div>
   );
-}
+});

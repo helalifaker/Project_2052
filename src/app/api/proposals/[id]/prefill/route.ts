@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { authenticateUserWithRole } from "@/middleware/auth";
-import { Role } from "@prisma/client";
+import { Role } from "@/lib/types/roles";
 import { prisma } from "@/lib/prisma";
 import { proposalToFormData } from "@/lib/proposals/transform-to-form";
 
@@ -14,27 +14,34 @@ import { proposalToFormData } from "@/lib/proposals/transform-to-form";
  */
 export async function GET(
   request: Request,
-  context: { params: Promise<{ id: string }> }
+  context: { params: Promise<{ id: string }> },
 ) {
   // 1. Authenticate user
-  const authResult = await authenticateUserWithRole([
-    Role.ADMIN,
-    Role.PLANNER,
-  ]);
+  const authResult = await authenticateUserWithRole([Role.ADMIN, Role.PLANNER]);
   if (!authResult.success) return authResult.error;
 
   const { id } = await context.params;
 
   // 2. Validate UUID format
-  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  const uuidRegex =
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
   if (!uuidRegex.test(id)) {
     return NextResponse.json(
       { error: "Invalid proposal ID format" },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
-  // 3. Fetch proposal with only needed fields (exclude financials/metrics)
+  // 3. Defensive check: GET requests should not have a body
+  const contentLength = request.headers.get("content-length");
+  if (contentLength && parseInt(contentLength) > 0) {
+    return NextResponse.json(
+      { error: "GET requests should not include a request body" },
+      { status: 400 },
+    );
+  }
+
+  // 4. Fetch proposal with only needed fields (exclude financials/metrics)
   const proposal = await prisma.leaseProposal.findUnique({
     where: { id },
     select: {
@@ -52,21 +59,18 @@ export async function GET(
   });
 
   if (!proposal) {
-    return NextResponse.json(
-      { error: "Proposal not found" },
-      { status: 404 }
-    );
+    return NextResponse.json({ error: "Proposal not found" }, { status: 404 });
   }
 
-  // 4. Authorization check: Only allow user to fetch their own proposals
+  // 5. Authorization check: Only allow user to fetch their own proposals
   if (proposal.createdBy !== authResult.user.id) {
     return NextResponse.json(
       { error: "Forbidden: You can only pre-fill from your own proposals" },
-      { status: 403 }
+      { status: 403 },
     );
   }
 
-  // 5. Transform to wizard format
+  // 6. Transform to wizard format
   const formData = proposalToFormData(proposal);
 
   return NextResponse.json({

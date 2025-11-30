@@ -16,14 +16,23 @@ export type ProposalRecord = NonNullable<
   Awaited<ReturnType<typeof prisma.leaseProposal.findUnique>>
 >;
 
-type RentParams = FixedRentParams | RevenueShareParams | PartnerInvestmentParams;
+type RentParams =
+  | FixedRentParams
+  | RevenueShareParams
+  | PartnerInvestmentParams;
 
 /**
  * Transform rent params from stored format to engine format.
  * Handles legacy field names (partnerLandSize → landSize, etc.)
  */
-function transformRentParams(rentModel: RentModel, storedParams: unknown): RentParams {
-  const params = JSON.parse(JSON.stringify(storedParams)) as Record<string, unknown>;
+function transformRentParams(
+  rentModel: RentModel,
+  storedParams: unknown,
+): RentParams {
+  const params = JSON.parse(JSON.stringify(storedParams)) as Record<
+    string,
+    unknown
+  >;
 
   // Helper to get value, preferring legacy field if new field is 0
   const getVal = (newField: string, legacyField: string): number => {
@@ -38,7 +47,10 @@ function transformRentParams(rentModel: RentModel, storedParams: unknown): RentP
     const landSize = getVal("landSize", "partnerLandSize");
     const landPricePerSqm = getVal("landPricePerSqm", "partnerLandPricePerSqm");
     const buaSize = getVal("buaSize", "partnerBuaSize");
-    const constructionCostPerSqm = getVal("constructionCostPerSqm", "partnerConstructionCostPerSqm");
+    const constructionCostPerSqm = getVal(
+      "constructionCostPerSqm",
+      "partnerConstructionCostPerSqm",
+    );
 
     // Yield and growth rates: legacy fields are stored as whole numbers (8 = 8%), need to divide by 100
     const yieldRateRaw = getVal("yieldRate", "partnerYieldRate");
@@ -103,7 +115,10 @@ const toNumber = (value: unknown): number => {
  * Ensures all Decimal fields are proper Decimal instances
  */
 function transformStaffConfig(storedStaff: unknown): Record<string, unknown> {
-  const staff = JSON.parse(JSON.stringify(storedStaff)) as Record<string, unknown>;
+  const staff = JSON.parse(JSON.stringify(storedStaff)) as Record<
+    string,
+    unknown
+  >;
 
   // Convert salary fields to Decimal
   if (staff.avgTeacherSalary !== undefined) {
@@ -123,7 +138,9 @@ function transformStaffConfig(storedStaff: unknown): Record<string, unknown> {
     staff.fixedStaffCost = new Decimal(toNumber(staff.fixedStaffCost));
   }
   if (staff.variableStaffCostPerStudent !== undefined) {
-    staff.variableStaffCostPerStudent = new Decimal(toNumber(staff.variableStaffCostPerStudent));
+    staff.variableStaffCostPerStudent = new Decimal(
+      toNumber(staff.variableStaffCostPerStudent),
+    );
   }
 
   return staff;
@@ -138,7 +155,7 @@ async function fetchTransitionPeriods(): Promise<TransitionPeriodInput[]> {
 
   if (!config) {
     throw new Error(
-      'TransitionConfig not found. Please configure transition period in Admin > Transition Setup.'
+      "TransitionConfig not found. Please configure transition period in Admin > Transition Setup.",
     );
   }
 
@@ -173,7 +190,10 @@ async function fetchTransitionPeriods(): Promise<TransitionPeriodInput[]> {
  * Shared helper for scenarios/sensitivity endpoints to avoid code duplication.
  */
 export async function reconstructCalculationInput(
-  proposal: ProposalRecord & { assets?: unknown[] },
+  proposal: ProposalRecord & {
+    assets?: unknown[];
+    contractPeriodYears?: number | null;
+  },
 ): Promise<CalculationEngineInput> {
   const systemConfig = await prisma.systemConfig.findFirst({
     orderBy: { confirmedAt: "desc" },
@@ -286,7 +306,9 @@ export async function reconstructCalculationInput(
         grossPPE2024: grossPPE,
         accumulatedDepreciation2024: accumulatedDep,
         annualDepreciation: annualDepreciation,
-        remainingToDepreciate: netBookValue.greaterThan(0) ? netBookValue : new Decimal(0),
+        remainingToDepreciate: netBookValue.greaterThan(0)
+          ? netBookValue
+          : new Decimal(0),
       };
 
       // NOTE: We do NOT create virtual assets for 2024 historical assets.
@@ -297,18 +319,20 @@ export async function reconstructCalculationInput(
 
     // Fetch CAPEX categories from database (global configuration)
     const dbCategories = await prisma.capExCategory.findMany({
-      orderBy: { type: 'asc' },
+      orderBy: { type: "asc" },
     });
 
     // Transform DB categories to engine format
     // Note: Casting type to engine's CapExCategoryType - both enums have identical values
-    const categories = dbCategories.map(cat => ({
+    const categories = dbCategories.map((cat) => ({
       id: cat.id,
       type: cat.type as unknown as CapExCategoryType, // Cast Prisma enum to engine enum
       name: cat.name,
       usefulLife: cat.usefulLife,
       reinvestFrequency: cat.reinvestFrequency ?? undefined,
-      reinvestAmount: cat.reinvestAmount ? new Decimal(cat.reinvestAmount) : undefined,
+      reinvestAmount: cat.reinvestAmount
+        ? new Decimal(cat.reinvestAmount)
+        : undefined,
       reinvestStartYear: cat.reinvestStartYear ?? undefined,
     }));
 
@@ -320,16 +344,20 @@ export async function reconstructCalculationInput(
         purchaseYear: { gte: 2025 }, // All years from 2025 onwards
       },
       include: { category: true },
-      orderBy: { purchaseYear: 'asc' },
+      orderBy: { purchaseYear: "asc" },
     });
 
     // Split manual items into transition (2025-2027) and dynamic (2028+) periods
-    const dbTransitionItems = dbManualItems.filter(item => item.purchaseYear >= 2025 && item.purchaseYear <= 2027);
-    const dbDynamicItems = dbManualItems.filter(item => item.purchaseYear >= 2028);
+    const dbTransitionItems = dbManualItems.filter(
+      (item) => item.purchaseYear >= 2025 && item.purchaseYear <= 2027,
+    );
+    const dbDynamicItems = dbManualItems.filter(
+      (item) => item.purchaseYear >= 2028,
+    );
 
     // Transform transition items to engine format
     // Note: Casting type to engine's CapExCategoryType - both enums have identical values
-    const transitionCapex = dbTransitionItems.map(item => ({
+    const transitionCapex = dbTransitionItems.map((item) => ({
       categoryType: item.category.type as unknown as CapExCategoryType, // Cast Prisma enum to engine enum
       year: item.purchaseYear,
       amount: new Decimal(item.purchaseAmount),
@@ -365,26 +393,35 @@ export async function reconstructCalculationInput(
       zakatRate: new Decimal(systemConfig.zakatRate),
       debtInterestRate: new Decimal(systemConfig.debtInterestRate),
       depositInterestRate: new Decimal(systemConfig.depositInterestRate),
-      discountRate: systemConfig.discountRate ? new Decimal(systemConfig.discountRate) : undefined,
+      discountRate: systemConfig.discountRate
+        ? new Decimal(systemConfig.discountRate)
+        : undefined,
       minCashBalance: new Decimal(systemConfig.minCashBalance),
     },
-    contractPeriodYears: ((proposal as any).contractPeriodYears ?? 30) as 25 | 30, // Default to 30 for legacy proposals
+    contractPeriodYears: (proposal.contractPeriodYears ?? 30) as 25 | 30, // Default to 30 for legacy proposals
     historicalPeriods,
     transitionPeriods,
     dynamicPeriodConfig: {
       year: 2028,
       enrollment: JSON.parse(JSON.stringify(proposal.enrollment)),
       curriculum: (() => {
-        const c = JSON.parse(JSON.stringify(proposal.curriculum)) as Record<string, unknown>;
+        const c = JSON.parse(JSON.stringify(proposal.curriculum)) as Record<
+          string,
+          unknown
+        >;
 
         // Map wizard field names to engine field names (if wizard names are present)
         // This handles data saved from wizard vs data saved from detail page
 
         // National/French curriculum fee
         if (!c.nationalCurriculumFee && c.frenchBaseTuition2028) {
-          c.nationalCurriculumFee = new Decimal(toNumber(c.frenchBaseTuition2028));
+          c.nationalCurriculumFee = new Decimal(
+            toNumber(c.frenchBaseTuition2028),
+          );
         } else if (c.nationalCurriculumFee) {
-          c.nationalCurriculumFee = new Decimal(toNumber(c.nationalCurriculumFee));
+          c.nationalCurriculumFee = new Decimal(
+            toNumber(c.nationalCurriculumFee),
+          );
         }
 
         // IB curriculum fee
@@ -395,15 +432,27 @@ export async function reconstructCalculationInput(
         }
 
         // National/French tuition growth rate
-        if (!c.nationalTuitionGrowthRate && c.frenchTuitionGrowthRate !== undefined) {
-          c.nationalTuitionGrowthRate = new Decimal(toNumber(c.frenchTuitionGrowthRate));
+        if (
+          !c.nationalTuitionGrowthRate &&
+          c.frenchTuitionGrowthRate !== undefined
+        ) {
+          c.nationalTuitionGrowthRate = new Decimal(
+            toNumber(c.frenchTuitionGrowthRate),
+          );
         } else if (c.nationalTuitionGrowthRate !== undefined) {
-          c.nationalTuitionGrowthRate = new Decimal(toNumber(c.nationalTuitionGrowthRate));
+          c.nationalTuitionGrowthRate = new Decimal(
+            toNumber(c.nationalTuitionGrowthRate),
+          );
         }
 
         // National/French tuition growth frequency
-        if (!c.nationalTuitionGrowthFrequency && c.frenchTuitionGrowthFrequency !== undefined) {
-          c.nationalTuitionGrowthFrequency = toNumber(c.frenchTuitionGrowthFrequency);
+        if (
+          !c.nationalTuitionGrowthFrequency &&
+          c.frenchTuitionGrowthFrequency !== undefined
+        ) {
+          c.nationalTuitionGrowthFrequency = toNumber(
+            c.frenchTuitionGrowthFrequency,
+          );
         }
 
         // IB tuition growth rate
@@ -424,12 +473,18 @@ export async function reconstructCalculationInput(
       })(),
       staff: transformStaffConfig(proposal.staff),
       rentModel: proposal.rentModel as RentModel,
-      rentParams: transformRentParams(proposal.rentModel as RentModel, proposal.rentParams),
+      rentParams: transformRentParams(
+        proposal.rentModel as RentModel,
+        proposal.rentParams,
+      ),
       otherOpexPercent: new Decimal(proposal.otherOpexPercent),
       capexConfig, // Use the shared capexConfig
     },
     rentModel: proposal.rentModel as RentModel,
-    rentParams: transformRentParams(proposal.rentModel as RentModel, proposal.rentParams),
+    rentParams: transformRentParams(
+      proposal.rentModel as RentModel,
+      proposal.rentParams,
+    ),
     capexConfig, // Use the same shared capexConfig at root level
     workingCapitalRatios: {
       arPercent: new Decimal(workingCapitalRatios.arPercent),

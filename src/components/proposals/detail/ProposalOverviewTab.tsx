@@ -23,10 +23,10 @@ import {
 } from "lucide-react";
 import { formatMillions } from "@/lib/utils/financial";
 import { toast } from "sonner";
-import Decimal from 'decimal.js';
-import { calculateNPV } from '@/lib/utils/financial';
-import { ProposalProfitabilityChart } from './charts/ProposalProfitabilityChart';
-import { ProposalCashFlowChart } from './charts/ProposalCashFlowChart';
+import Decimal from "decimal.js";
+import { calculateNPV } from "@/lib/utils/financial";
+import { ProposalProfitabilityChart } from "./charts/ProposalProfitabilityChart";
+import { ProposalCashFlowChart } from "./charts/ProposalCashFlowChart";
 import {
   AreaChart,
   Area,
@@ -59,7 +59,6 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { ProposalPDFReport } from "@/components/proposals/reports/ProposalPDFReport";
 import { generateComprehensiveReport } from "@/lib/pdf-service";
-import html2canvas from "html2canvas";
 import { BentoGrid, BentoItem } from "@/components/dashboard/BentoGrid";
 
 /**
@@ -67,7 +66,7 @@ import { BentoGrid, BentoItem } from "@/components/dashboard/BentoGrid";
  */
 function getContractPeriodFinancials(
   financials: any[],
-  contractPeriodYears: number
+  contractPeriodYears: number,
 ): any[] {
   const startYear = 2028;
   const endYear = startYear + contractPeriodYears - 1;
@@ -79,8 +78,8 @@ function getContractPeriodFinancials(
  */
 function parseDecimal(value: unknown): Decimal {
   if (value instanceof Decimal) return value;
-  if (typeof value === 'number') return new Decimal(value);
-  if (typeof value === 'string') return new Decimal(value);
+  if (typeof value === "number") return new Decimal(value);
+  if (typeof value === "string") return new Decimal(value);
   return new Decimal(0);
 }
 
@@ -89,7 +88,7 @@ function parseDecimal(value: unknown): Decimal {
  */
 function calculateContractPeriodKPIs(
   proposal: any,
-  adminDiscountRate: Decimal
+  adminDiscountRate: Decimal,
 ): {
   totalContractRent: Decimal;
   rentNPV: Decimal;
@@ -102,8 +101,13 @@ function calculateContractPeriodKPIs(
   const contractEndYear = 2028 + contractPeriodYears - 1;
 
   // Extract contract period financials
-  const allFinancials = Array.isArray(proposal.financials) ? proposal.financials : [];
-  const contractFinancials = getContractPeriodFinancials(allFinancials, contractPeriodYears);
+  const allFinancials = Array.isArray(proposal.financials)
+    ? proposal.financials
+    : [];
+  const contractFinancials = getContractPeriodFinancials(
+    allFinancials,
+    contractPeriodYears,
+  );
 
   // Calculate Total Rent
   let totalContractRent = new Decimal(0);
@@ -114,7 +118,7 @@ function calculateContractPeriodKPIs(
 
   // Calculate Rent NPV (rent as negative cash flows)
   const rentCashFlows = contractFinancials.map((p) =>
-    parseDecimal(p.profitLoss?.rentExpense).neg()
+    parseDecimal(p.profitLoss?.rentExpense).neg(),
   );
   const rentNPV = calculateNPV(rentCashFlows, adminDiscountRate);
 
@@ -176,9 +180,15 @@ function extractCashFlowData(financials: any[]): Array<{
   return financials.map((period) => ({
     year: period.year,
     cash: parseDecimal(period.balanceSheet?.cash).toNumber(),
-    operatingCF: parseDecimal(period.cashFlow?.cashFlowFromOperations).toNumber(),
-    investingCF: parseDecimal(period.cashFlow?.cashFlowFromInvesting).toNumber(),
-    financingCF: parseDecimal(period.cashFlow?.cashFlowFromFinancing).toNumber(),
+    operatingCF: parseDecimal(
+      period.cashFlow?.cashFlowFromOperations,
+    ).toNumber(),
+    investingCF: parseDecimal(
+      period.cashFlow?.cashFlowFromInvesting,
+    ).toNumber(),
+    financingCF: parseDecimal(
+      period.cashFlow?.cashFlowFromFinancing,
+    ).toNumber(),
   }));
 }
 
@@ -194,7 +204,9 @@ export function ProposalOverviewTab({
   const router = useRouter();
   const { hasRole } = useAuth();
   const [deleting, setDeleting] = useState(false);
-  const [adminDiscountRate, setAdminDiscountRate] = useState<Decimal>(new Decimal(0.05));
+  const [adminDiscountRate, setAdminDiscountRate] = useState<Decimal>(
+    new Decimal(0.05),
+  );
 
   // Check if user can edit/delete (PLANNER or ADMIN)
   const canEdit = hasRole([Role.ADMIN, Role.PLANNER]);
@@ -204,13 +216,13 @@ export function ProposalOverviewTab({
   useEffect(() => {
     async function fetchDiscountRate() {
       try {
-        const response = await fetch('/api/config');
+        const response = await fetch("/api/config");
         const data = await response.json();
         if (data.discountRate) {
           setAdminDiscountRate(new Decimal(data.discountRate));
         }
       } catch (error) {
-        console.error('Failed to fetch discount rate:', error);
+        console.error("Failed to fetch discount rate:", error);
       }
     }
     fetchDiscountRate();
@@ -219,18 +231,18 @@ export function ProposalOverviewTab({
   // Calculate contract period KPIs
   const contractKPIs = useMemo(
     () => calculateContractPeriodKPIs(proposal, adminDiscountRate),
-    [proposal, adminDiscountRate]
+    [proposal, adminDiscountRate],
   );
 
   // Extract chart data
   const profitabilityData = useMemo(
     () => extractProfitabilityData(proposal.financials || []),
-    [proposal.financials]
+    [proposal.financials],
   );
 
   const cashFlowData = useMemo(
     () => extractCashFlowData(proposal.financials || []),
-    [proposal.financials]
+    [proposal.financials],
   );
 
   // Extract key metrics from proposal.metrics
@@ -258,15 +270,17 @@ export function ProposalOverviewTab({
       return [];
     }
 
-    return proposal.financials.map((period: {
-      year: number;
-      profitLoss?: { rentExpense?: string | number };
-    }) => ({
-      year: period.year,
-      rent: period.profitLoss?.rentExpense
-        ? Number(period.profitLoss.rentExpense) / 1_000_000 // Convert to millions
-        : 0,
-    }));
+    return proposal.financials.map(
+      (period: {
+        year: number;
+        profitLoss?: { rentExpense?: string | number };
+      }) => ({
+        year: period.year,
+        rent: period.profitLoss?.rentExpense
+          ? Number(period.profitLoss.rentExpense) / 1_000_000 // Convert to millions
+          : 0,
+      }),
+    );
   }, [proposal.financials]);
 
   // Format tooltip value as SAR millions
@@ -358,11 +372,12 @@ export function ProposalOverviewTab({
 
       if (chartElement) {
         try {
+          const html2canvas = (await import("html2canvas")).default;
           const canvas = await html2canvas(chartElement, {
             scale: 2, // High resolution
             logging: false,
             useCORS: true,
-            backgroundColor: "#ffffff"
+            backgroundColor: "#ffffff",
           });
           chartImage = canvas.toDataURL("image/png");
         } catch (e) {
@@ -386,16 +401,31 @@ export function ProposalOverviewTab({
       {/* Action Buttons */}
       <div className="flex justify-end gap-2">
         {canEdit && (
-          <Button variant="outline" size="sm" onClick={handleDuplicate} className="h-8 text-xs">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleDuplicate}
+            className="h-8 text-xs"
+          >
             <Copy className="h-3 w-3 mr-2" />
             Duplicate
           </Button>
         )}
-        <Button variant="outline" size="sm" onClick={handleExportExcel} className="h-8 text-xs">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleExportExcel}
+          className="h-8 text-xs"
+        >
           <Download className="h-3 w-3 mr-2" />
           Export Excel
         </Button>
-        <Button variant="outline" size="sm" onClick={handleExportPDF} className="h-8 text-xs">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleExportPDF}
+          className="h-8 text-xs"
+        >
           <Download className="h-3 w-3 mr-2" />
           Export PDF
         </Button>
@@ -436,7 +466,9 @@ export function ProposalOverviewTab({
         <BentoItem colSpan={2}>
           <ExecutiveCard size="ultra-compact">
             <ExecutiveCardHeader className="pb-1" size="ultra-compact">
-              <ExecutiveLabel size="ultra-compact">Total Contract Rent</ExecutiveLabel>
+              <ExecutiveLabel size="ultra-compact">
+                Total Contract Rent
+              </ExecutiveLabel>
               <DollarSign className="h-3 w-3 text-blue-600 absolute top-3 right-3" />
             </ExecutiveCardHeader>
             <ExecutiveCardContent size="ultra-compact">
@@ -477,7 +509,9 @@ export function ProposalOverviewTab({
             </ExecutiveCardHeader>
             <ExecutiveCardContent size="ultra-compact">
               <ExecutiveValue className="text-blue-600" size="ultra-compact">
-                {formatMillions(parseDecimal(proposal.metrics?.contractEbitdaNPV).toNumber())}
+                {formatMillions(
+                  parseDecimal(proposal.metrics?.contractEbitdaNPV).toNumber(),
+                )}
               </ExecutiveValue>
               <ExecutiveTrend direction="positive" size="ultra-compact">
                 Present Value
@@ -490,7 +524,9 @@ export function ProposalOverviewTab({
         <BentoItem colSpan={2}>
           <ExecutiveCard size="ultra-compact">
             <ExecutiveCardHeader className="pb-1" size="ultra-compact">
-              <ExecutiveLabel size="ultra-compact">CapEx Invested</ExecutiveLabel>
+              <ExecutiveLabel size="ultra-compact">
+                CapEx Invested
+              </ExecutiveLabel>
               <Building2 className="h-3 w-3 text-amber-600 absolute top-3 right-3" />
             </ExecutiveCardHeader>
             <ExecutiveCardContent size="ultra-compact">
@@ -508,14 +544,32 @@ export function ProposalOverviewTab({
         <BentoItem colSpan={2}>
           <ExecutiveCard size="ultra-compact">
             <ExecutiveCardHeader className="pb-1" size="ultra-compact">
-              <ExecutiveLabel size="ultra-compact">Final Cash Position</ExecutiveLabel>
-              <Wallet className={`h-3 w-3 absolute top-3 right-3 ${contractKPIs.finalCash.greaterThanOrEqualTo(0) ? "text-blue-600" : "text-rose-600"}`} />
+              <ExecutiveLabel size="ultra-compact">
+                Final Cash Position
+              </ExecutiveLabel>
+              <Wallet
+                className={`h-3 w-3 absolute top-3 right-3 ${contractKPIs.finalCash.greaterThanOrEqualTo(0) ? "text-blue-600" : "text-rose-600"}`}
+              />
             </ExecutiveCardHeader>
             <ExecutiveCardContent size="ultra-compact">
-              <ExecutiveValue className={contractKPIs.finalCash.greaterThanOrEqualTo(0) ? "text-blue-600" : "text-rose-600"} size="ultra-compact">
+              <ExecutiveValue
+                className={
+                  contractKPIs.finalCash.greaterThanOrEqualTo(0)
+                    ? "text-blue-600"
+                    : "text-rose-600"
+                }
+                size="ultra-compact"
+              >
                 {formatMillions(contractKPIs.finalCash.toNumber())}
               </ExecutiveValue>
-              <ExecutiveTrend direction={contractKPIs.finalCash.greaterThanOrEqualTo(0) ? "positive" : "negative"} size="ultra-compact">
+              <ExecutiveTrend
+                direction={
+                  contractKPIs.finalCash.greaterThanOrEqualTo(0)
+                    ? "positive"
+                    : "negative"
+                }
+                size="ultra-compact"
+              >
                 End of Contract
               </ExecutiveTrend>
             </ExecutiveCardContent>
@@ -524,21 +578,33 @@ export function ProposalOverviewTab({
 
         {/* NAV - KEY METRIC */}
         <BentoItem colSpan={2}>
-          <ExecutiveCard className="border-2 border-primary/30 bg-primary/5 ring-2 ring-primary/10" size="ultra-compact">
+          <ExecutiveCard
+            className="border-2 border-primary/30 bg-primary/5 ring-2 ring-primary/10"
+            size="ultra-compact"
+          >
             <ExecutiveCardHeader className="pb-1" size="ultra-compact">
-              <ExecutiveLabel className="text-primary font-semibold" size="ultra-compact">
+              <ExecutiveLabel
+                className="text-primary font-semibold"
+                size="ultra-compact"
+              >
                 NAV ⭐
               </ExecutiveLabel>
               <Calculator className="h-3 w-3 text-emerald-600 absolute top-3 right-3" />
             </ExecutiveCardHeader>
             <ExecutiveCardContent size="ultra-compact">
               <ExecutiveValue
-                className={parseDecimal(proposal.metrics?.contractNAV).greaterThanOrEqualTo(0)
-                  ? "text-emerald-600"
-                  : "text-rose-600"}
+                className={
+                  parseDecimal(
+                    proposal.metrics?.contractNAV,
+                  ).greaterThanOrEqualTo(0)
+                    ? "text-emerald-600"
+                    : "text-rose-600"
+                }
                 size="ultra-compact"
               >
-                {formatMillions(parseDecimal(proposal.metrics?.contractNAV).toNumber())}
+                {formatMillions(
+                  parseDecimal(proposal.metrics?.contractNAV).toNumber(),
+                )}
               </ExecutiveValue>
               <ExecutiveTrend direction="neutral" size="ultra-compact">
                 Net Annualized Value
@@ -553,7 +619,10 @@ export function ProposalOverviewTab({
             <ExecutiveCardHeader size="ultra-compact">
               <ExecutiveCardTitle>Profitability Journey</ExecutiveCardTitle>
             </ExecutiveCardHeader>
-            <ExecutiveCardContent className="flex-1 min-h-0" size="ultra-compact">
+            <ExecutiveCardContent
+              className="flex-1 min-h-0"
+              size="ultra-compact"
+            >
               <ProposalProfitabilityChart
                 data={profitabilityData}
                 contractEndYear={contractKPIs.contractEndYear}
@@ -568,7 +637,10 @@ export function ProposalOverviewTab({
             <ExecutiveCardHeader size="ultra-compact">
               <ExecutiveCardTitle>Cash Flow Waterfall</ExecutiveCardTitle>
             </ExecutiveCardHeader>
-            <ExecutiveCardContent className="flex-1 min-h-0" size="ultra-compact">
+            <ExecutiveCardContent
+              className="flex-1 min-h-0"
+              size="ultra-compact"
+            >
               <ProposalCashFlowChart
                 data={cashFlowData}
                 contractEndYear={contractKPIs.contractEndYear}
@@ -582,9 +654,14 @@ export function ProposalOverviewTab({
         <BentoItem colSpan={8} className="min-h-[280px]">
           <ExecutiveCard className="h-full flex flex-col" size="ultra-compact">
             <ExecutiveCardHeader size="ultra-compact">
-              <ExecutiveCardTitle>Rent Trajectory (30 Years)</ExecutiveCardTitle>
+              <ExecutiveCardTitle>
+                Rent Trajectory (30 Years)
+              </ExecutiveCardTitle>
             </ExecutiveCardHeader>
-            <ExecutiveCardContent className="flex-1 min-h-0" size="ultra-compact">
+            <ExecutiveCardContent
+              className="flex-1 min-h-0"
+              size="ultra-compact"
+            >
               {rentTrajectoryData.length > 0 ? (
                 <div className="h-full w-full">
                   <ResponsiveContainer width="100%" height="100%">
@@ -593,12 +670,30 @@ export function ProposalOverviewTab({
                       margin={{ top: 10, right: 30, left: 0, bottom: 0 }}
                     >
                       <defs>
-                        <linearGradient id="colorRent" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="var(--chart-1)" stopOpacity={0.3} />
-                          <stop offset="95%" stopColor="var(--chart-1)" stopOpacity={0} />
+                        <linearGradient
+                          id="colorRent"
+                          x1="0"
+                          y1="0"
+                          x2="0"
+                          y2="1"
+                        >
+                          <stop
+                            offset="5%"
+                            stopColor="var(--chart-1)"
+                            stopOpacity={0.3}
+                          />
+                          <stop
+                            offset="95%"
+                            stopColor="var(--chart-1)"
+                            stopOpacity={0}
+                          />
                         </linearGradient>
                       </defs>
-                      <CartesianGrid strokeDasharray="3 3" className="stroke-muted" vertical={false} />
+                      <CartesianGrid
+                        strokeDasharray="3 3"
+                        className="stroke-muted"
+                        vertical={false}
+                      />
                       <XAxis
                         dataKey="year"
                         tick={{ fontSize: 10 }}
@@ -619,7 +714,10 @@ export function ProposalOverviewTab({
                         className="text-muted-foreground"
                       />
                       <Tooltip
-                        formatter={(value: number) => [formatTooltipValue(value), "Rent"]}
+                        formatter={(value: number) => [
+                          formatTooltipValue(value),
+                          "Rent",
+                        ]}
                         labelFormatter={(label) => `Year ${label}`}
                         contentStyle={{
                           backgroundColor: "hsl(var(--card))",
@@ -628,7 +726,11 @@ export function ProposalOverviewTab({
                           boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
                           fontSize: "12px",
                         }}
-                        cursor={{ stroke: "var(--muted-foreground)", strokeWidth: 1, strokeDasharray: "4 4" }}
+                        cursor={{
+                          stroke: "var(--muted-foreground)",
+                          strokeWidth: 1,
+                          strokeDasharray: "4 4",
+                        }}
                       />
                       <Area
                         type="monotone"
@@ -654,14 +756,22 @@ export function ProposalOverviewTab({
             <ExecutiveCardHeader size="ultra-compact">
               <ExecutiveCardTitle>Key Assumptions</ExecutiveCardTitle>
             </ExecutiveCardHeader>
-            <ExecutiveCardContent className="space-y-3 overflow-y-auto" size="ultra-compact">
+            <ExecutiveCardContent
+              className="space-y-3 overflow-y-auto"
+              size="ultra-compact"
+            >
               <div className="space-y-2">
                 <div className="flex items-center justify-between p-2 bg-muted/50 rounded-lg">
                   <div className="flex items-center gap-2">
                     <FileText className="h-3 w-3 text-muted-foreground" />
                     <span className="text-xs font-medium">Rent Model</span>
                   </div>
-                  <Badge variant="outline" className="font-mono text-[10px] h-5">{proposal.rentModel}</Badge>
+                  <Badge
+                    variant="outline"
+                    className="font-mono text-[10px] h-5"
+                  >
+                    {proposal.rentModel}
+                  </Badge>
                 </div>
 
                 {proposal.developer && (
@@ -670,7 +780,9 @@ export function ProposalOverviewTab({
                       <Building2 className="h-3 w-3 text-muted-foreground" />
                       <span className="text-xs font-medium">Developer</span>
                     </div>
-                    <span className="text-xs font-semibold truncate max-w-[100px]">{proposal.developer}</span>
+                    <span className="text-xs font-semibold truncate max-w-[100px]">
+                      {proposal.developer}
+                    </span>
                   </div>
                 )}
 

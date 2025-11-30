@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { authenticateUserWithRole } from "@/middleware/auth";
-import { Role } from "@prisma/client";
+import { Role } from "@/lib/types/roles";
 import { prisma } from "@/lib/prisma";
 import { proposalToFormData } from "@/lib/proposals/transform-to-form";
 
@@ -15,10 +15,7 @@ import { proposalToFormData } from "@/lib/proposals/transform-to-form";
  */
 export async function GET(request: Request) {
   // 1. Authenticate user
-  const authResult = await authenticateUserWithRole([
-    Role.ADMIN,
-    Role.PLANNER,
-  ]);
+  const authResult = await authenticateUserWithRole([Role.ADMIN, Role.PLANNER]);
   if (!authResult.success) return authResult.error;
 
   // 2. Parse query parameters
@@ -49,10 +46,7 @@ export async function GET(request: Request) {
   });
 
   if (!proposal) {
-    return NextResponse.json(
-      { error: "No proposals found" },
-      { status: 404 }
-    );
+    return NextResponse.json({ error: "No proposals found" }, { status: 404 });
   }
 
   // 4. Return with or without transformation

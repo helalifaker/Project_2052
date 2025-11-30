@@ -1,8 +1,13 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { authenticateUserWithRole } from "@/middleware/auth";
-import { Role, Prisma } from "@prisma/client";
+import { Role } from "@/lib/types/roles";
+import type {
+  InputJsonValue,
+  LeaseProposalUpdateInput,
+} from "@/lib/types/prisma-helpers";
 import { invalidateProposalCache } from "@/lib/cache/calculation-cache";
+import { UpdateProposalSchema } from "@/lib/validation/proposal";
 
 /**
  * GET /api/proposals/[id]
@@ -91,7 +96,6 @@ export async function PATCH(
     }
 
     const { id } = await params;
-    const body = await request.json();
 
     // Validate UUID format
     const uuidRegex =
@@ -102,6 +106,22 @@ export async function PATCH(
         { status: 400 },
       );
     }
+
+    const body = await request.json();
+
+    // Validate request body with Zod
+    const validationResult = UpdateProposalSchema.safeParse(body);
+    if (!validationResult.success) {
+      return NextResponse.json(
+        {
+          error: "Validation failed",
+          details: validationResult.error.issues,
+        },
+        { status: 400 },
+      );
+    }
+
+    const validatedData = validationResult.data;
 
     // Check if proposal exists
     const existingProposal = await prisma.leaseProposal.findUnique({
@@ -124,30 +144,33 @@ export async function PATCH(
       );
     }
 
-    // Build update data object
-    const updateData: Prisma.LeaseProposalUpdateInput = {};
+    // Build update data object from validated data
+    const updateData: LeaseProposalUpdateInput = {};
 
-    if (body.name !== undefined) updateData.name = body.name;
-    if (body.rentModel !== undefined) updateData.rentModel = body.rentModel;
-    if (body.developer !== undefined) updateData.developer = body.developer;
-    if (body.property !== undefined) updateData.property = body.property;
-    if (body.enrollment !== undefined)
-      updateData.enrollment = body.enrollment as Prisma.InputJsonValue;
-    if (body.curriculum !== undefined)
-      updateData.curriculum = body.curriculum as Prisma.InputJsonValue;
-    if (body.staff !== undefined)
-      updateData.staff = body.staff as Prisma.InputJsonValue;
-    if (body.rentParams !== undefined)
-      updateData.rentParams = body.rentParams as Prisma.InputJsonValue;
-    if (body.otherOpexPercent !== undefined)
-      updateData.otherOpexPercent = new Prisma.Decimal(body.otherOpexPercent);
-    if (body.financials !== undefined)
-      updateData.financials = body.financials as Prisma.InputJsonValue;
-    if (body.metrics !== undefined)
-      updateData.metrics = body.metrics as Prisma.InputJsonValue;
-    if (body.calculatedAt !== undefined)
-      updateData.calculatedAt = body.calculatedAt
-        ? new Date(body.calculatedAt)
+    if (validatedData.name !== undefined) updateData.name = validatedData.name;
+    if (validatedData.rentModel !== undefined)
+      updateData.rentModel = validatedData.rentModel;
+    if (validatedData.developer !== undefined)
+      updateData.developer = validatedData.developer;
+    if (validatedData.property !== undefined)
+      updateData.property = validatedData.property;
+    if (validatedData.enrollment !== undefined)
+      updateData.enrollment = validatedData.enrollment as InputJsonValue;
+    if (validatedData.curriculum !== undefined)
+      updateData.curriculum = validatedData.curriculum as InputJsonValue;
+    if (validatedData.staff !== undefined)
+      updateData.staff = validatedData.staff as InputJsonValue;
+    if (validatedData.rentParams !== undefined)
+      updateData.rentParams = validatedData.rentParams as InputJsonValue;
+    if (validatedData.otherOpexPercent !== undefined)
+      updateData.otherOpexPercent = validatedData.otherOpexPercent;
+    if (validatedData.financials !== undefined)
+      updateData.financials = validatedData.financials as InputJsonValue;
+    if (validatedData.metrics !== undefined)
+      updateData.metrics = validatedData.metrics as InputJsonValue;
+    if (validatedData.calculatedAt !== undefined)
+      updateData.calculatedAt = validatedData.calculatedAt
+        ? new Date(validatedData.calculatedAt)
         : null;
 
     // Update proposal

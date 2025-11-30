@@ -40,7 +40,7 @@ export function LiveRegion({
   children,
   politeness = "polite",
   atomic = true,
-  relevant = "additions text",
+  relevant = "additions",
   className,
 }: LiveRegionProps) {
   return (
@@ -126,9 +126,5 @@ interface SuccessAnnouncerProps {
 export function SuccessAnnouncer({ message }: SuccessAnnouncerProps) {
   if (!message) return null;
 
-  return (
-    <LiveRegion politeness="polite">
-      {message}
-    </LiveRegion>
-  );
+  return <LiveRegion politeness="polite">{message}</LiveRegion>;
 }

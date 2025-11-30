@@ -1,5 +1,6 @@
 "use client";
 
+import { memo } from "react";
 import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { LucideIcon, TrendingUp, TrendingDown, Minus } from "lucide-react";
@@ -152,7 +153,7 @@ const sizeConfig = {
  * />
  * ```
  */
-export function KPICard({
+export const KPICard = memo(function KPICard({
   title,
   value,
   subtitle,
@@ -166,9 +167,10 @@ export function KPICard({
   const config = sizeConfig[size];
 
   // Parse value configuration
-  const valueConfig: ValueConfig = typeof value === "object" && value !== null && "value" in value
-    ? (value as ValueConfig)
-    : { value };
+  const valueConfig: ValueConfig =
+    typeof value === "object" && value !== null && "value" in value
+      ? (value as ValueConfig)
+      : { value };
 
   // Render value based on configuration
   const renderValue = () => {
@@ -182,9 +184,10 @@ export function KPICard({
     // If it's a number and we have a type, use FinancialValue
     if (typeof val === "number" && valueConfig.type) {
       // Map colorMode to FinancialValue's supported values
-      const mappedColorMode = valueConfig.colorMode === "auto" || valueConfig.colorMode === "negative"
-        ? valueConfig.colorMode
-        : "auto";
+      const mappedColorMode =
+        valueConfig.colorMode === "auto" || valueConfig.colorMode === "negative"
+          ? valueConfig.colorMode
+          : "auto";
 
       return (
         <FinancialValue
@@ -192,14 +195,24 @@ export function KPICard({
           type={valueConfig.type}
           colorMode={mappedColorMode}
           size="xl"
-          className={cn(config.valueSize, config.valueWeight, "tracking-tight tabular-nums")}
+          className={cn(
+            config.valueSize,
+            config.valueWeight,
+            "tracking-tight tabular-nums",
+          )}
         />
       );
     }
 
     // Otherwise, render as-is with typography
     return (
-      <span className={cn(config.valueSize, config.valueWeight, "tracking-tight tabular-nums")}>
+      <span
+        className={cn(
+          config.valueSize,
+          config.valueWeight,
+          "tracking-tight tabular-nums",
+        )}
+      >
         {val}
       </span>
     );
@@ -231,7 +244,7 @@ export function KPICard({
         interactive &&
           !accentColor &&
           "hover:border-copper focus-within:border-copper",
-        className
+        className,
       )}
       style={accentStyle}
     >
@@ -241,20 +254,23 @@ export function KPICard({
           <p
             className={cn(
               config.titleSize,
-              "font-medium text-muted-foreground"
+              "font-medium text-muted-foreground",
             )}
           >
             {title}
           </p>
 
           {/* Value */}
-          <div className="animate-count-up">
-            {renderValue()}
-          </div>
+          <div className="animate-count-up">{renderValue()}</div>
 
           {/* Subtitle */}
           {subtitle && (
-            <p className={cn(config.subtitleSize, "text-muted-foreground max-w-[90%]")}>
+            <p
+              className={cn(
+                config.subtitleSize,
+                "text-muted-foreground max-w-[90%]",
+              )}
+            >
               {subtitle}
             </p>
           )}
@@ -267,10 +283,10 @@ export function KPICard({
                 config.trendSize,
                 trend.value > 0 && "text-financial-positive",
                 trend.value < 0 && "text-financial-negative",
-                trend.value === 0 && "text-muted-foreground"
+                trend.value === 0 && "text-muted-foreground",
               )}
             >
-              {(trend.showIcon !== false) && TrendIcon && (
+              {trend.showIcon !== false && TrendIcon && (
                 <TrendIcon className="h-4 w-4" />
               )}
               <span className="font-medium tabular-nums">
@@ -293,14 +309,14 @@ export function KPICard({
                 "rounded-full flex items-center justify-center transition-all duration-300",
                 accentColor
                   ? "bg-[var(--card-accent)]/10 group-hover:bg-[var(--card-accent)]/15"
-                  : "bg-copper/10 group-hover:bg-copper/15"
+                  : "bg-copper/10 group-hover:bg-copper/15",
               )}
             >
               <Icon
                 className={cn(
                   config.iconSize,
                   "transition-colors duration-300",
-                  accentColor ? "text-[var(--card-accent)]" : "text-copper"
+                  accentColor ? "text-[var(--card-accent)]" : "text-copper",
                 )}
               />
             </div>
@@ -315,13 +331,13 @@ export function KPICard({
             "absolute bottom-0 left-8 right-8 h-px",
             "scale-x-0 group-hover:scale-x-100",
             "transition-transform duration-500 origin-left",
-            accentColor ? "bg-[var(--card-accent)]" : "bg-copper"
+            accentColor ? "bg-[var(--card-accent)]" : "bg-copper",
           )}
         />
       )}
     </Card>
   );
-}
+});
 
 /**
  * KPI Card Grid
@@ -337,7 +353,7 @@ interface KPICardGridProps {
   className?: string;
 }
 
-export function KPICardGrid({
+export const KPICardGrid = memo(function KPICardGrid({
   children,
   columns,
   gap = "default",
@@ -363,4 +379,4 @@ export function KPICardGrid({
       {children}
     </div>
   );
-}
+});

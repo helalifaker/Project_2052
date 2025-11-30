@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import {
   Card,
   CardContent,
@@ -51,7 +50,6 @@ const configSchema = z.object({
 });
 
 function SystemConfigPageContent() {
-  const router = useRouter();
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [configId, setConfigId] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
@@ -116,9 +114,7 @@ function SystemConfigPageContent() {
         depositInterestRate: new Decimal(data.depositInterestRate)
           .div(100)
           .toNumber(),
-        discountRate: new Decimal(data.discountRate)
-          .div(100)
-          .toNumber(),
+        discountRate: new Decimal(data.discountRate).div(100).toNumber(),
         minCashBalance: new Decimal(data.minCashBalance)
           .mul(1_000_000)
           .toNumber(),
@@ -157,11 +153,13 @@ function SystemConfigPageContent() {
       {/* Navigation */}
       <div className="space-y-4">
         <BackButton href="/admin" label="Back to Admin" />
-        <Breadcrumbs items={[
-          { label: "Dashboard", href: "/dashboard" },
-          { label: "Admin", href: "/admin" },
-          { label: "System Config" }
-        ]} />
+        <Breadcrumbs
+          items={[
+            { label: "Dashboard", href: "/dashboard" },
+            { label: "Admin", href: "/admin" },
+            { label: "System Config" },
+          ]}
+        />
       </div>
 
       <div>
@@ -258,9 +256,10 @@ function SystemConfigPageContent() {
                       Discount Rate (NPV Calculations)
                     </h3>
                     <p className="text-sm text-muted-foreground mb-4">
-                      The discount rate used for Net Present Value (NPV) calculations.
-                      Represents the weighted average cost of capital (WACC) or required return rate.
-                      Typical range: 8-12% for real estate investments.
+                      The discount rate used for Net Present Value (NPV)
+                      calculations. Represents the weighted average cost of
+                      capital (WACC) or required return rate. Typical range:
+                      8-12% for real estate investments.
                     </p>
                     <InputField
                       name="discountRate"

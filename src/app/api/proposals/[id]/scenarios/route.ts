@@ -27,7 +27,7 @@ import { z } from "zod";
 import Decimal from "decimal.js";
 import { prisma } from "@/lib/prisma";
 import { authenticateUserWithRole } from "@/middleware/auth";
-import { Role, type Prisma } from "@prisma/client";
+import { Role } from "@/lib/types/roles";
 import { calculateFinancialProjections } from "@/lib/engine";
 import type {
   CalculationEngineInput,
@@ -45,7 +45,6 @@ import type { ScenarioVariables } from "@/lib/engine/scenario-modifier";
 import {
   reconstructCalculationInput as sharedReconstructCalculationInput,
   toNumber,
-  type ProposalRecord,
 } from "@/lib/proposals/reconstruct-calculation-input";
 
 type StoredFinancialPeriod = {
@@ -338,8 +337,8 @@ function extractBaselineSliderValues(
   const cpiRate = input.dynamicPeriodConfig.staff.cpiRate;
   const cpi = cpiRate
     ? (cpiRate instanceof Decimal ? cpiRate : new Decimal(cpiRate))
-      .times(100)
-      .toNumber()
+        .times(100)
+        .toNumber()
     : 3.0; // Default if not set
 
   // Tuition Growth: Extract from curriculum configuration
@@ -347,11 +346,11 @@ function extractBaselineSliderValues(
     input.dynamicPeriodConfig.curriculum.nationalTuitionGrowthRate;
   const tuitionGrowth = tuitionGrowthRate
     ? (tuitionGrowthRate instanceof Decimal
-      ? tuitionGrowthRate
-      : new Decimal(tuitionGrowthRate)
-    )
-      .times(100)
-      .toNumber()
+        ? tuitionGrowthRate
+        : new Decimal(tuitionGrowthRate)
+      )
+        .times(100)
+        .toNumber()
     : 5.0; // Default if not set
 
   // Rent Escalation: Extract based on rent model
@@ -465,7 +464,7 @@ function extractScenarioMetrics(
 }
 
 const normalizeStoredPeriods = (
-  financials: Prisma.JsonValue,
+  financials: unknown,
 ): StoredFinancialPeriod[] => {
   if (!Array.isArray(financials)) return [];
 
@@ -506,55 +505,6 @@ const readDecimal = (value: unknown): Decimal => {
     return new Decimal(0);
   }
 };
-
-/**
- * Extract baseline metrics from stored proposal
- */
-function extractBaselineMetrics(
-  proposal: ProposalRecord,
-  discountRate: Decimal,
-) {
-  // Metrics are already stored in the proposal
-  const metrics =
-    proposal.metrics &&
-      typeof proposal.metrics === "object" &&
-      !Array.isArray(proposal.metrics)
-      ? (proposal.metrics as Record<string, unknown>)
-      : {};
-  const periods = normalizeStoredPeriods(proposal.financials);
-
-  const totalRent = periods.reduce((sum, period) => {
-    return sum.add(readDecimal(period.profitLoss["rentExpense"]));
-  }, new Decimal(0));
-
-  const totalEbitda = periods.reduce((sum, period) => {
-    return sum.add(readDecimal(period.profitLoss["ebitda"]));
-  }, new Decimal(0));
-
-  const cashFlows = periods.map((period) =>
-    readDecimal(period.cashFlow["netChangeInCash"]),
-  );
-  const npv = calculateNPV(cashFlows, discountRate ?? new Decimal(0.1)).toFixed(
-    2,
-  );
-
-  const finalCash = readDecimal(
-    periods.at(-1)?.balanceSheet["cash"] ?? metrics.finalCash ?? 0,
-  );
-
-  const maxDebt = periods.reduce((maxDebtValue, period) => {
-    const debt = readDecimal(period.balanceSheet["debtBalance"]);
-    return debt.greaterThan(maxDebtValue) ? debt : maxDebtValue;
-  }, new Decimal(0));
-
-  return {
-    totalRent: totalRent.toFixed(2),
-    npv,
-    totalEbitda: totalEbitda.toFixed(2),
-    finalCash: finalCash.toFixed(2),
-    maxDebt: maxDebt.toFixed(2),
-  };
-}
 
 /**
  * Compare baseline and scenario metrics

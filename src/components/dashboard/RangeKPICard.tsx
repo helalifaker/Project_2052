@@ -1,5 +1,6 @@
 "use client";
 
+import { memo } from "react";
 import { cn } from "@/lib/utils";
 import { LucideIcon } from "lucide-react";
 import {
@@ -18,7 +19,7 @@ interface RangeKPICardProps {
   icon?: LucideIcon;
   direction: "higher-better" | "lower-better";
   className?: string;
-  size?: 'default' | 'compact' | 'ultra-compact';
+  size?: "default" | "compact" | "ultra-compact";
 }
 
 /**
@@ -33,7 +34,7 @@ interface RangeKPICardProps {
  * - Color-coded spread assessment
  * - Direction-aware formatting
  */
-export function RangeKPICard({
+export const RangeKPICard = memo(function RangeKPICard({
   title,
   minValue,
   maxValue,
@@ -43,12 +44,11 @@ export function RangeKPICard({
   icon: Icon,
   direction,
   className,
-  size = 'default',
+  size = "default",
 }: RangeKPICardProps) {
   // Calculate range and spread
   const range = maxValue - minValue;
-  const spreadPercent =
-    minValue !== 0 ? (range / Math.abs(minValue)) * 100 : 0;
+  const spreadPercent = minValue !== 0 ? (range / Math.abs(minValue)) * 100 : 0;
 
   // Format values based on unit
   const formatValue = (value: number): string => {
@@ -83,16 +83,25 @@ export function RangeKPICard({
       size={size}
       className={cn(
         "group relative transition-all duration-500 hover:border-[var(--executive-accent)]",
-        className
+        className,
       )}
     >
-      <ExecutiveCardContent className={cn(
-        size === 'ultra-compact' ? 'p-3' : size === 'compact' ? 'p-4' : 'p-5 lg:p-6'
-      )}>
+      <ExecutiveCardContent
+        className={cn(
+          size === "ultra-compact"
+            ? "p-3"
+            : size === "compact"
+              ? "p-4"
+              : "p-5 lg:p-6",
+        )}
+      >
         {/* Optional icon - subtle, top right */}
         {Icon && (
           <div className="absolute top-5 right-5 opacity-20 group-hover:opacity-40 transition-opacity duration-500">
-            <Icon className="w-6 h-6" style={{ color: "var(--executive-accent)" }} />
+            <Icon
+              className="w-6 h-6"
+              style={{ color: "var(--executive-accent)" }}
+            />
           </div>
         )}
 
@@ -105,19 +114,23 @@ export function RangeKPICard({
         <div className="space-y-3">
           {/* Min - Max Values */}
           <div className="flex items-center gap-2">
-            <div className={cn(
-              "font-light tracking-tight tabular-nums text-[var(--executive-text)]",
-              size === 'ultra-compact' ? "text-xl" : "text-2xl lg:text-3xl"
-            )}>
+            <div
+              className={cn(
+                "font-light tracking-tight tabular-nums text-[var(--executive-text)]",
+                size === "ultra-compact" ? "text-xl" : "text-2xl lg:text-3xl",
+              )}
+            >
               {formattedMin}
             </div>
             <div className="text-lg text-[var(--executive-text-tertiary)] font-light">
               —
             </div>
-            <div className={cn(
-              "font-light tracking-tight tabular-nums text-[var(--executive-text)]",
-              size === 'ultra-compact' ? "text-xl" : "text-2xl lg:text-3xl"
-            )}>
+            <div
+              className={cn(
+                "font-light tracking-tight tabular-nums text-[var(--executive-text)]",
+                size === "ultra-compact" ? "text-xl" : "text-2xl lg:text-3xl",
+              )}
+            >
               {formattedMax}
             </div>
           </div>
@@ -211,4 +224,4 @@ export function RangeKPICard({
       </ExecutiveCardContent>
     </ExecutiveCard>
   );
-}
+});

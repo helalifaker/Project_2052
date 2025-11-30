@@ -70,15 +70,21 @@ async function testRentCalculation() {
   const baseRent = totalInvestment.times(params.yieldRate);
 
   console.log("Investment Breakdown:");
-  console.log(`  Land Cost: ${landCost.toFixed(2)} SAR (${params.landSize} m² × ${params.landPricePerSqm} SAR/m²)`);
-  console.log(`  Construction Cost: ${constructionCost.toFixed(2)} SAR (${params.buaSize} m² × ${params.constructionCostPerSqm} SAR/m²)`);
+  console.log(
+    `  Land Cost: ${landCost.toFixed(2)} SAR (${params.landSize} m² × ${params.landPricePerSqm} SAR/m²)`,
+  );
+  console.log(
+    `  Construction Cost: ${constructionCost.toFixed(2)} SAR (${params.buaSize} m² × ${params.constructionCostPerSqm} SAR/m²)`,
+  );
   console.log(`  Total Investment: ${totalInvestment.toFixed(2)} SAR`);
   console.log();
 
   console.log("Rent Calculation:");
   console.log(`  Yield Rate: ${params.yieldRate.times(100).toFixed(2)}%`);
   console.log(`  Base Rent (Year 1): ${baseRent.toFixed(2)} SAR`);
-  console.log(`  Growth Rate: ${params.growthRate.times(100).toFixed(2)}% per ${params.frequency} year(s)`);
+  console.log(
+    `  Growth Rate: ${params.growthRate.times(100).toFixed(2)}% per ${params.frequency} year(s)`,
+  );
   console.log();
 
   console.log("Expected Rent Values:");
@@ -93,8 +99,12 @@ async function testRentCalculation() {
   for (let year = 2028; year <= 2052; year++) {
     const rent = calculatePartnerInvestmentRent(year, baseYear, params);
     const yearsElapsed = year - baseYear;
-    const growthFactor = new Decimal(1).plus(params.growthRate).pow(yearsElapsed);
-    console.log(`${year}\t${rent.toFixed(2).padStart(18)}\t${growthFactor.toFixed(6)}`);
+    const growthFactor = new Decimal(1)
+      .plus(params.growthRate)
+      .pow(yearsElapsed);
+    console.log(
+      `${year}\t${rent.toFixed(2).padStart(18)}\t${growthFactor.toFixed(6)}`,
+    );
   }
 
   console.log();
@@ -104,16 +114,24 @@ async function testRentCalculation() {
   const year10Rent = calculatePartnerInvestmentRent(2037, 2028, params);
   const year25Rent = calculatePartnerInvestmentRent(2052, 2028, params);
 
-  console.log(`  Year 1 (2028): ${year1Rent.toFixed(2)} SAR (should be ${baseRent.toFixed(2)})`);
+  console.log(
+    `  Year 1 (2028): ${year1Rent.toFixed(2)} SAR (should be ${baseRent.toFixed(2)})`,
+  );
   console.log(`  Year 5 (2032): ${year5Rent.toFixed(2)} SAR (4 years growth)`);
-  console.log(`  Year 10 (2037): ${year10Rent.toFixed(2)} SAR (9 years growth)`);
-  console.log(`  Year 25 (2052): ${year25Rent.toFixed(2)} SAR (24 years growth)`);
+  console.log(
+    `  Year 10 (2037): ${year10Rent.toFixed(2)} SAR (9 years growth)`,
+  );
+  console.log(
+    `  Year 25 (2052): ${year25Rent.toFixed(2)} SAR (24 years growth)`,
+  );
   console.log();
 
   // Verification checks
   const checksPass = year1Rent.equals(baseRent);
   if (checksPass) {
-    console.log("✅ Calculation verified - Year 1 rent matches expected base rent");
+    console.log(
+      "✅ Calculation verified - Year 1 rent matches expected base rent",
+    );
   } else {
     console.log("❌ Error - Year 1 rent does not match expected base rent");
     console.log(`   Expected: ${baseRent.toFixed(2)}`);

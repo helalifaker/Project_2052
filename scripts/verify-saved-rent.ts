@@ -24,7 +24,9 @@ async function verifySavedRent() {
     console.log(`  ID: ${proposal.id}`);
     console.log(`  Name: ${proposal.name}`);
     console.log(`  Developer: ${proposal.developer}`);
-    console.log(`  Contract Period: ${proposal.contractPeriodYears || 30} years`);
+    console.log(
+      `  Contract Period: ${proposal.contractPeriodYears || 30} years`,
+    );
     console.log(`  Created: ${proposal.createdAt.toISOString()}`);
     console.log();
 
@@ -34,15 +36,25 @@ async function verifySavedRent() {
     console.log(`  Land Size: ${rentParams.landSize} m²`);
     console.log(`  Land Price: ${rentParams.landPricePerSqm} SAR/m²`);
     console.log(`  BUA Size: ${rentParams.buaSize} m²`);
-    console.log(`  Construction Cost: ${rentParams.constructionCostPerSqm} SAR/m²`);
-    console.log(`  Yield Rate: ${rentParams.yieldRate} (${new Decimal(rentParams.yieldRate).times(100).toFixed(2)}%)`);
-    console.log(`  Growth Rate: ${rentParams.growthRate} (${new Decimal(rentParams.growthRate).times(100).toFixed(2)}%)`);
+    console.log(
+      `  Construction Cost: ${rentParams.constructionCostPerSqm} SAR/m²`,
+    );
+    console.log(
+      `  Yield Rate: ${rentParams.yieldRate} (${new Decimal(rentParams.yieldRate).times(100).toFixed(2)}%)`,
+    );
+    console.log(
+      `  Growth Rate: ${rentParams.growthRate} (${new Decimal(rentParams.growthRate).times(100).toFixed(2)}%)`,
+    );
     console.log(`  Frequency: ${rentParams.frequency} year(s)`);
     console.log();
 
     // Calculate expected values
-    const landCost = new Decimal(rentParams.landSize).times(rentParams.landPricePerSqm);
-    const constructionCost = new Decimal(rentParams.buaSize).times(rentParams.constructionCostPerSqm);
+    const landCost = new Decimal(rentParams.landSize).times(
+      rentParams.landPricePerSqm,
+    );
+    const constructionCost = new Decimal(rentParams.buaSize).times(
+      rentParams.constructionCostPerSqm,
+    );
     const totalInvestment = landCost.plus(constructionCost);
     const expectedBaseRent = totalInvestment.times(rentParams.yieldRate);
 
@@ -90,12 +102,15 @@ async function verifySavedRent() {
         continue;
       }
 
-      const savedRent = period.revenue?.totalRentRevenue || period.revenue?.rent || "0";
+      const savedRent =
+        period.revenue?.totalRentRevenue || period.revenue?.rent || "0";
       const savedRentDecimal = new Decimal(savedRent);
 
       // Calculate expected rent
       const yearsElapsed = year - baseYear;
-      const growthFactor = new Decimal(1).plus(rentParams.growthRate).pow(yearsElapsed);
+      const growthFactor = new Decimal(1)
+        .plus(rentParams.growthRate)
+        .pow(yearsElapsed);
       const expectedRent = expectedBaseRent.times(growthFactor);
 
       const match = savedRentDecimal.equals(expectedRent);
@@ -104,7 +119,7 @@ async function verifySavedRent() {
       if (!match) allMatch = false;
 
       console.log(
-        `${year}\t${savedRentDecimal.toFixed(2).padStart(16)}\t${expectedRent.toFixed(2).padStart(19)}\t${matchIcon}`
+        `${year}\t${savedRentDecimal.toFixed(2).padStart(16)}\t${expectedRent.toFixed(2).padStart(19)}\t${matchIcon}`,
       );
     }
 
@@ -121,7 +136,6 @@ async function verifySavedRent() {
     if (firstPeriod) {
       console.log(JSON.stringify(firstPeriod, null, 2));
     }
-
   } catch (error) {
     console.error("Error:", error);
   } finally {

@@ -56,9 +56,3 @@ export {
   ProgressBar,
   ProgressIndicators,
 } from "./ProgressIndicator";
-
-// Type exports
-export type { default as PageSkeletonProps } from "./PageSkeleton";
-export type { default as EmptyStateProps } from "./EmptyState";
-export type { default as ErrorStateProps } from "./ErrorState";
-export type { default as ProgressIndicatorProps } from "./ProgressIndicator";

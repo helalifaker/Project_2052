@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { authenticateUser, authenticateUserWithRole } from "@/middleware/auth";
-import { Role, Prisma } from "@prisma/client";
+import { Role } from "@/lib/types/roles";
+import type { UserUpdateInput } from "@/lib/types/prisma-helpers";
+import { PrismaClientKnownRequestError } from "@/lib/types/prisma-helpers";
 import { z } from "zod";
 
 // Request size limit (100KB - users don't need large payloads)
@@ -86,7 +88,7 @@ export async function GET(
   } catch (error) {
     console.error("Error fetching user:", error);
     return NextResponse.json(
-      { error: "Internal server error", details: String(error) },
+      { error: "Failed to fetch user. Please try again." },
       { status: 500 },
     );
   }
@@ -189,7 +191,7 @@ export async function PUT(
     }
 
     // Build update data object
-    const updateData: Prisma.UserUpdateInput = {};
+    const updateData: UserUpdateInput = {};
     if (validatedData.name !== undefined) {
       updateData.name = validatedData.name;
     }
@@ -227,7 +229,7 @@ export async function PUT(
 
     // Handle Prisma unique constraint violation
     if (
-      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error instanceof PrismaClientKnownRequestError &&
       error.code === "P2002"
     ) {
       return NextResponse.json(
@@ -311,7 +313,7 @@ export async function DELETE(
   } catch (error) {
     // Handle foreign key constraint violation
     if (
-      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error instanceof PrismaClientKnownRequestError &&
       error.code === "P2003"
     ) {
       return NextResponse.json(

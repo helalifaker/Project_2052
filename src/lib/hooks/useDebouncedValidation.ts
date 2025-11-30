@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo, useRef } from "react";
 
 /**
  * Custom hook for debounced validation
@@ -29,16 +29,18 @@ export function useDebouncedValue<T>(value: T, delay = 300): T {
  * Provides loading state during debounce period
  */
 export function useFieldValidation(fieldValue: unknown, delay = 300) {
-  const [isValidating, setIsValidating] = useState(false);
   const debouncedValue = useDebouncedValue(fieldValue, delay);
+  const previousValueRef = useRef(fieldValue);
 
-  useEffect(() => {
-    if (fieldValue !== debouncedValue) {
-      setIsValidating(true);
-    } else {
-      setIsValidating(false);
-    }
+  // Compute isValidating synchronously based on current vs debounced values
+  const isValidating = useMemo(() => {
+    return fieldValue !== debouncedValue;
   }, [fieldValue, debouncedValue]);
+
+  // Update ref after render
+  useEffect(() => {
+    previousValueRef.current = fieldValue;
+  });
 
   return {
     debouncedValue,

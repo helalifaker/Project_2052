@@ -1,7 +1,13 @@
 import type ExcelJS from "exceljs";
 import Decimal from "decimal.js";
 import type { ExcelExportData } from "./types";
-import { applyStyle, setColumnWidths, disableGridLines, CELL_STYLES, COLORS } from "./formatting";
+import {
+  applyStyle,
+  setColumnWidths,
+  disableGridLines,
+  CELL_STYLES,
+  COLORS,
+} from "./formatting";
 
 /**
  * Helper to convert unknown to number
@@ -54,9 +60,23 @@ export function createInputsSheet(
   let currentRow = 3;
 
   // --- SECTION 1: PROPOSAL INFORMATION ---
-  currentRow = addSectionHeader(worksheet, currentRow, "1. Proposal Information");
-  currentRow = addPropertyRow(worksheet, currentRow, "Proposal Name", proposal.name);
-  currentRow = addPropertyRow(worksheet, currentRow, "Rent Model", proposal.rentModel);
+  currentRow = addSectionHeader(
+    worksheet,
+    currentRow,
+    "1. Proposal Information",
+  );
+  currentRow = addPropertyRow(
+    worksheet,
+    currentRow,
+    "Proposal Name",
+    proposal.name || "N/A",
+  );
+  currentRow = addPropertyRow(
+    worksheet,
+    currentRow,
+    "Rent Model",
+    proposal.rentModel || "N/A",
+  );
   currentRow = addPropertyRow(
     worksheet,
     currentRow,
@@ -64,10 +84,20 @@ export function createInputsSheet(
     `${proposal.contractPeriodYears || 30} years`,
   );
   if (proposal.developer) {
-    currentRow = addPropertyRow(worksheet, currentRow, "Developer", proposal.developer);
+    currentRow = addPropertyRow(
+      worksheet,
+      currentRow,
+      "Developer",
+      proposal.developer,
+    );
   }
   if (proposal.property) {
-    currentRow = addPropertyRow(worksheet, currentRow, "Property", proposal.property);
+    currentRow = addPropertyRow(
+      worksheet,
+      currentRow,
+      "Property",
+      proposal.property,
+    );
   }
   currentRow = addPropertyRow(
     worksheet,
@@ -84,9 +114,16 @@ export function createInputsSheet(
   currentRow++; // Blank row
 
   // --- SECTION 2: ENROLLMENT CONFIGURATION ---
-  currentRow = addSectionHeader(worksheet, currentRow, "2. Enrollment Configuration");
+  currentRow = addSectionHeader(
+    worksheet,
+    currentRow,
+    "2. Enrollment Configuration",
+  );
 
-  const enrollmentConfig = (proposal.enrollment || {}) as Record<string, unknown>;
+  const enrollmentConfig = (proposal.enrollment || {}) as Record<
+    string,
+    unknown
+  >;
 
   currentRow = addPropertyRow(
     worksheet,
@@ -98,7 +135,12 @@ export function createInputsSheet(
   );
 
   if (enrollmentConfig.rampUpEnabled) {
-    currentRow = addPropertyRow(worksheet, currentRow, "Ramp-up Enabled", "Yes");
+    currentRow = addPropertyRow(
+      worksheet,
+      currentRow,
+      "Ramp-up Enabled",
+      "Yes",
+    );
     currentRow = addPropertyRow(
       worksheet,
       currentRow,
@@ -125,9 +167,16 @@ export function createInputsSheet(
   currentRow++; // Blank row
 
   // --- SECTION 3: CURRICULUM CONFIGURATION ---
-  currentRow = addSectionHeader(worksheet, currentRow, "3. Curriculum Configuration");
+  currentRow = addSectionHeader(
+    worksheet,
+    currentRow,
+    "3. Curriculum Configuration",
+  );
 
-  const curriculumConfig = (proposal.curriculum || {}) as Record<string, unknown>;
+  const curriculumConfig = (proposal.curriculum || {}) as Record<
+    string,
+    unknown
+  >;
 
   currentRow = addPropertyRow(
     worksheet,
@@ -155,7 +204,12 @@ export function createInputsSheet(
   }
 
   if (curriculumConfig.ibProgramEnabled) {
-    currentRow = addPropertyRow(worksheet, currentRow, "IB Program Enabled", "Yes");
+    currentRow = addPropertyRow(
+      worksheet,
+      currentRow,
+      "IB Program Enabled",
+      "Yes",
+    );
     currentRow = addPropertyRow(
       worksheet,
       currentRow,
@@ -187,12 +241,21 @@ export function createInputsSheet(
       );
     }
   } else {
-    currentRow = addPropertyRow(worksheet, currentRow, "IB Program Enabled", "No");
+    currentRow = addPropertyRow(
+      worksheet,
+      currentRow,
+      "IB Program Enabled",
+      "No",
+    );
   }
   currentRow++; // Blank row
 
   // --- SECTION 4: STAFF COST CONFIGURATION ---
-  currentRow = addSectionHeader(worksheet, currentRow, "4. Staff Cost Configuration");
+  currentRow = addSectionHeader(
+    worksheet,
+    currentRow,
+    "4. Staff Cost Configuration",
+  );
 
   const staffConfig = (proposal.staff || {}) as Record<string, unknown>;
 
@@ -247,8 +310,17 @@ export function createInputsSheet(
   currentRow++; // Blank row
 
   // --- SECTION 5: RENT MODEL PARAMETERS ---
-  currentRow = addSectionHeader(worksheet, currentRow, "5. Rent Model Parameters");
-  currentRow = addPropertyRow(worksheet, currentRow, "Selected Model", proposal.rentModel);
+  currentRow = addSectionHeader(
+    worksheet,
+    currentRow,
+    "5. Rent Model Parameters",
+  );
+  currentRow = addPropertyRow(
+    worksheet,
+    currentRow,
+    "Selected Model",
+    proposal.rentModel || "N/A",
+  );
 
   const rentConfig = (proposal.rentParams || {}) as Record<string, unknown>;
 
@@ -352,7 +424,8 @@ export function createInputsSheet(
         const landInvestment =
           toNumber(rentConfig.landSize) * toNumber(rentConfig.landPricePerSqm);
         const constructionInvestment =
-          toNumber(rentConfig.buaSize) * toNumber(rentConfig.constructionCostPerSqm);
+          toNumber(rentConfig.buaSize) *
+          toNumber(rentConfig.constructionCostPerSqm);
         const totalInvestment = landInvestment + constructionInvestment;
 
         currentRow = addCalculatedRow(
@@ -389,7 +462,11 @@ export function createInputsSheet(
   currentRow++; // Blank row
 
   // --- SECTION 6: SYSTEM CONFIGURATION ---
-  currentRow = addSectionHeader(worksheet, currentRow, "6. System Configuration");
+  currentRow = addSectionHeader(
+    worksheet,
+    currentRow,
+    "6. System Configuration",
+  );
 
   if (systemConfig) {
     currentRow = addPropertyRow(
@@ -486,7 +563,11 @@ export function createInputsSheet(
   currentRow++; // Blank row
 
   // --- SECTION 8: CAPEX CONFIGURATION ---
-  currentRow = addSectionHeader(worksheet, currentRow, "8. CapEx Configuration");
+  currentRow = addSectionHeader(
+    worksheet,
+    currentRow,
+    "8. CapEx Configuration",
+  );
   currentRow = addPropertyRow(
     worksheet,
     currentRow,
@@ -496,7 +577,11 @@ export function createInputsSheet(
   currentRow++; // Blank row
 
   // --- SECTION 9: WORKING CAPITAL RATIOS ---
-  currentRow = addSectionHeader(worksheet, currentRow, "9. Working Capital Ratios");
+  currentRow = addSectionHeader(
+    worksheet,
+    currentRow,
+    "9. Working Capital Ratios",
+  );
   currentRow = addPropertyRow(
     worksheet,
     currentRow,
@@ -508,15 +593,18 @@ export function createInputsSheet(
   // --- SECTION 10: OTHER OPEX ---
   currentRow = addSectionHeader(worksheet, currentRow, "10. Other OpEx");
 
-  if (proposal.otherOpexPercent !== undefined && proposal.otherOpexPercent !== null) {
-    currentRow = addPropertyRow(
+  if (
+    proposal.otherOpexPercent !== undefined &&
+    proposal.otherOpexPercent !== null
+  ) {
+    addPropertyRow(
       worksheet,
       currentRow,
       "Other OpEx % of Revenue",
       `${(toNumber(proposal.otherOpexPercent) * 100).toFixed(1)}%`,
     );
   } else {
-    currentRow = addPropertyRow(worksheet, currentRow, "Other OpEx % of Revenue", "Not set");
+    addPropertyRow(worksheet, currentRow, "Other OpEx % of Revenue", "Not set");
   }
 }
 

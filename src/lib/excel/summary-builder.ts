@@ -1,6 +1,12 @@
 import type ExcelJS from "exceljs";
 import type { ExcelExportData, ProposalMetrics } from "./types";
-import { applyStyle, setColumnWidths, disableGridLines, CELL_STYLES, COLORS } from "./formatting";
+import {
+  applyStyle,
+  setColumnWidths,
+  disableGridLines,
+  CELL_STYLES,
+  COLORS,
+} from "./formatting";
 
 /**
  * Helper to convert unknown to number
@@ -54,15 +60,30 @@ export function createSummarySheet(
   // --- PROPOSAL INFORMATION ---
   addSectionHeader(worksheet, currentRow++, "Proposal Information");
 
-  addPropertyRow(worksheet, currentRow++, "Proposal Name", proposal.name);
-  addPropertyRow(worksheet, currentRow++, "Rent Model", proposal.rentModel);
+  addPropertyRow(
+    worksheet,
+    currentRow++,
+    "Proposal Name",
+    proposal.name || "Untitled",
+  );
+  addPropertyRow(
+    worksheet,
+    currentRow++,
+    "Rent Model",
+    proposal.rentModel || "N/A",
+  );
   addPropertyRow(
     worksheet,
     currentRow++,
     "Created Date",
     proposal.createdAt.toISOString().split("T")[0],
   );
-  addPropertyRow(worksheet, currentRow++, "Created By", proposal.creator.email);
+  addPropertyRow(
+    worksheet,
+    currentRow++,
+    "Created By",
+    proposal.creator?.email || "Unknown",
+  );
   if (proposal.developer) {
     addPropertyRow(worksheet, currentRow++, "Developer", proposal.developer);
   }
@@ -229,7 +250,10 @@ export function createSummarySheet(
     );
   }
 
-  if (proposal.otherOpexPercent !== undefined && proposal.otherOpexPercent !== null) {
+  if (
+    proposal.otherOpexPercent !== undefined &&
+    proposal.otherOpexPercent !== null
+  ) {
     addPropertyRow(
       worksheet,
       currentRow++,

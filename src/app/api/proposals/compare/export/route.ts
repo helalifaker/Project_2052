@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { authenticateUserWithRole } from "@/middleware/auth";
-import { Role, Prisma } from "@prisma/client";
+import { Role } from "@/lib/types/roles";
 import { jsPDF } from "jspdf";
 import { z } from "zod";
 
@@ -23,15 +23,25 @@ const ExportComparisonRequestSchema = z.object({
   proposalIds: z.array(z.string()).min(2).max(5),
 });
 
-type ProposalWithMetrics = Prisma.LeaseProposalGetPayload<{
-  include: {
-    creator: {
-      select: {
-        email: true;
-      };
-    };
-  };
-}>;
+type ProposalWithMetrics = {
+  id: string;
+  name: string | null;
+  developer: string | null;
+  property: string | null;
+  rentModel: string | null;
+  enrollment: unknown;
+  curriculum: unknown;
+  staff: unknown;
+  rentParams: unknown;
+  financials: unknown;
+  metrics: unknown;
+  calculatedAt: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
+  creator: {
+    email: string;
+  } | null;
+};
 
 const toNumber = (value: unknown): number => {
   if (typeof value === "number") return value;
@@ -54,7 +64,7 @@ type FinancialPeriodSnapshot = {
 };
 
 const normalizeFinancials = (
-  financials: Prisma.JsonValue,
+  financials: unknown,
 ): FinancialPeriodSnapshot[] => {
   if (!Array.isArray(financials)) return [];
 
@@ -180,10 +190,11 @@ export async function POST(request: Request) {
     proposals.forEach((proposal, index) => {
       const xPos = margin + labelColWidth + index * valueColWidth;
       doc.rect(xPos, yPos, valueColWidth, 10);
+      const proposalName = proposal.name || "Unnamed";
       const text =
-        proposal.name.length > 20
-          ? proposal.name.substring(0, 20) + "..."
-          : proposal.name;
+        proposalName.length > 20
+          ? proposalName.substring(0, 20) + "..."
+          : proposalName;
       doc.text(text, xPos + 2, yPos + 6);
     });
     yPos += 10;
@@ -365,7 +376,7 @@ export async function POST(request: Request) {
       // Value cells
       proposals.forEach((proposal, index) => {
         const xPos = margin + labelColWidth + index * valueColWidth;
-        const value = metric.getValue(proposal);
+        const value = metric.getValue(proposal) || "N/A";
 
         // Highlight winner
         if (index === winnerIndex) {
@@ -441,10 +452,11 @@ export async function POST(request: Request) {
     proposals.forEach((proposal, index) => {
       const xPos = margin + labelColWidth + index * valueColWidth;
       doc.rect(xPos, yPos, valueColWidth, 8);
+      const proposalName = proposal.name || "Unnamed";
       const text =
-        proposal.name.length > 15
-          ? proposal.name.substring(0, 15) + "..."
-          : proposal.name;
+        proposalName.length > 15
+          ? proposalName.substring(0, 15) + "..."
+          : proposalName;
       doc.text(text, xPos + 2, yPos + 5);
     });
     yPos += 8;

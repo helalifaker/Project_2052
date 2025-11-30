@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { authenticateUserWithRole } from "@/middleware/auth";
-import { Role } from "@prisma/client";
+import { Role } from "@/lib/types/roles";
 import Decimal from "decimal.js";
 import { calculateNPV } from "@/lib/utils/financial";
 import {
@@ -55,6 +55,8 @@ type CostBreakdownEntry = {
   otherOpex: string;
 };
 
+// Response types use number for JSON serialization (converted from Decimal before sending to client)
+/* eslint-disable no-restricted-syntax */
 type AverageCostData = {
   proposalId: string;
   proposalName: string;
@@ -66,6 +68,7 @@ type AverageCostData = {
   totalAvgAnnual: number;
   isWinner: boolean;
 };
+/* eslint-enable no-restricted-syntax */
 
 type NPVComparisonData = {
   proposalId: string;
@@ -218,8 +221,7 @@ export async function GET(_request: Request) {
     const systemConfig = await prisma.systemConfig.findFirst({
       orderBy: { confirmedAt: "desc" },
     });
-    const discountRate =
-      systemConfig?.discountRate || new Decimal(0.08);
+    const discountRate = systemConfig?.discountRate || new Decimal(0.08);
 
     // Fetch all calculated proposals
     const proposals = await prisma.leaseProposal.findMany({
@@ -261,16 +263,16 @@ export async function GET(_request: Request) {
         id: p.id,
         name: p.name,
         developer: p.developer,
-        totalRent: parseNumber(metrics?.totalRent),
-        npv: parseNumber(metrics?.npv),
+        totalRent: parseDecimal(metrics?.totalRent),
+        npv: parseDecimal(metrics?.npv),
         irr: parseNumber(metrics?.irr),
-        totalEbitda: parseNumber(metrics?.totalEbitda),
-        avgEbitda: parseNumber(metrics?.avgEbitda),
-        npvEbitda: parseNumber(metrics?.contractEbitdaNPV),
-        nav: parseNumber(metrics?.contractNAV),
-        finalCash: parseNumber(metrics?.finalCash),
-        maxDebt: parseNumber(metrics?.maxDebt),
-        peakDebt: parseNumber(metrics?.peakDebt),
+        totalEbitda: parseDecimal(metrics?.totalEbitda),
+        avgEbitda: parseDecimal(metrics?.avgEbitda),
+        npvEbitda: parseDecimal(metrics?.contractEbitdaNPV),
+        nav: parseDecimal(metrics?.contractNAV),
+        finalCash: parseDecimal(metrics?.finalCash),
+        maxDebt: parseDecimal(metrics?.maxDebt),
+        peakDebt: parseDecimal(metrics?.peakDebt),
         contractPeriodYears: p.contractPeriodYears ?? 25,
       };
     });
@@ -278,38 +280,29 @@ export async function GET(_request: Request) {
     // Calculate comparison insights
     const insights = calculateComparisonInsights(proposalMetrics);
 
-    // Extract rent trajectory data
-    const rentTrajectory = extractRentTrajectory(typedProposals);
+    // Optimize: Run independent operations in parallel
+    const [
+      chartData,
+      npvComparison,
+      navComparison,
+      profitabilityWaterfall,
+      sensitivity,
+    ] = await Promise.all([
+      // Extract all chart data in a single pass through financials
+      Promise.resolve(extractAllChartData(typedProposals, insights)),
 
-    // Extract cost breakdown data (DEPRECATED - use avgAnnualCosts instead)
-    const costBreakdown = extractCostBreakdown(typedProposals);
+      // Extract NPV comparison (metrics only, no financials)
+      Promise.resolve(extractNPVComparison(typedProposals, insights)),
 
-    // Extract average annual cost data (NEW)
-    const avgAnnualCosts = extractAverageAnnualCosts(typedProposals, insights);
+      // Extract NAV comparison (metrics only, no financials)
+      Promise.resolve(extractNAVComparison(typedProposals, insights)),
 
-    // Extract NPV comparison data (NEW)
-    const npvComparison = extractNPVComparison(typedProposals, insights);
+      // Extract profitability waterfall data
+      extractProfitabilityWaterfallData(typedProposals, insights),
 
-    // Extract NAV comparison data (NEW - KEY METRIC)
-    const navComparison = extractNAVComparison(typedProposals, insights);
-
-    // Extract profitability waterfall data (NEW)
-    const profitabilityWaterfall = await extractProfitabilityWaterfallData(
-      typedProposals,
-      insights,
-    );
-
-    // Extract cash flow data
-    const cashFlow = extractCashFlow(typedProposals);
-
-    // Extract cash flow comparison data (NEW)
-    const cashFlowComparison = extractCashFlowComparison(
-      typedProposals,
-      insights,
-    );
-
-    // Get sensitivity data (DEPRECATED - removed from dashboard)
-    const sensitivity = await extractSensitivityData();
+      // Get sensitivity data (DEPRECATED - removed from dashboard)
+      extractSensitivityData(),
+    ]);
 
     // Detect contract end year from proposals
     const contractEndYear = detectContractEndYear(typedProposals);
@@ -318,23 +311,20 @@ export async function GET(_request: Request) {
       isEmpty: false,
       insights,
       kpis,
-      rentTrajectory,
-      costBreakdown, // Keep for backward compatibility
-      avgAnnualCosts,
+      rentTrajectory: chartData.rentTrajectory,
+      costBreakdown: chartData.costBreakdown, // Keep for backward compatibility
+      avgAnnualCosts: chartData.avgAnnualCosts,
       npvComparison,
       navComparison, // KEY METRIC for comparing different contract lengths
       profitabilityWaterfall,
-      cashFlow, // Keep for existing components
-      cashFlowComparison,
+      cashFlow: chartData.cashFlow, // Keep for existing components
+      cashFlowComparison: chartData.cashFlowComparison,
       sensitivity, // Keep for backward compatibility
       proposalCount: proposals.length,
       contractEndYear,
     });
   } catch (error) {
     console.error("Error fetching dashboard metrics:", error);
-    const errorMessage =
-      error instanceof Error ? error.message : "Unknown error";
-    const errorStack = error instanceof Error ? error.stack : undefined;
 
     // In dev/test, return a harmless empty payload so the page doesn't crash
     if (allowNonProdBypass) {
@@ -356,93 +346,129 @@ export async function GET(_request: Request) {
         cashFlow: [],
         sensitivity: [],
         proposalCount: 0,
-        error: "Dashboard data unavailable",
-        details:
-          process.env.NODE_ENV === "development" ? errorMessage : undefined,
+        error: "Dashboard data unavailable. Please try again.",
       });
     }
 
     return NextResponse.json(
       {
-        error: "Failed to fetch dashboard metrics",
-        details:
-          process.env.NODE_ENV === "development" ? errorMessage : undefined,
-        stack: process.env.NODE_ENV === "development" ? errorStack : undefined,
+        error: "Failed to fetch dashboard metrics. Please try again.",
       },
       { status: 500 },
     );
   }
 }
 
-
-
-function extractRentTrajectory(
+/**
+ * OPTIMIZED: Extract all chart data in a single pass through financials
+ * Combines rent trajectory, cost breakdown, average costs, and cash flow extraction
+ * Reduces 5 separate iterations to 1 iteration per proposal
+ */
+function extractAllChartData(
   proposals: DashboardProposal[],
-): RentTrajectorySeries[] {
-  const trajectories: RentTrajectorySeries[] = [];
-
-  // Find the winner (highest NPV)
-  let winnerProposalId: string | null = null;
-  let highestNPV = -Infinity;
-
-  proposals.forEach((proposal) => {
-    if (
-      proposal.metrics &&
-      typeof proposal.metrics === "object" &&
-      !Array.isArray(proposal.metrics)
-    ) {
-      const metrics = proposal.metrics as Record<string, unknown>;
-      const npv = parseNumber(metrics.npv);
-      if (Number.isFinite(npv) && npv > highestNPV) {
-        highestNPV = npv;
-        winnerProposalId = proposal.id;
-      }
-    }
-  });
+  insights: ComparisonInsights,
+) {
+  const rentTrajectory: RentTrajectorySeries[] = [];
+  const costBreakdown: CostBreakdownEntry[] = [];
+  const avgAnnualCosts: AverageCostData[] = [];
+  const cashFlow: CashFlowSeries[] = [];
+  const cashFlowComparison: CashFlowComparisonData[] = [];
 
   proposals.forEach((proposal) => {
     const financials = normalizeFinancials(proposal.financials);
     if (financials.length === 0) return;
 
-    const rentByYear = financials.map<RentTrajectoryPoint>((period) => ({
-      year: period.year,
-      rent: parseNumber(period.profitLoss?.["rentExpense"]),
-    }));
+    const contractPeriodYears = proposal.contractPeriodYears || 25;
+    const contractStartYear = 2028;
+    const contractEndYear = contractStartYear + contractPeriodYears - 1;
 
-    trajectories.push({
+    // Initialize accumulators for single pass
+    let totalRent = 0;
+    let totalStaff = 0;
+    let totalOtherOpex = 0;
+    let contractTotalRent = 0;
+    let contractTotalStaff = 0;
+    let contractTotalOtherOpex = 0;
+    let cumulative = 0;
+    let breakevenYear: number | null = null;
+    let lowestCash = Infinity;
+    let lowestCashYear = 2023;
+    let peakCash = -Infinity;
+    let peakCashYear = 2023;
+
+    const rentByYear: RentTrajectoryPoint[] = [];
+    const cashFlowData: CashFlowEntry[] = [];
+    const cashFlowComparisonData: Array<{ year: number; cumulative: number }> =
+      [];
+
+    // SINGLE PASS through financials - extract all needed data
+    financials.forEach((period) => {
+      const profitLoss = period.profitLoss ?? {};
+      const rentExpense = parseNumber(profitLoss["rentExpense"]);
+      const staffCosts = parseNumber(profitLoss["staffCosts"]);
+      const otherOpex = parseNumber(profitLoss["otherOpex"]);
+      const netCashFlow = parseNumber(period.cashFlow?.["netChangeInCash"]);
+
+      // For rent trajectory
+      rentByYear.push({
+        year: period.year,
+        rent: rentExpense,
+      });
+
+      // For cost breakdown (all years)
+      totalRent += rentExpense;
+      totalStaff += staffCosts;
+      totalOtherOpex += otherOpex;
+
+      // For average annual costs (contract period only)
+      if (period.year >= contractStartYear && period.year <= contractEndYear) {
+        contractTotalRent += rentExpense;
+        contractTotalStaff += staffCosts;
+        contractTotalOtherOpex += otherOpex;
+      }
+
+      // For cash flow
+      cumulative += netCashFlow;
+      cashFlowData.push({
+        year: period.year,
+        netCashFlow,
+        cumulative,
+      });
+
+      // For cash flow comparison
+      cashFlowComparisonData.push({
+        year: period.year,
+        cumulative,
+      });
+
+      // Track breakeven year
+      if (breakevenYear === null && cumulative > 0) {
+        breakevenYear = period.year;
+      }
+
+      // Track lowest and peak cash
+      if (cumulative < lowestCash) {
+        lowestCash = cumulative;
+        lowestCashYear = period.year;
+      }
+      if (cumulative > peakCash) {
+        peakCash = cumulative;
+        peakCashYear = period.year;
+      }
+    });
+
+    // Build rent trajectory entry
+    rentTrajectory.push({
       proposalId: proposal.id,
       proposalName: proposal.name,
       developer: proposal.developer ?? "Unknown",
       rentModel: proposal.rentModel,
       data: rentByYear,
-      isWinner: proposal.id === winnerProposalId,
-    });
-  });
-
-  return trajectories;
-}
-
-function extractCostBreakdown(
-  proposals: DashboardProposal[],
-): CostBreakdownEntry[] {
-  const breakdown: CostBreakdownEntry[] = [];
-
-  proposals.forEach((proposal) => {
-    const financials = normalizeFinancials(proposal.financials);
-    if (financials.length === 0) return;
-
-    let totalRent = 0;
-    let totalStaff = 0;
-    let totalOtherOpex = 0;
-
-    financials.forEach((period) => {
-      const profitLoss = period.profitLoss ?? {};
-      totalRent += parseNumber(profitLoss["rentExpense"]);
-      totalStaff += parseNumber(profitLoss["staffCosts"]);
-      totalOtherOpex += parseNumber(profitLoss["otherOpex"]);
+      isWinner: insights.rent.winnerId === proposal.id,
     });
 
-    breakdown.push({
+    // Build cost breakdown entry
+    costBreakdown.push({
       proposalId: proposal.id,
       proposalName: proposal.name,
       developer: proposal.developer ?? "Unknown",
@@ -450,39 +476,54 @@ function extractCostBreakdown(
       staff: totalStaff.toFixed(2),
       otherOpex: totalOtherOpex.toFixed(2),
     });
-  });
 
-  return breakdown;
-}
+    // Build average annual costs entry
+    const avgAnnualRent = contractTotalRent / contractPeriodYears;
+    const avgAnnualStaff = contractTotalStaff / contractPeriodYears;
+    const avgAnnualOther = contractTotalOtherOpex / contractPeriodYears;
+    const totalAvgAnnual = avgAnnualRent + avgAnnualStaff + avgAnnualOther;
 
-function extractCashFlow(proposals: DashboardProposal[]): CashFlowSeries[] {
-  const cashFlows: CashFlowSeries[] = [];
-
-  proposals.forEach((proposal) => {
-    const financials = normalizeFinancials(proposal.financials);
-    if (financials.length === 0) return;
-
-    let cumulative = 0;
-    const data = financials.map<CashFlowEntry>((period) => {
-      const netCashFlow = parseNumber(period.cashFlow?.["netChangeInCash"]);
-      cumulative += netCashFlow;
-
-      return {
-        year: period.year,
-        netCashFlow,
-        cumulative,
-      };
-    });
-
-    cashFlows.push({
+    avgAnnualCosts.push({
       proposalId: proposal.id,
       proposalName: proposal.name,
       developer: proposal.developer ?? "Unknown",
-      data,
+      contractPeriodYears,
+      avgAnnualRent,
+      avgAnnualStaff,
+      avgAnnualOther,
+      totalAvgAnnual,
+      isWinner: insights.rent.winnerId === proposal.id,
+    });
+
+    // Build cash flow entry
+    cashFlow.push({
+      proposalId: proposal.id,
+      proposalName: proposal.name,
+      developer: proposal.developer ?? "Unknown",
+      data: cashFlowData,
+    });
+
+    // Build cash flow comparison entry
+    cashFlowComparison.push({
+      proposalId: proposal.id,
+      proposalName: proposal.name,
+      developer: proposal.developer ?? "Unknown",
+      data: cashFlowComparisonData,
+      breakevenYear,
+      lowestCashYear,
+      peakCashYear,
+      finalCash: cumulative,
+      isWinner: insights.finalCash.winnerId === proposal.id,
     });
   });
 
-  return cashFlows;
+  return {
+    rentTrajectory,
+    costBreakdown,
+    avgAnnualCosts,
+    cashFlow,
+    cashFlowComparison,
+  };
 }
 
 async function extractSensitivityData() {
@@ -503,7 +544,18 @@ async function extractSensitivityData() {
       },
     });
 
-    return analyses.map((analysis) => ({
+    interface AnalysisRecord {
+      id: string;
+      variable: string;
+      impactMetric: string;
+      dataPoints: unknown;
+      proposal: {
+        name: string | null;
+        developer: string | null;
+      };
+    }
+
+    return analyses.map((analysis: AnalysisRecord) => ({
       id: analysis.id,
       proposalName: analysis.proposal.name,
       developer: analysis.proposal.developer,
@@ -561,7 +613,11 @@ async function calculateContractPeriodKPIs(
     totalFinalCash = totalFinalCash.plus(finalCash);
 
     // Extract NAV from proposal metrics
-    if (proposal.metrics && typeof proposal.metrics === "object" && !Array.isArray(proposal.metrics)) {
+    if (
+      proposal.metrics &&
+      typeof proposal.metrics === "object" &&
+      !Array.isArray(proposal.metrics)
+    ) {
       const metrics = proposal.metrics as Record<string, unknown>;
       const nav = parseDecimal(metrics.contractNAV);
       totalNAV = totalNAV.plus(nav);
@@ -593,62 +649,6 @@ async function calculateContractPeriodKPIs(
   };
 }
 
-
-
-/**
- * Extract average annual cost data for fair comparison
- * Accounts for different contract periods (25Y vs 30Y)
- */
-function extractAverageAnnualCosts(
-  proposals: DashboardProposal[],
-  insights: ComparisonInsights,
-): AverageCostData[] {
-  return proposals.map((proposal) => {
-    const financials = normalizeFinancials(proposal.financials);
-    const contractPeriodYears = proposal.contractPeriodYears || 25;
-
-    // Calculate totals for contract period (2028 to 2028 + contractPeriodYears - 1)
-    const contractStartYear = 2028;
-    const contractEndYear = contractStartYear + contractPeriodYears - 1;
-
-    const contractFinancials = financials.filter(
-      f => f.year >= contractStartYear && f.year <= contractEndYear
-    );
-
-    let totalRent = 0;
-    let totalStaff = 0;
-    let totalOtherOpex = 0;
-
-    contractFinancials.forEach((period) => {
-      const profitLoss = period.profitLoss ?? {};
-      totalRent += parseNumber(profitLoss["rentExpense"]);
-      totalStaff += parseNumber(profitLoss["staffCosts"]);
-      totalOtherOpex += parseNumber(profitLoss["otherOpex"]);
-    });
-
-    // Calculate averages
-    const avgAnnualRent = totalRent / contractPeriodYears;
-    const avgAnnualStaff = totalStaff / contractPeriodYears;
-    const avgAnnualOther = totalOtherOpex / contractPeriodYears;
-    const totalAvgAnnual = avgAnnualRent + avgAnnualStaff + avgAnnualOther;
-
-    // Determine if this is the winner (lowest total average annual cost)
-    const isWinner = insights.rent.winnerId === proposal.id;
-
-    return {
-      proposalId: proposal.id,
-      proposalName: proposal.name,
-      developer: proposal.developer ?? "Unknown",
-      contractPeriodYears,
-      avgAnnualRent,
-      avgAnnualStaff,
-      avgAnnualOther,
-      totalAvgAnnual,
-      isWinner,
-    };
-  });
-}
-
 /**
  * Extract NPV comparison data for horizontal bar chart
  */
@@ -656,19 +656,21 @@ function extractNPVComparison(
   proposals: DashboardProposal[],
   insights: ComparisonInsights,
 ): NPVComparisonData[] {
-  return proposals.map((proposal) => {
-    const metrics = proposal.metrics as Record<string, unknown> | null;
-    const npv = parseNumber(metrics?.npv);
-    const isWinner = insights.npv.winnerId === proposal.id;
+  return proposals
+    .map((proposal) => {
+      const metrics = proposal.metrics as Record<string, unknown> | null;
+      const npv = parseNumber(metrics?.npv);
+      const isWinner = insights.npv.winnerId === proposal.id;
 
-    return {
-      proposalId: proposal.id,
-      proposalName: proposal.name,
-      developer: proposal.developer ?? "Unknown",
-      npv,
-      isWinner,
-    };
-  }).sort((a, b) => b.npv - a.npv); // Sort by NPV descending
+      return {
+        proposalId: proposal.id,
+        proposalName: proposal.name,
+        developer: proposal.developer ?? "Unknown",
+        npv,
+        isWinner,
+      };
+    })
+    .sort((a, b) => b.npv - a.npv); // Sort by NPV descending
 }
 
 /**
@@ -720,7 +722,7 @@ async function extractProfitabilityWaterfallData(
     const proposalWithFinancials = {
       ...proposal,
       contractPeriodYears, // Use the non-null value
-      financials: financials.map(f => ({
+      financials: financials.map((f) => ({
         year: f.year,
         profitLoss: {
           totalRevenue: parseNumber(f.profitLoss?.["totalRevenue"]),
@@ -740,7 +742,7 @@ async function extractProfitabilityWaterfallData(
 
     const waterfall = extractProfitabilityWaterfall(
       proposalWithFinancials,
-      contractPeriodYears
+      contractPeriodYears,
     );
 
     // Mark winner based on highest NPV EBITDA
@@ -753,70 +755,10 @@ async function extractProfitabilityWaterfallData(
 }
 
 /**
- * Extract cash flow comparison data for multi-line chart
- */
-function extractCashFlowComparison(
-  proposals: DashboardProposal[],
-  insights: ComparisonInsights,
-): CashFlowComparisonData[] {
-  return proposals.map((proposal) => {
-    const financials = normalizeFinancials(proposal.financials);
-
-    let cumulative = 0;
-    let breakevenYear: number | null = null;
-    let lowestCash = Infinity;
-    let lowestCashYear = 2023;
-    let peakCash = -Infinity;
-    let peakCashYear = 2023;
-
-    const data = financials.map((period) => {
-      const netCashFlow = parseNumber(period.cashFlow?.["netChangeInCash"]);
-      cumulative += netCashFlow;
-
-      // Track breakeven year (first year cumulative > 0)
-      if (breakevenYear === null && cumulative > 0) {
-        breakevenYear = period.year;
-      }
-
-      // Track lowest and peak cash
-      if (cumulative < lowestCash) {
-        lowestCash = cumulative;
-        lowestCashYear = period.year;
-      }
-      if (cumulative > peakCash) {
-        peakCash = cumulative;
-        peakCashYear = period.year;
-      }
-
-      return {
-        year: period.year,
-        cumulative,
-      };
-    });
-
-    const isWinner = insights.finalCash.winnerId === proposal.id;
-
-    return {
-      proposalId: proposal.id,
-      proposalName: proposal.name,
-      developer: proposal.developer ?? "Unknown",
-      data,
-      breakevenYear,
-      lowestCashYear,
-      peakCashYear,
-      finalCash: cumulative,
-      isWinner,
-    };
-  });
-}
-
-/**
  * Detect contract end year from proposals (2052 or 2057)
  */
 function detectContractEndYear(proposals: DashboardProposal[]): number {
   // Check if any proposal has 30-year contract (2028 + 30 - 1 = 2057)
-  const has30YearContract = proposals.some(
-    (p) => p.contractPeriodYears === 30,
-  );
+  const has30YearContract = proposals.some((p) => p.contractPeriodYears === 30);
   return has30YearContract ? 2057 : 2052;
 }

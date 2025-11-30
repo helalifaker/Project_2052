@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { authenticateUserWithRole } from "@/middleware/auth";
-import { Role, Prisma } from "@prisma/client";
+import { Role } from "@/lib/types/roles";
+import type { UserWhereInput } from "@/lib/types/prisma-helpers";
+import { PrismaClientKnownRequestError } from "@/lib/types/prisma-helpers";
 import { z } from "zod";
 
 // Constants for pagination limits
@@ -65,7 +67,7 @@ export async function GET(request: Request) {
       : "createdAt";
 
     // Build where clause
-    const where: Prisma.UserWhereInput = {};
+    const where: UserWhereInput = {};
 
     if (search) {
       where.OR = [
@@ -216,7 +218,7 @@ export async function POST(request: Request) {
 
     // Handle Prisma unique constraint violation
     if (
-      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error instanceof PrismaClientKnownRequestError &&
       error.code === "P2002"
     ) {
       return NextResponse.json(

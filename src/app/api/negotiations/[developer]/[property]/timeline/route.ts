@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { authenticateUserWithRole } from "@/middleware/auth";
-import { Role } from "@prisma/client";
+import { Role } from "@/lib/types/roles";
 
 export async function GET(
   _req: Request,
@@ -31,7 +31,21 @@ export async function GET(
       );
     }
 
-    const timeline = proposals.map((p) => {
+    interface ProposalRecord {
+      id: string;
+      version: string | null;
+      origin: string;
+      status: string;
+      negotiationRound: number | null;
+      rentModel: string | null;
+      submittedDate: Date | null;
+      responseReceivedDate: Date | null;
+      createdAt: Date;
+      updatedAt: Date;
+      metrics: unknown;
+    }
+
+    const timeline = proposals.map((p: ProposalRecord) => {
       const metrics = (p.metrics as Record<string, unknown>) || {};
       const totalRent =
         typeof metrics.totalRent === "number" ? metrics.totalRent : undefined;

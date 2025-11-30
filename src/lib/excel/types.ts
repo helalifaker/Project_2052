@@ -1,5 +1,47 @@
 import type ExcelJS from "exceljs";
-import type { LeaseProposal, SystemConfig, TransitionConfig } from "@prisma/client";
+
+/**
+ * Simplified types for Prisma models (used during build when Prisma client isn't available)
+ */
+export interface LeaseProposal {
+  id: string;
+  name: string | null;
+  developer: string | null;
+  property: string | null;
+  rentModel: string | null;
+  contractPeriodYears?: number;
+  enrollment: unknown;
+  curriculum: unknown;
+  staff: unknown;
+  rentParams: unknown;
+  otherOpexPercent: unknown;
+  financials: unknown;
+  metrics: unknown;
+  calculatedAt: Date | null;
+  createdAt: Date;
+  createdBy: string;
+}
+
+export interface SystemConfig {
+  id: string;
+  zakatRate: unknown;
+  debtInterestRate: unknown;
+  depositInterestRate: unknown;
+  discountRate: unknown;
+  minCashBalance: unknown;
+}
+
+export interface TransitionConfig {
+  id: string;
+  year2025Students: number;
+  year2025AvgTuition: unknown;
+  year2026Students: number;
+  year2026AvgTuition: unknown;
+  year2027Students: number;
+  year2027AvgTuition: unknown;
+  rentGrowthPercent: unknown;
+  updatedAt: Date;
+}
 
 /**
  * Financial period data structure from calculation engine
@@ -42,7 +84,12 @@ export interface LineItemDefinition {
   /** Key to extract data from period object (empty for section headers) */
   dataKey: string;
   /** Visual style type */
-  styleType: "header" | "sectionHeader" | "lineItem" | "subtotal" | "grandTotal";
+  styleType:
+    | "header"
+    | "sectionHeader"
+    | "lineItem"
+    | "subtotal"
+    | "grandTotal";
   /** Indentation level (0-3) */
   indent?: number;
   /** Whether to add a top border */

@@ -6,20 +6,20 @@ import { useRouter } from "next/navigation";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import {
-  Loader2,
   Plus,
   TrendingUp,
   DollarSign,
   BarChart3,
-  Calendar,
-  AlertTriangle,
   Calculator,
 } from "lucide-react";
-import { ExecutiveKPICard } from "@/components/dashboard/ExecutiveKPICard";
 import { RangeKPICard } from "@/components/dashboard/RangeKPICard";
 import { BentoGrid, BentoItem } from "@/components/dashboard/BentoGrid";
-import { ExecutiveCard, ExecutiveCardHeader, ExecutiveCardTitle, ExecutiveCardContent } from "@/components/ui/executive-card";
-import { formatMillions } from "@/lib/utils/financial";
+import {
+  ExecutiveCard,
+  ExecutiveCardHeader,
+  ExecutiveCardTitle,
+  ExecutiveCardContent,
+} from "@/components/ui/executive-card";
 import type { ComparisonInsights } from "@/lib/utils/comparison";
 import { PageSkeleton } from "@/components/states/PageSkeleton";
 import { EmptyState } from "@/components/states/EmptyState";
@@ -150,17 +150,6 @@ const RentTrajectoryChart = dynamic(
   },
 );
 
-const AverageAnnualCostChart = dynamic(
-  () =>
-    import("@/components/dashboard/AverageAnnualCostChart").then((mod) => ({
-      default: mod.AverageAnnualCostChart,
-    })),
-  {
-    loading: () => <ChartSkeleton type="bar" height={280} />,
-    ssr: false,
-  },
-);
-
 const NAVComparisonChart = dynamic(
   () =>
     import("@/components/dashboard/NAVComparisonChart").then((mod) => ({
@@ -185,22 +174,13 @@ const NPVComparisonChart = dynamic(
 
 const ProfitabilityWaterfallChart = dynamic(
   () =>
-    import("@/components/dashboard/ProfitabilityWaterfallChart").then((mod) => ({
-      default: mod.ProfitabilityWaterfallChart,
-    })),
+    import("@/components/dashboard/ProfitabilityWaterfallChart").then(
+      (mod) => ({
+        default: mod.ProfitabilityWaterfallChart,
+      }),
+    ),
   {
     loading: () => <ChartSkeleton type="bar" height={200} />,
-    ssr: false,
-  },
-);
-
-const CashFlowComparisonChart = dynamic(
-  () =>
-    import("@/components/dashboard/CashFlowComparisonChart").then((mod) => ({
-      default: mod.CashFlowComparisonChart,
-    })),
-  {
-    loading: () => <ChartSkeleton type="area" height={280} />,
     ssr: false,
   },
 );
@@ -245,7 +225,6 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { ControlPanel } from "@/components/dashboard/ControlPanel";
-import { NumberTicker } from "@/components/ui/NumberTicker";
 import { calculateNPV, calculateIRR } from "@/lib/utils/financial";
 import Decimal from "decimal.js";
 import { Settings2 } from "lucide-react";
@@ -263,7 +242,7 @@ function DashboardContent() {
   );
 
   // Client-side calculated state (for scenario adjustments on existing charts)
-  const [calculatedKPIs, setCalculatedKPIs] = useState<{
+  const [_calculatedKPIs, setCalculatedKPIs] = useState<{
     avgNPV: number;
     avgIRR: number;
   } | null>(null);
@@ -290,11 +269,15 @@ function DashboardContent() {
 
           // For other errors, set error state instead of silent fallback
           if (response.status >= 500) {
-            throw new Error(`Server error (${response.status}): Unable to load dashboard data`);
+            throw new Error(
+              `Server error (${response.status}): Unable to load dashboard data`,
+            );
           }
 
           // For 404 or empty data, treat as empty state
-          console.warn(`Dashboard fetch returned ${response.status}. Using empty state.`);
+          console.warn(
+            `Dashboard fetch returned ${response.status}. Using empty state.`,
+          );
 
           setDashboardData({
             isEmpty: true,
@@ -323,7 +306,11 @@ function DashboardContent() {
         setDashboardData(data);
       } catch (err) {
         console.error("Error fetching dashboard data:", err);
-        setError(err instanceof Error ? err : new Error("Failed to load dashboard data"));
+        setError(
+          err instanceof Error
+            ? err
+            : new Error("Failed to load dashboard data"),
+        );
       } finally {
         setLoading(false);
       }
@@ -345,8 +332,8 @@ function DashboardContent() {
     const rentScalar = new Decimal(rentGrowthFactor);
 
     (dashboardData.cashFlow || []).forEach((proposal) => {
-      const cashFlows = (proposal.data || []).map((d) =>
-        new Decimal(d.netCashFlow),
+      const cashFlows = (proposal.data || []).map(
+        (d) => new Decimal(d.netCashFlow),
       );
 
       const adjustedCashFlows = cashFlows.map((cf) => {
@@ -366,8 +353,7 @@ function DashboardContent() {
     });
 
     const avgNPV = count > 0 ? totalNPV.dividedBy(count) : new Decimal(0);
-    const avgIRR =
-      irrCount > 0 ? totalIRR.dividedBy(irrCount) : new Decimal(0);
+    const avgIRR = irrCount > 0 ? totalIRR.dividedBy(irrCount) : new Decimal(0);
 
     // Update state
     setCalculatedKPIs({
@@ -379,33 +365,21 @@ function DashboardContent() {
   // Memoized Chart Data
   const adjustedRentTrajectory = useMemo(() => {
     if (!dashboardData?.rentTrajectory) return [];
-    return dashboardData.rentTrajectory.map(proposal => ({
+    return dashboardData.rentTrajectory.map((proposal) => ({
       ...proposal,
-      data: (proposal.data || []).map(d => ({
+      data: (proposal.data || []).map((d) => ({
         year: d.year,
-        rent: d.rent * rentGrowthFactor
-      }))
+        rent: d.rent * rentGrowthFactor,
+      })),
     }));
   }, [dashboardData, rentGrowthFactor]);
-
-  const adjustedCostBreakdown = useMemo(() => {
-    if (!dashboardData?.costBreakdown) return [];
-    // Baseline inflation 2%
-    const inflationScalar = (1 + inflationRate) / 1.02;
-
-    return dashboardData.costBreakdown.map(proposal => ({
-      ...proposal,
-      rent: (parseFloat(proposal.rent || "0") * rentGrowthFactor).toString(),
-      otherOpexPercent: (parseFloat(proposal.otherOpexPercent || "0") * inflationScalar).toString()
-    }));
-  }, [dashboardData, rentGrowthFactor, inflationRate]);
 
   const adjustedCashFlow = useMemo(() => {
     if (!dashboardData?.cashFlow) return [];
 
-    return dashboardData.cashFlow.map(proposal => {
+    return dashboardData.cashFlow.map((proposal) => {
       let cumulative = 0;
-      const newData = (proposal.data || []).map(d => {
+      const newData = (proposal.data || []).map((d) => {
         // Simplified adjustment
         let adjustedNet = d.netCashFlow;
         if (d.netCashFlow > 0) {
@@ -417,17 +391,16 @@ function DashboardContent() {
         return {
           ...d,
           netCashFlow: adjustedNet,
-          cumulative: cumulative
+          cumulative: cumulative,
         };
       });
 
       return {
         ...proposal,
-        data: newData
+        data: newData,
       };
     });
   }, [dashboardData, rentGrowthFactor, inflationRate]);
-
 
   // Retry function for error recovery
   const handleRetry = () => {
@@ -459,9 +432,7 @@ function DashboardContent() {
   // Error State - Show ErrorState component with retry
   if (error) {
     return (
-      <DashboardLayout
-        breadcrumbs={[{ label: "Dashboard" }]}
-      >
+      <DashboardLayout breadcrumbs={[{ label: "Dashboard" }]}>
         <ErrorState
           error={error}
           reset={handleRetry}
@@ -536,21 +507,6 @@ function DashboardContent() {
     return null;
   }
 
-  // Dashboard with Data
-  const serverKpis = dashboardData.kpis ?? {};
-  const kpis = {
-    totalContractRent: serverKpis.totalContractRent ?? "0",
-    avgRentNPV: serverKpis.avgRentNPV ?? "0",
-    totalContractEBITDA: serverKpis.totalContractEBITDA ?? "0",
-    avgFinalCash: serverKpis.avgFinalCash ?? "0",
-    totalContractCapEx: serverKpis.totalContractCapEx ?? "0",
-    discountRate: serverKpis.discountRate ?? "5.00",
-  };
-
-  const sensitivity = Array.isArray(dashboardData.sensitivity) ? dashboardData.sensitivity : [];
-  const proposalCount = dashboardData.proposalCount || 0;
-  const contractEndYear = dashboardData.contractEndYear || 2052;
-
   return (
     <DashboardLayout
       breadcrumbs={[{ label: "Dashboard" }]}
@@ -591,7 +547,11 @@ function DashboardContent() {
           >
             Closed
           </Button>
-          <Button variant="outline" size="sm" onClick={() => router.push("/proposals")}>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => router.push("/proposals")}
+          >
             View All
           </Button>
           <Button size="sm" onClick={() => router.push("/proposals/new")}>
@@ -606,8 +566,16 @@ function DashboardContent() {
         <BentoItem colSpan={2}>
           <RangeKPICard
             title="NPV Rent Range"
-            minValue={dashboardData.insights?.npv.min || 0}
-            maxValue={dashboardData.insights?.npv.max || 0}
+            minValue={
+              typeof dashboardData.insights?.npv.min === "number"
+                ? dashboardData.insights.npv.min
+                : Number(dashboardData.insights?.npv.min || 0)
+            }
+            maxValue={
+              typeof dashboardData.insights?.npv.max === "number"
+                ? dashboardData.insights.npv.max
+                : Number(dashboardData.insights?.npv.max || 0)
+            }
             minLabel={dashboardData.insights?.npv.winnerId ? "Best" : undefined}
             maxLabel={dashboardData.insights?.npv.winnerId ? undefined : "Best"}
             unit="millions"
@@ -620,8 +588,16 @@ function DashboardContent() {
         <BentoItem colSpan={2}>
           <RangeKPICard
             title="Rent Variation"
-            minValue={dashboardData.insights?.rent.min || 0}
-            maxValue={dashboardData.insights?.rent.max || 0}
+            minValue={
+              typeof dashboardData.insights?.rent.min === "number"
+                ? dashboardData.insights.rent.min
+                : Number(dashboardData.insights?.rent.min || 0)
+            }
+            maxValue={
+              typeof dashboardData.insights?.rent.max === "number"
+                ? dashboardData.insights.rent.max
+                : Number(dashboardData.insights?.rent.max || 0)
+            }
             minLabel="Best"
             unit="millions"
             icon={DollarSign}
@@ -633,8 +609,16 @@ function DashboardContent() {
         <BentoItem colSpan={2}>
           <RangeKPICard
             title="NPV EBITDA Range"
-            minValue={dashboardData.insights?.npvEbitda.min || 0}
-            maxValue={dashboardData.insights?.npvEbitda.max || 0}
+            minValue={
+              typeof dashboardData.insights?.npvEbitda.min === "number"
+                ? dashboardData.insights.npvEbitda.min
+                : Number(dashboardData.insights?.npvEbitda.min || 0)
+            }
+            maxValue={
+              typeof dashboardData.insights?.npvEbitda.max === "number"
+                ? dashboardData.insights.npvEbitda.max
+                : Number(dashboardData.insights?.npvEbitda.max || 0)
+            }
             maxLabel="Best"
             unit="millions"
             icon={BarChart3}
@@ -646,8 +630,16 @@ function DashboardContent() {
         <BentoItem colSpan={2}>
           <RangeKPICard
             title="Cash Variation"
-            minValue={dashboardData.insights?.finalCash.min || 0}
-            maxValue={dashboardData.insights?.finalCash.max || 0}
+            minValue={
+              typeof dashboardData.insights?.finalCash.min === "number"
+                ? dashboardData.insights.finalCash.min
+                : Number(dashboardData.insights?.finalCash.min || 0)
+            }
+            maxValue={
+              typeof dashboardData.insights?.finalCash.max === "number"
+                ? dashboardData.insights.finalCash.max
+                : Number(dashboardData.insights?.finalCash.max || 0)
+            }
             maxLabel="Best"
             unit="millions"
             icon={DollarSign}
@@ -659,8 +651,16 @@ function DashboardContent() {
         <BentoItem colSpan={4}>
           <RangeKPICard
             title="NAV Range ⭐"
-            minValue={dashboardData.insights?.nav.min || 0}
-            maxValue={dashboardData.insights?.nav.max || 0}
+            minValue={
+              typeof dashboardData.insights?.nav.min === "number"
+                ? dashboardData.insights.nav.min
+                : Number(dashboardData.insights?.nav.min || 0)
+            }
+            maxValue={
+              typeof dashboardData.insights?.nav.max === "number"
+                ? dashboardData.insights.nav.max
+                : Number(dashboardData.insights?.nav.max || 0)
+            }
             maxLabel="Best"
             unit="millions"
             icon={Calculator}
@@ -676,7 +676,10 @@ function DashboardContent() {
             <ExecutiveCardHeader size="ultra-compact">
               <ExecutiveCardTitle>Rent Trajectory</ExecutiveCardTitle>
             </ExecutiveCardHeader>
-            <ExecutiveCardContent className="flex-1 min-h-0" size="ultra-compact">
+            <ExecutiveCardContent
+              className="flex-1 min-h-0"
+              size="ultra-compact"
+            >
               <RentTrajectoryChart data={adjustedRentTrajectory} />
             </ExecutiveCardContent>
           </ExecutiveCard>
@@ -687,7 +690,10 @@ function DashboardContent() {
             <ExecutiveCardHeader size="ultra-compact">
               <ExecutiveCardTitle>NAV Comparison ⭐</ExecutiveCardTitle>
             </ExecutiveCardHeader>
-            <ExecutiveCardContent className="flex-1 min-h-0" size="ultra-compact">
+            <ExecutiveCardContent
+              className="flex-1 min-h-0"
+              size="ultra-compact"
+            >
               <NAVComparisonChart data={dashboardData.navComparison || []} />
             </ExecutiveCardContent>
           </ExecutiveCard>
@@ -699,7 +705,10 @@ function DashboardContent() {
             <ExecutiveCardHeader size="ultra-compact">
               <ExecutiveCardTitle>Cumulative Cash Flow</ExecutiveCardTitle>
             </ExecutiveCardHeader>
-            <ExecutiveCardContent className="flex-1 min-h-0" size="ultra-compact">
+            <ExecutiveCardContent
+              className="flex-1 min-h-0"
+              size="ultra-compact"
+            >
               <CumulativeCashFlowChart data={adjustedCashFlow} />
             </ExecutiveCardContent>
           </ExecutiveCard>
@@ -710,7 +719,10 @@ function DashboardContent() {
             <ExecutiveCardHeader size="ultra-compact">
               <ExecutiveCardTitle>NPV Comparison</ExecutiveCardTitle>
             </ExecutiveCardHeader>
-            <ExecutiveCardContent className="flex-1 min-h-0" size="ultra-compact">
+            <ExecutiveCardContent
+              className="flex-1 min-h-0"
+              size="ultra-compact"
+            >
               <NPVComparisonChart data={dashboardData.npvComparison || []} />
             </ExecutiveCardContent>
           </ExecutiveCard>
@@ -721,8 +733,13 @@ function DashboardContent() {
             <ExecutiveCardHeader size="ultra-compact">
               <ExecutiveCardTitle>Profitability Breakdown</ExecutiveCardTitle>
             </ExecutiveCardHeader>
-            <ExecutiveCardContent className="flex-1 min-h-0" size="ultra-compact">
-              <ProfitabilityWaterfallChart data={dashboardData.profitabilityWaterfall || []} />
+            <ExecutiveCardContent
+              className="flex-1 min-h-0"
+              size="ultra-compact"
+            >
+              <ProfitabilityWaterfallChart
+                data={dashboardData.profitabilityWaterfall || []}
+              />
             </ExecutiveCardContent>
           </ExecutiveCard>
         </BentoItem>

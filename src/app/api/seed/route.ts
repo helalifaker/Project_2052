@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { Prisma, Role } from "@prisma/client";
+import { Role } from "@/lib/types/roles";
 import { authenticateUserWithRole } from "@/middleware/auth";
 
 export async function POST() {
@@ -29,10 +29,10 @@ export async function POST() {
     // Default SystemConfig
     const config = await prisma.systemConfig.create({
       data: {
-        zakatRate: new Prisma.Decimal(0.025),
-        debtInterestRate: new Prisma.Decimal(0.05),
-        depositInterestRate: new Prisma.Decimal(0.02),
-        minCashBalance: new Prisma.Decimal(1000000),
+        zakatRate: 0.025,
+        debtInterestRate: 0.05,
+        depositInterestRate: 0.02,
+        minCashBalance: 1000000,
       },
     });
 
@@ -57,7 +57,7 @@ export async function POST() {
   } catch (error) {
     console.error("Seed error:", error);
     return NextResponse.json(
-      { error: "Failed to seed database", details: String(error) },
+      { error: "Failed to seed database. Please try again." },
       { status: 500 },
     );
   }

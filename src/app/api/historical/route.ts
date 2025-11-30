@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { authenticateUserWithRole } from "@/middleware/auth";
-import { Role, Prisma } from "@prisma/client";
+import { Role } from "@/lib/types/roles";
 import { HistoricalDataArraySchema } from "@/lib/validation/historical";
 import { z } from "zod";
 
@@ -69,14 +69,23 @@ export async function POST(request: Request) {
     });
 
     // Check if any existing item is confirmed
-    const confirmedItems = existingData.filter((item) => item.confirmed);
+    interface HistoricalDataRecord {
+      year: number;
+      statementType: string;
+      lineItem: string;
+      confirmed: boolean;
+    }
+
+    const confirmedItems = existingData.filter(
+      (item: HistoricalDataRecord) => item.confirmed,
+    );
     if (confirmedItems.length > 0) {
       return NextResponse.json(
         {
           error: "Forbidden",
           message:
             "Cannot modify confirmed historical data. Some items are already confirmed and immutable.",
-          confirmedItems: confirmedItems.map((item) => ({
+          confirmedItems: confirmedItems.map((item: HistoricalDataRecord) => ({
             year: item.year,
             statementType: item.statementType,
             lineItem: item.lineItem,
@@ -90,7 +99,7 @@ export async function POST(request: Request) {
     const results = await Promise.all(
       validatedData.map(async (item) => {
         // Convert amount to Prisma.Decimal
-        const amountDecimal = new Prisma.Decimal(item.amount);
+        const amountDecimal = item.amount;
 
         return prisma.historicalData.upsert({
           where: {

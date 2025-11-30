@@ -11,7 +11,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { authenticateUserWithRole } from "@/middleware/auth";
-import { Role } from "@prisma/client";
+import { Role } from "@/lib/types/roles";
 
 // ============================================================================
 // VALIDATION SCHEMAS
@@ -23,7 +23,7 @@ const ManualCapExItemSchema = z.object({
   amount: z.number().min(0, "Amount must be positive"),
   usefulLife: z.number().min(1, "Useful life must be at least 1 year").max(50),
   depreciationMethod: z.enum(["OLD", "NEW"]).optional(),
-  categoryId: z.string().uuid(),  // Required - all assets must have a category
+  categoryId: z.string().uuid(), // Required - all assets must have a category
 });
 
 // ============================================================================
@@ -62,7 +62,7 @@ export async function POST(request: Request) {
       if (!categoryExists) {
         return NextResponse.json(
           { error: "Invalid category ID" },
-          { status: 400 }
+          { status: 400 },
         );
       }
     }

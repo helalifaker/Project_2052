@@ -1,7 +1,11 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { authenticateUserWithRole } from "@/middleware/auth";
-import { Role, Prisma } from "@prisma/client";
+import { Role } from "@/lib/types/roles";
+import type {
+  LeaseProposalWhereInput,
+  InputJsonValue,
+} from "@/lib/types/prisma-helpers";
 import {
   CreateProposalSchema,
   RentModelSchema,
@@ -53,7 +57,7 @@ export async function GET(request: Request) {
       | "desc";
 
     // Build where clause
-    const where: Prisma.LeaseProposalWhereInput = {};
+    const where: LeaseProposalWhereInput = {};
 
     if (search) {
       where.name = {
@@ -174,8 +178,8 @@ export async function POST(request: Request) {
 
     const validatedData = validationResult.data;
 
-    // Convert otherOpexPercent to Prisma.Decimal
-    const otherOpexPercentDecimal = new Prisma.Decimal(validatedData.otherOpexPercent);
+    // Convert otherOpexPercent to Decimal (Prisma handles conversion automatically)
+    const otherOpexPercentDecimal = validatedData.otherOpexPercent;
 
     // Fetch TransitionConfig to record audit timestamp
     const transitionConfig = await prisma.transitionConfig.findFirst();
@@ -186,15 +190,13 @@ export async function POST(request: Request) {
         name: validatedData.name,
         rentModel: validatedData.rentModel,
         createdBy: user.id,
-        enrollment: validatedData.enrollment as Prisma.InputJsonValue,
-        curriculum: validatedData.curriculum as Prisma.InputJsonValue,
-        staff: validatedData.staff as Prisma.InputJsonValue,
-        rentParams: validatedData.rentParams as Prisma.InputJsonValue,
+        enrollment: validatedData.enrollment as InputJsonValue,
+        curriculum: validatedData.curriculum as InputJsonValue,
+        staff: validatedData.staff as InputJsonValue,
+        rentParams: validatedData.rentParams as InputJsonValue,
         otherOpexPercent: otherOpexPercentDecimal,
-        financials: validatedData.financials as
-          | Prisma.InputJsonValue
-          | undefined,
-        metrics: validatedData.metrics as Prisma.InputJsonValue | undefined,
+        financials: validatedData.financials as InputJsonValue | undefined,
+        metrics: validatedData.metrics as InputJsonValue | undefined,
         calculatedAt: validatedData.calculatedAt
           ? new Date(validatedData.calculatedAt)
           : null,
@@ -216,7 +218,7 @@ export async function POST(request: Request) {
 
     console.error("Error creating proposal:", error);
     return NextResponse.json(
-      { error: "Failed to create proposal", details: String(error) },
+      { error: "Failed to create proposal. Please try again." },
       { status: 500 },
     );
   }

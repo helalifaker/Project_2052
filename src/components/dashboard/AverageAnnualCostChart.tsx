@@ -1,11 +1,12 @@
 "use client";
 
-import React from "react";
+import React, { memo } from "react";
 import { formatMillions } from "@/lib/utils/financial";
 import { BaseBarChart } from "@/components/charts/BaseBarChart";
-import { chartColorMappings } from "@/lib/design-tokens/chart-colors";
-import { CustomTooltip } from "@/components/charts/CustomTooltip";
-import { chartColors } from "@/lib/design-tokens/chart-colors";
+import {
+  chartColorMappings,
+  chartColors,
+} from "@/lib/design-tokens/chart-colors";
 
 interface AverageCostData {
   proposalId: string;
@@ -23,13 +24,106 @@ interface AverageAnnualCostChartProps {
   data: AverageCostData[];
 }
 
+interface ChartDataPoint {
+  name: string;
+  developer: string;
+  contractYears: number;
+  rent: number;
+  staff: number;
+  other: number;
+  total: number;
+  isWinner: boolean;
+}
+
+// Custom tooltip component - defined outside render to prevent recreation
+const CustomCostTooltip = memo(function CustomCostTooltip({
+  active,
+  payload,
+}: {
+  active?: boolean;
+  payload?: Array<{ payload: ChartDataPoint }>;
+}) {
+  if (active && payload && payload.length) {
+    const data = payload[0].payload;
+    return (
+      <div className="bg-background/95 backdrop-blur-sm border border-border rounded-lg p-3 shadow-lg">
+        <p className="font-semibold text-sm mb-2">{data.name}</p>
+        <p className="text-xs text-muted-foreground mb-2">
+          {data.developer} - {data.contractYears}Y Contract
+        </p>
+        <div className="space-y-1 text-xs">
+          <div className="flex justify-between gap-4">
+            <span className="flex items-center gap-1.5">
+              <span
+                className="w-2 h-2 rounded-full"
+                style={{
+                  backgroundColor: chartColorMappings.costBreakdown.rent,
+                }}
+              />
+              Rent
+            </span>
+            <span className="font-medium tabular-nums">
+              {formatMillions(data.rent * 1_000_000)}/yr
+            </span>
+          </div>
+          <div className="flex justify-between gap-4">
+            <span className="flex items-center gap-1.5">
+              <span
+                className="w-2 h-2 rounded-full"
+                style={{
+                  backgroundColor: chartColorMappings.costBreakdown.staff,
+                }}
+              />
+              Staff
+            </span>
+            <span className="font-medium tabular-nums">
+              {formatMillions(data.staff * 1_000_000)}/yr
+            </span>
+          </div>
+          <div className="flex justify-between gap-4">
+            <span className="flex items-center gap-1.5">
+              <span
+                className="w-2 h-2 rounded-full"
+                style={{
+                  backgroundColor: chartColorMappings.costBreakdown.otherOpex,
+                }}
+              />
+              Other OpEx
+            </span>
+            <span className="font-medium tabular-nums">
+              {formatMillions(data.other * 1_000_000)}/yr
+            </span>
+          </div>
+          <div className="border-t border-border pt-1 mt-1 flex justify-between gap-4">
+            <span className="font-semibold">Total</span>
+            <span className="font-semibold tabular-nums">
+              {formatMillions(data.total * 1_000_000)}/yr
+            </span>
+          </div>
+        </div>
+        {data.isWinner && (
+          <p
+            className="text-xs mt-2 flex items-center gap-1"
+            style={{ color: chartColors.positive }}
+          >
+            Lowest Cost
+          </p>
+        )}
+      </div>
+    );
+  }
+  return null;
+});
+
 /**
  * Average Annual Cost Chart
  *
  * Stacked bar chart showing fair cost comparison across proposals
  * Accounts for different contract periods (25Y vs 30Y)
  */
-export function AverageAnnualCostChart({ data }: AverageAnnualCostChartProps) {
+export const AverageAnnualCostChart = memo(function AverageAnnualCostChart({
+  data,
+}: AverageAnnualCostChartProps) {
   if (!data || data.length === 0) {
     return (
       <div className="flex items-center justify-center h-[400px] text-muted-foreground">
@@ -61,80 +155,12 @@ export function AverageAnnualCostChart({ data }: AverageAnnualCostChartProps) {
     limitedData.reduce((sum, d) => sum + d.totalAvgAnnual, 0) /
     limitedData.length;
 
-  // Custom tooltip with proposal metadata
-  const CustomCostTooltip = ({ active, payload }: any) => {
-    if (active && payload && payload.length) {
-      const data = payload[0].payload;
-      return (
-        <div className="bg-background/95 backdrop-blur-sm border border-border rounded-lg p-3 shadow-lg">
-          <p className="font-semibold text-sm mb-2">{data.name}</p>
-          <p className="text-xs text-muted-foreground mb-2">
-            {data.developer} • {data.contractYears}Y Contract
-          </p>
-          <div className="space-y-1 text-xs">
-            <div className="flex justify-between gap-4">
-              <span className="flex items-center gap-1.5">
-                <span
-                  className="w-2 h-2 rounded-full"
-                  style={{ backgroundColor: chartColorMappings.costBreakdown.rent }}
-                />
-                Rent
-              </span>
-              <span className="font-medium tabular-nums">
-                {formatMillions(data.rent * 1_000_000)}/yr
-              </span>
-            </div>
-            <div className="flex justify-between gap-4">
-              <span className="flex items-center gap-1.5">
-                <span
-                  className="w-2 h-2 rounded-full"
-                  style={{ backgroundColor: chartColorMappings.costBreakdown.staff }}
-                />
-                Staff
-              </span>
-              <span className="font-medium tabular-nums">
-                {formatMillions(data.staff * 1_000_000)}/yr
-              </span>
-            </div>
-            <div className="flex justify-between gap-4">
-              <span className="flex items-center gap-1.5">
-                <span
-                  className="w-2 h-2 rounded-full"
-                  style={{ backgroundColor: chartColorMappings.costBreakdown.otherOpex }}
-                />
-                Other OpEx
-              </span>
-              <span className="font-medium tabular-nums">
-                {formatMillions(data.other * 1_000_000)}/yr
-              </span>
-            </div>
-            <div className="border-t border-border pt-1 mt-1 flex justify-between gap-4">
-              <span className="font-semibold">Total</span>
-              <span className="font-semibold tabular-nums">
-                {formatMillions(data.total * 1_000_000)}/yr
-              </span>
-            </div>
-          </div>
-          {data.isWinner && (
-            <p
-              className="text-xs mt-2 flex items-center gap-1"
-              style={{ color: chartColors.positive }}
-            >
-              ⭐ Lowest Cost
-            </p>
-          )}
-        </div>
-      );
-    }
-    return null;
-  };
-
   return (
     <div className="space-y-4">
       {/* Explanatory Note */}
       <div className="text-xs text-muted-foreground bg-muted/30 rounded-lg p-3 border border-border/50">
         <p className="flex items-center gap-2">
-          <span className="text-base">ℹ️</span>
+          <span className="text-base">Info:</span>
           <span>
             Costs averaged over contract period for fair comparison between
             different contract lengths (25Y vs 30Y)
@@ -165,7 +191,9 @@ export function AverageAnnualCostChart({ data }: AverageAnnualCostChartProps) {
               color: chartColorMappings.costBreakdown.otherOpex,
               stackId: "a",
               cellColors: chartData.map((entry) =>
-                entry.isWinner ? chartColorMappings.costBreakdown.otherOpex : `${chartColorMappings.costBreakdown.otherOpex}dd`
+                entry.isWinner
+                  ? chartColorMappings.costBreakdown.otherOpex
+                  : `${chartColorMappings.costBreakdown.otherOpex}dd`,
               ),
             },
           ]}
@@ -185,9 +213,7 @@ export function AverageAnnualCostChart({ data }: AverageAnnualCostChartProps) {
             {winner?.proposalName || "N/A"}
           </p>
           <p className="text-xs text-muted-foreground mt-1 tabular-nums">
-            {winner
-              ? formatMillions(winner.totalAvgAnnual) + "/yr"
-              : "—"}
+            {winner ? formatMillions(winner.totalAvgAnnual) + "/yr" : "-"}
           </p>
         </div>
         <div className="text-center p-3 bg-muted/20 rounded-lg border border-border/50">
@@ -199,7 +225,9 @@ export function AverageAnnualCostChart({ data }: AverageAnnualCostChartProps) {
         </div>
         <div className="text-center p-3 bg-muted/20 rounded-lg border border-border/50">
           <p className="text-xs text-muted-foreground mb-1">Comparing</p>
-          <p className="text-sm font-semibold">{limitedData.length} Proposals</p>
+          <p className="text-sm font-semibold">
+            {limitedData.length} Proposals
+          </p>
           <p className="text-xs text-muted-foreground mt-1">
             {data.length > 5 && `(Top 5 of ${data.length})`}
           </p>
@@ -207,4 +235,4 @@ export function AverageAnnualCostChart({ data }: AverageAnnualCostChartProps) {
       </div>
     </div>
   );
-}
+});

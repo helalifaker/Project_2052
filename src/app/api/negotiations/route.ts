@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { authenticateUserWithRole } from "@/middleware/auth";
-import { Role, ProposalStatus, ProposalOrigin, Prisma } from "@prisma/client";
+import { Role, ProposalStatus, ProposalOrigin } from "@/lib/types/roles";
 
 type NegotiationThread = {
   developer: string;
@@ -21,6 +21,12 @@ type NegotiationThread = {
     createdAt: Date;
     updatedAt: Date;
   }>;
+};
+
+type LeaseProposalWhereInput = {
+  developer?: string;
+  property?: string;
+  status?: ProposalStatus | { in: ProposalStatus[] };
 };
 
 const ACTIVE_STATUSES: ProposalStatus[] = [
@@ -46,7 +52,7 @@ export async function GET(req: Request) {
     const developerFilter = searchParams.get("developer") || undefined;
     const propertyFilter = searchParams.get("property") || undefined;
 
-    const where: Prisma.LeaseProposalWhereInput = {};
+    const where: LeaseProposalWhereInput = {};
     if (developerFilter) where.developer = developerFilter;
     if (propertyFilter) where.property = propertyFilter;
 

@@ -1,7 +1,10 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { authenticateUserWithRole } from "@/middleware/auth";
-import { Role, Prisma } from "@prisma/client";
+import { Role } from "@/lib/types/roles";
+import type { InputJsonValue } from "@/lib/types/prisma-helpers";
+import { JsonNull } from "@/lib/types/prisma-helpers";
+import { DuplicateProposalSchema } from "@/lib/validation/proposal";
 
 /**
  * POST /api/proposals/[id]/duplicate
@@ -40,6 +43,28 @@ export async function POST(
       );
     }
 
+    // Parse and validate optional request body
+    let customName: string | undefined;
+    const contentType = request.headers.get("content-type");
+    if (contentType?.includes("application/json")) {
+      try {
+        const body = await request.json();
+        const validationResult = DuplicateProposalSchema.safeParse(body);
+        if (!validationResult.success) {
+          return NextResponse.json(
+            {
+              error: "Validation failed",
+              details: validationResult.error.issues,
+            },
+            { status: 400 },
+          );
+        }
+        customName = validationResult.data?.name;
+      } catch {
+        // Empty body is acceptable - ignore parse errors
+      }
+    }
+
     // Fetch the original proposal
     const original = await prisma.leaseProposal.findUnique({
       where: { id },
@@ -58,15 +83,15 @@ export async function POST(
     // Create duplicate proposal
     const duplicate = await prisma.leaseProposal.create({
       data: {
-        name: `${original.name} (Copy)`,
+        name: customName || `${original.name} (Copy)`,
         rentModel: original.rentModel,
         createdBy: authResult.user.id, // Current user becomes creator
 
         // Copy all configuration data
-        enrollment: original.enrollment as Prisma.InputJsonValue,
-        curriculum: original.curriculum as Prisma.InputJsonValue,
-        staff: original.staff as Prisma.InputJsonValue,
-        rentParams: original.rentParams as Prisma.InputJsonValue,
+        enrollment: original.enrollment as InputJsonValue,
+        curriculum: original.curriculum as InputJsonValue,
+        staff: original.staff as InputJsonValue,
+        rentParams: original.rentParams as InputJsonValue,
         otherOpexPercent: original.otherOpexPercent,
         transitionConfigUpdatedAt: original.transitionConfigUpdatedAt,
 
@@ -88,18 +113,25 @@ export async function POST(
         boardComments: original.boardComments,
 
         // Reset calculated data (will need to be recalculated)
-        financials: Prisma.JsonNull,
-        metrics: Prisma.JsonNull,
+        financials: JsonNull,
+        metrics: JsonNull,
         calculatedAt: null,
 
         // Copy CapEx assets if any
         assets: {
-          create: original.assets.map((asset) => ({
-            purchaseYear: asset.purchaseYear,
-            purchaseAmount: asset.purchaseAmount,
-            usefulLife: asset.usefulLife,
-            categoryId: asset.categoryId,
-          })),
+          create: original.assets.map(
+            (asset: {
+              purchaseYear: number;
+              purchaseAmount: unknown;
+              usefulLife: number;
+              categoryId: string;
+            }) => ({
+              purchaseYear: asset.purchaseYear,
+              purchaseAmount: asset.purchaseAmount,
+              usefulLife: asset.usefulLife,
+              categoryId: asset.categoryId,
+            }),
+          ),
         },
       },
     });

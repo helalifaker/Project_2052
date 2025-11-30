@@ -11,7 +11,7 @@ import { z } from "zod";
 import Decimal from "decimal.js";
 import { prisma } from "@/lib/prisma";
 import { authenticateUserWithRole } from "@/middleware/auth";
-import { Role } from "@prisma/client";
+import { Role } from "@/lib/types/roles";
 
 // ============================================================================
 // VALIDATION SCHEMAS
@@ -75,9 +75,30 @@ export async function GET(
       orderBy: { createdAt: "desc" },
     });
 
+    interface ScenarioRecord {
+      id: string;
+      name: string;
+      createdAt: Date;
+      enrollmentPercent: { toNumber: () => number };
+      cpiPercent: { toNumber: () => number };
+      tuitionGrowthPercent: { toNumber: () => number };
+      rentEscalationPercent: { toNumber: () => number };
+      totalRent: { toString: () => string } | null;
+      npv: { toString: () => string } | null;
+      totalEbitda: { toString: () => string } | null;
+      avgEbitdaMargin: { toString: () => string } | null;
+      finalCash: { toString: () => string } | null;
+      maxDebt: { toString: () => string } | null;
+      creator: {
+        id: string;
+        name: string;
+        email: string;
+      } | null;
+    }
+
     return NextResponse.json({
       success: true,
-      scenarios: scenarios.map((s) => ({
+      scenarios: scenarios.map((s: ScenarioRecord) => ({
         id: s.id,
         name: s.name,
         createdAt: s.createdAt,

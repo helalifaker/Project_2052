@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { useRouter } from "next/navigation";
 import {
   Card,
   CardContent,
@@ -36,13 +35,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import {
-  Plus,
-  Trash2,
-  Edit,
-  TrendingUp,
-  Loader2,
-} from "lucide-react";
+import { Plus, Trash2, Edit, TrendingUp, Loader2 } from "lucide-react";
 import { z } from "zod";
 import { toast } from "sonner";
 import { Label } from "@/components/ui/label";
@@ -80,7 +73,6 @@ interface ManualCapExItem {
 }
 
 function CapExModulePageContent() {
-  const router = useRouter();
   const [loading, setLoading] = useState(true);
 
   // Manual CapEx Items
@@ -89,7 +81,7 @@ function CapExModulePageContent() {
   // Categories for per-category reinvestment
   const [categories, setCategories] = useState<CapExCategory[]>([]);
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(
-    null
+    null,
   );
 
   // Add Manual Item Form
@@ -213,11 +205,13 @@ function CapExModulePageContent() {
       {/* Navigation */}
       <div className="space-y-4">
         <BackButton href="/admin" label="Back to Admin" />
-        <Breadcrumbs items={[
-          { label: "Dashboard", href: "/dashboard" },
-          { label: "Admin", href: "/admin" },
-          { label: "CapEx Management" }
-        ]} />
+        <Breadcrumbs
+          items={[
+            { label: "Dashboard", href: "/dashboard" },
+            { label: "Admin", href: "/admin" },
+            { label: "CapEx Management" },
+          ]}
+        />
       </div>
 
       <div>
@@ -329,7 +323,7 @@ function CapExModulePageContent() {
                             value={selectedCategoryId ?? "none"}
                             onValueChange={(value) =>
                               setSelectedCategoryId(
-                                value === "none" ? null : value
+                                value === "none" ? null : value,
                               )
                             }
                           >

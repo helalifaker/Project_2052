@@ -8,7 +8,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { authenticateUserWithRole } from "@/middleware/auth";
-import { Role } from "@prisma/client";
+import { Role } from "@/lib/types/roles";
 
 // ============================================================================
 // VALIDATION SCHEMAS
@@ -19,7 +19,7 @@ const UpdateCategorySchema = z.object({
   usefulLife: z.number().min(1).max(100).optional(),
   reinvestFrequency: z.number().min(1).max(50).optional().nullable(),
   reinvestAmount: z.number().min(0).optional().nullable(),
-  reinvestStartYear: z.number().min(2028).max(2053).optional().nullable(),  // Year when auto-reinvestment begins
+  reinvestStartYear: z.number().min(2028).max(2053).optional().nullable(), // Year when auto-reinvestment begins
 });
 
 // ============================================================================
@@ -28,6 +28,14 @@ const UpdateCategorySchema = z.object({
 
 interface RouteParams {
   params: Promise<{ id: string }>;
+}
+
+interface CapExAssetRecord {
+  id: string;
+  purchaseYear: number;
+  purchaseAmount: unknown;
+  usefulLife: number;
+  createdAt: Date;
 }
 
 // ============================================================================
@@ -59,7 +67,7 @@ export async function GET(request: Request, { params }: RouteParams) {
     if (!category) {
       return NextResponse.json(
         { error: "Category not found" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
@@ -73,11 +81,11 @@ export async function GET(request: Request, { params }: RouteParams) {
         reinvestAmount: category.reinvestAmount
           ? Number(category.reinvestAmount)
           : null,
-        reinvestStartYear: category.reinvestStartYear,  // Year when auto-reinvestment begins
+        reinvestStartYear: category.reinvestStartYear, // Year when auto-reinvestment begins
         assetCount: category._count.assets,
         createdAt: category.createdAt,
         updatedAt: category.updatedAt,
-        assets: category.assets.map((asset) => ({
+        assets: category.assets.map((asset: CapExAssetRecord) => ({
           id: asset.id,
           purchaseYear: asset.purchaseYear,
           purchaseAmount: Number(asset.purchaseAmount),
@@ -90,7 +98,7 @@ export async function GET(request: Request, { params }: RouteParams) {
     console.error("Failed to fetch category:", error);
     return NextResponse.json(
       { error: "Failed to fetch category" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -111,7 +119,7 @@ export async function PUT(request: Request, { params }: RouteParams) {
     if (!validation.success) {
       return NextResponse.json(
         { error: "Invalid data", details: validation.error.issues },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -123,7 +131,7 @@ export async function PUT(request: Request, { params }: RouteParams) {
     if (!existing) {
       return NextResponse.json(
         { error: "Category not found" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
@@ -136,7 +144,7 @@ export async function PUT(request: Request, { params }: RouteParams) {
       if (nameConflict) {
         return NextResponse.json(
           { error: "A category with this name already exists" },
-          { status: 409 }
+          { status: 409 },
         );
       }
     }
@@ -148,7 +156,7 @@ export async function PUT(request: Request, { params }: RouteParams) {
         usefulLife: data.usefulLife,
         reinvestFrequency: data.reinvestFrequency,
         reinvestAmount: data.reinvestAmount,
-        reinvestStartYear: data.reinvestStartYear,  // Year when auto-reinvestment begins
+        reinvestStartYear: data.reinvestStartYear, // Year when auto-reinvestment begins
       },
       include: {
         _count: { select: { assets: true } },
@@ -166,7 +174,7 @@ export async function PUT(request: Request, { params }: RouteParams) {
         reinvestAmount: category.reinvestAmount
           ? Number(category.reinvestAmount)
           : null,
-        reinvestStartYear: category.reinvestStartYear,  // Year when auto-reinvestment begins
+        reinvestStartYear: category.reinvestStartYear, // Year when auto-reinvestment begins
         assetCount: category._count.assets,
         updatedAt: category.updatedAt,
       },
@@ -175,7 +183,7 @@ export async function PUT(request: Request, { params }: RouteParams) {
     console.error("Failed to update category:", error);
     return NextResponse.json(
       { error: "Failed to update category" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -202,18 +210,19 @@ export async function DELETE(request: Request, { params }: RouteParams) {
     if (!existing) {
       return NextResponse.json(
         { error: "Category not found" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
     if (existing._count.assets > 0 || existing._count.transitionData > 0) {
       return NextResponse.json(
         {
-          error: "Cannot delete category with associated assets or transition data",
+          error:
+            "Cannot delete category with associated assets or transition data",
           assetCount: existing._count.assets,
           transitionCount: existing._count.transitionData,
         },
-        { status: 409 }
+        { status: 409 },
       );
     }
 
@@ -228,7 +237,7 @@ export async function DELETE(request: Request, { params }: RouteParams) {
     console.error("Failed to delete category:", error);
     return NextResponse.json(
       { error: "Failed to delete category" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

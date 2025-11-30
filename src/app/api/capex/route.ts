@@ -11,7 +11,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { authenticateUserWithRole } from "@/middleware/auth";
-import { Role } from "@prisma/client";
+import { Role } from "@/lib/types/roles";
 
 // ============================================================================
 // VALIDATION SCHEMAS
@@ -34,6 +34,37 @@ const _ManualCapExItemSchema = z.object({
   usefulLife: z.number().min(1).max(50),
   depreciationMethod: z.enum(["OLD", "NEW"]).optional(),
 });
+
+// ============================================================================
+// TYPES
+// ============================================================================
+
+interface CapExAssetWithCategory {
+  id: string;
+  proposalId: string | null;
+  categoryId: string;
+  purchaseYear: number;
+  purchaseAmount: unknown;
+  usefulLife: number;
+  createdAt: Date;
+  category: {
+    id: string;
+    name: string;
+  } | null;
+}
+
+interface CategoryWithCount {
+  id: string;
+  type: string;
+  name: string;
+  usefulLife: number;
+  reinvestFrequency: number | null;
+  reinvestAmount: unknown;
+  reinvestStartYear: number | null;
+  _count: {
+    assets: number;
+  };
+}
 
 // ============================================================================
 // GET - Fetch CapEx configuration and items
@@ -85,23 +116,27 @@ export async function GET() {
             useCategoryReinvestment: config.useCategoryReinvestment,
           }
         : null,
-      manualItems: manualItems.map((item) => {
+      manualItems: manualItems.map((item: CapExAssetWithCategory) => {
         // Calculate NBV and depreciation method based on purchase year
         const currentYear = new Date().getFullYear();
         const yearsDepreciated = Math.max(0, currentYear - item.purchaseYear);
-        const annualDepreciation = Number(item.purchaseAmount) / item.usefulLife;
+        const annualDepreciation =
+          Number(item.purchaseAmount) / item.usefulLife;
         const accumulatedDepreciation = Math.min(
           yearsDepreciated * annualDepreciation,
-          Number(item.purchaseAmount)
+          Number(item.purchaseAmount),
         );
-        const nbv = Math.max(0, Number(item.purchaseAmount) - accumulatedDepreciation);
+        const nbv = Math.max(
+          0,
+          Number(item.purchaseAmount) - accumulatedDepreciation,
+        );
         const depreciationMethod = item.purchaseYear >= 2028 ? "NEW" : "OLD";
 
         return {
           id: item.id,
-          year: item.purchaseYear,  // Map new field to old UI field name
-          assetName: item.category?.name ?? "Unknown",  // Use category name as asset name
-          amount: Number(item.purchaseAmount),  // Map new field to old UI field name
+          year: item.purchaseYear, // Map new field to old UI field name
+          assetName: item.category?.name ?? "Unknown", // Use category name as asset name
+          amount: Number(item.purchaseAmount), // Map new field to old UI field name
           usefulLife: item.usefulLife,
           depreciationMethod,
           nbv,
@@ -110,14 +145,14 @@ export async function GET() {
           categoryName: item.category?.name ?? null,
         };
       }),
-      categories: categories.map((cat) => ({
+      categories: categories.map((cat: CategoryWithCount) => ({
         id: cat.id,
-        type: cat.type,  // NEW: Include category type
+        type: cat.type, // NEW: Include category type
         name: cat.name,
-        usefulLife: cat.usefulLife,  // Changed from defaultUsefulLife
+        usefulLife: cat.usefulLife, // Changed from defaultUsefulLife
         reinvestFrequency: cat.reinvestFrequency,
         reinvestAmount: cat.reinvestAmount ? Number(cat.reinvestAmount) : null,
-        reinvestStartYear: cat.reinvestStartYear,  // Year when auto-reinvestment begins
+        reinvestStartYear: cat.reinvestStartYear, // Year when auto-reinvestment begins
         assetCount: cat._count.assets,
       })),
       isConfigured: Boolean(config),

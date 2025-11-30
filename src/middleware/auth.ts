@@ -28,33 +28,31 @@ async function createSupabaseServerClient() {
 
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   // Support both old (ANON_KEY) and new (PUBLISHABLE_KEY) naming conventions
-  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+  const key =
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
 
   if (!url || !key) {
     console.error("Missing Supabase env vars:", { url: !!url, key: !!key });
     throw new Error("Missing Supabase URL or Key");
   }
 
-  return createServerClient(
-    url,
-    key,
-    {
-      cookies: {
-        getAll() {
-          return cookieStore.getAll();
-        },
-        setAll(cookiesToSet) {
-          try {
-            cookiesToSet.forEach(({ name, value, options }) =>
-              cookieStore.set(name, value, options),
-            );
-          } catch {
-            // Called from a Server Component - cookies are read-only
-          }
-        },
+  return createServerClient(url, key, {
+    cookies: {
+      getAll() {
+        return cookieStore.getAll();
+      },
+      setAll(cookiesToSet) {
+        try {
+          cookiesToSet.forEach(({ name, value, options }) =>
+            cookieStore.set(name, value, options),
+          );
+        } catch {
+          // Called from a Server Component - cookies are read-only
+        }
       },
     },
-  );
+  });
 }
 
 /**
@@ -88,7 +86,7 @@ export async function authenticateUser(): Promise<AuthResult> {
       return {
         success: false,
         error: NextResponse.json(
-          { error: "Unauthorized - Authentication required", details: authError?.message },
+          { error: "Unauthorized - Authentication required" },
           { status: 401 },
         ),
       };
@@ -124,18 +122,17 @@ export async function authenticateUser(): Promise<AuthResult> {
       return {
         success: false,
         error: NextResponse.json(
-          { error: "Database authentication error", details: String(dbError) },
+          { error: "Database authentication error. Please try again." },
           { status: 500 },
         ),
       };
     }
-
   } catch (error) {
     console.error("Unexpected error in authenticateUser:", error);
     return {
       success: false,
       error: NextResponse.json(
-        { error: "Authentication failed", details: String(error) },
+        { error: "Authentication failed. Please try again." },
         { status: 500 },
       ),
     };

@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import { z } from "zod";
 import {
   Card,
@@ -33,7 +32,6 @@ const transitionSchema = z.object({
 });
 
 function TransitionConfigPageContent() {
-  const router = useRouter();
   const [loading, setLoading] = useState(false);
 
   const form = useProposalForm(transitionSchema, {
@@ -98,11 +96,13 @@ function TransitionConfigPageContent() {
       {/* Navigation */}
       <div className="space-y-4">
         <BackButton href="/admin" label="Back to Admin" />
-        <Breadcrumbs items={[
-          { label: "Dashboard", href: "/dashboard" },
-          { label: "Admin", href: "/admin" },
-          { label: "Transition Setup" }
-        ]} />
+        <Breadcrumbs
+          items={[
+            { label: "Dashboard", href: "/dashboard" },
+            { label: "Admin", href: "/admin" },
+            { label: "Transition Setup" },
+          ]}
+        />
       </div>
 
       <div>
@@ -119,9 +119,11 @@ function TransitionConfigPageContent() {
         <AlertCircle className="h-4 w-4" />
         <AlertTitle>Global Impact Warning</AlertTitle>
         <AlertDescription>
-          Changes to this configuration will affect <strong>ALL proposals</strong> when recalculated.
-          All proposals use this single source of truth for the transition period (2025-2027).
-          Historical proposals will use these updated values on next recalculation.
+          Changes to this configuration will affect{" "}
+          <strong>ALL proposals</strong> when recalculated. All proposals use
+          this single source of truth for the transition period (2025-2027).
+          Historical proposals will use these updated values on next
+          recalculation.
         </AlertDescription>
       </Alert>
 

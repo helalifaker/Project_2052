@@ -8,13 +8,19 @@ import { useProposalForm } from "@/lib/hooks/useProposalForm";
 import { ArrowRight } from "lucide-react";
 import { z } from "zod";
 import type { ProposalFormData } from "./types";
-import { StepValidationSummary, extractValidationErrors } from "./StepValidationSummary";
+import {
+  StepValidationSummary,
+  extractValidationErrors,
+} from "./StepValidationSummary";
 
 const step1Schema = z.object({
-  developerName: z.string().min(1, "Developer name is required").max(100, "Developer name must be less than 100 characters"),
+  developerName: z
+    .string()
+    .min(1, "Developer name is required")
+    .max(100, "Developer name must be less than 100 characters"),
   contractPeriodYears: z.union([z.literal(25), z.literal(30)]).default(30),
   rentModel: z.enum(["Fixed", "RevShare", "Partner"], {
-    errorMap: () => ({ message: "Please select a rent model" }),
+    message: "Please select a rent model",
   }),
 });
 
@@ -60,7 +66,10 @@ export function Step1BasicsValidated({
 
   // Extract validation errors for summary
   const validationErrors = useMemo(() => {
-    return extractValidationErrors(form.formState.errors, FIELD_LABELS);
+    return extractValidationErrors(
+      form.formState.errors as Record<string, { message?: string }>,
+      FIELD_LABELS,
+    );
   }, [form.formState.errors]);
 
   // Check if form is valid (all fields filled and no errors)
@@ -113,10 +122,15 @@ export function Step1BasicsValidated({
               </span>
             </label>
             <p className="text-sm text-muted-foreground">
-              Select the duration for the dynamic projection period (starting 2028)
+              Select the duration for the dynamic projection period (starting
+              2028)
             </p>
 
-            <div className="grid gap-4 md:grid-cols-2" role="radiogroup" aria-label="Contract Period">
+            <div
+              className="grid gap-4 md:grid-cols-2"
+              role="radiogroup"
+              aria-label="Contract Period"
+            >
               {/* 30 Years Option */}
               <div
                 className={`p-6 rounded-xl border cursor-pointer transition-all focus-within-ring ${
@@ -199,7 +213,11 @@ export function Step1BasicsValidated({
               Choose the rent payment structure for this proposal
             </p>
 
-            <div className="grid gap-4 md:grid-cols-3" role="radiogroup" aria-label="Rent Model">
+            <div
+              className="grid gap-4 md:grid-cols-3"
+              role="radiogroup"
+              aria-label="Rent Model"
+            >
               {/* Fixed Model */}
               <div
                 className={`p-6 rounded-xl border cursor-pointer transition-all focus-within-ring ${
@@ -320,7 +338,11 @@ export function Step1BasicsValidated({
               type="submit"
               disabled={!isStepValid}
               className="focus-ring-enhanced"
-              aria-label={isStepValid ? "Proceed to next step" : "Complete all required fields to continue"}
+              aria-label={
+                isStepValid
+                  ? "Proceed to next step"
+                  : "Complete all required fields to continue"
+              }
             >
               Next: Enrollment
               <ArrowRight className="h-4 w-4 ml-2" aria-hidden="true" />
@@ -328,8 +350,15 @@ export function Step1BasicsValidated({
           </div>
 
           {/* Screen reader announcement for validation state */}
-          <div className="sr-only" role="status" aria-live="polite" aria-atomic="true">
-            {isStepValid ? "All fields are valid. You can proceed to the next step." : `${validationErrors.length} field${validationErrors.length !== 1 ? 's' : ''} need${validationErrors.length === 1 ? 's' : ''} attention.`}
+          <div
+            className="sr-only"
+            role="status"
+            aria-live="polite"
+            aria-atomic="true"
+          >
+            {isStepValid
+              ? "All fields are valid. You can proceed to the next step."
+              : `${validationErrors.length} field${validationErrors.length !== 1 ? "s" : ""} need${validationErrors.length === 1 ? "s" : ""} attention.`}
           </div>
         </form>
       </Form>

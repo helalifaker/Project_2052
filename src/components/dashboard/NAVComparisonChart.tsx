@@ -48,7 +48,11 @@ interface NAVTooltipProps {
   sortedDataLength?: number;
 }
 
-function NAVCustomTooltip({ active, payload, sortedDataLength = 0 }: NAVTooltipProps) {
+function NAVCustomTooltip({
+  active,
+  payload,
+  sortedDataLength = 0,
+}: NAVTooltipProps) {
   if (active && payload && payload.length) {
     const data = payload[0].payload;
     const isPositive = data.nav > 0;
@@ -68,13 +72,13 @@ function NAVCustomTooltip({ active, payload, sortedDataLength = 0 }: NAVTooltipP
         <div className="space-y-3">
           {/* NAV Value */}
           <div className="bg-muted/30 rounded-lg p-3 border border-border/50">
-            <p className="text-xs text-muted-foreground mb-1">Net Annualized Value</p>
+            <p className="text-xs text-muted-foreground mb-1">
+              Net Annualized Value
+            </p>
             <p
               className="text-2xl font-bold tabular-nums"
               style={{
-                color: isPositive
-                  ? chartColors.positive
-                  : chartColors.negative,
+                color: isPositive ? chartColors.positive : chartColors.negative,
               }}
             >
               {formatMillions(data.navRaw)}
@@ -97,11 +101,9 @@ function NAVCustomTooltip({ active, payload, sortedDataLength = 0 }: NAVTooltipP
             className="text-xs py-2 px-3 rounded-lg text-center font-medium"
             style={{
               backgroundColor: isPositive
-                ? `${chartColors.positive.replace('hsl(', 'hsl(').replace(')', ' / 0.15)')}`
-                : `${chartColors.negative.replace('hsl(', 'hsl(').replace(')', ' / 0.15)')}`,
-              color: isPositive
-                ? chartColors.positive
-                : chartColors.negative,
+                ? `${chartColors.positive.replace("hsl(", "hsl(").replace(")", " / 0.15)")}`
+                : `${chartColors.negative.replace("hsl(", "hsl(").replace(")", " / 0.15)")}`,
+              color: isPositive ? chartColors.positive : chartColors.negative,
             }}
           >
             {isPositive ? "✓ Value Creating" : "⚠ Value Destroying"}
@@ -137,7 +139,9 @@ export function NAVComparisonChart({ data }: NAVComparisonChartProps) {
       <div className="flex flex-col items-center justify-center h-[400px] text-muted-foreground">
         <Target className="w-12 h-12 mb-3 opacity-20" />
         <p>No NAV data available</p>
-        <p className="text-xs mt-1">Calculate proposals to see NAV comparison</p>
+        <p className="text-xs mt-1">
+          Calculate proposals to see NAV comparison
+        </p>
       </div>
     );
   }
@@ -159,13 +163,16 @@ export function NAVComparisonChart({ data }: NAVComparisonChartProps) {
   // Calculate insights
   const winner = sortedData[0];
   const secondBest = sortedData[1];
-  const avgNAV = sortedData.reduce((sum, d) => sum + d.nav, 0) / sortedData.length;
+  const avgNAV =
+    sortedData.reduce((sum, d) => sum + d.nav, 0) / sortedData.length;
   const range = winner.nav - sortedData[sortedData.length - 1].nav;
   const positiveCount = sortedData.filter((d) => d.nav > 0).length;
-  const leadMargin = secondBest ? ((winner.nav - secondBest.nav) / winner.nav) * 100 : 0;
+  const leadMargin = secondBest
+    ? ((winner.nav - secondBest.nav) / winner.nav) * 100
+    : 0;
 
   // Determine color based on NAV value and rank
-  const getBarColor = (item: typeof chartData[0]) => {
+  const getBarColor = (item: (typeof chartData)[0]) => {
     if (item.rank === 1) {
       // Winner: Gold (Solid for better visibility)
       return chartColors.warning; // amber
@@ -196,7 +203,9 @@ export function NAVComparisonChart({ data }: NAVComparisonChartProps) {
                 Best Value Proposal
               </p>
               <p className="text-xl font-bold mb-1">{winner.proposalName}</p>
-              <p className="text-sm text-muted-foreground">{winner.developer}</p>
+              <p className="text-sm text-muted-foreground">
+                {winner.developer}
+              </p>
             </div>
           </div>
           <div className="text-right">
@@ -225,7 +234,9 @@ export function NAVComparisonChart({ data }: NAVComparisonChartProps) {
               {/* Gradients removed for better visibility as requested */}
             </defs>
 
-            <CartesianGrid {...getGridProps({ horizontal: true, vertical: false })} />
+            <CartesianGrid
+              {...getGridProps({ horizontal: true, vertical: false })}
+            />
             <XAxis
               {...getAxisProps("x")}
               type="number"
@@ -247,7 +258,9 @@ export function NAVComparisonChart({ data }: NAVComparisonChartProps) {
               width={120}
             />
             <Tooltip
-              content={<NAVCustomTooltip sortedDataLength={sortedData.length} />}
+              content={
+                <NAVCustomTooltip sortedDataLength={sortedData.length} />
+              }
               cursor={{ fill: "hsl(var(--muted) / 0.15)" }}
             />
             <ReferenceLine
@@ -261,7 +274,9 @@ export function NAVComparisonChart({ data }: NAVComparisonChartProps) {
                 <Cell
                   key={`cell-${index}`}
                   fill={getBarColor(entry)}
-                  opacity={entry.rank === 1 ? 1 : entry.rank === 2 ? 0.95 : 0.85}
+                  opacity={
+                    entry.rank === 1 ? 1 : entry.rank === 2 ? 0.95 : 0.85
+                  }
                   stroke={entry.rank <= 2 ? "hsl(var(--border))" : "none"}
                   strokeWidth={entry.rank <= 2 ? 2 : 0}
                 />
@@ -269,9 +284,13 @@ export function NAVComparisonChart({ data }: NAVComparisonChartProps) {
               <LabelList
                 dataKey="nav"
                 position="right"
-                formatter={(value: string | number | undefined | null) => {
-                  if (value === undefined || value === null) return "";
-                  const num = typeof value === 'number' ? value : parseFloat(value);
+                formatter={(value) => {
+                  if (value === undefined || value === null || value === false)
+                    return "";
+                  const num =
+                    typeof value === "number"
+                      ? value
+                      : parseFloat(String(value));
                   return `${num.toFixed(1)}M`;
                 }}
                 style={{
@@ -330,9 +349,13 @@ export function NAVComparisonChart({ data }: NAVComparisonChartProps) {
         <p className="flex items-start gap-2">
           <span className="text-base flex-shrink-0">💡</span>
           <span>
-            <strong className="text-foreground">NAV (Net Annualized Value)</strong> is the most important metric
-            for comparing proposals with different contract lengths. It shows the net value created per year:
-            higher is always better. Positive NAV means the proposal creates value; negative means it destroys value.
+            <strong className="text-foreground">
+              NAV (Net Annualized Value)
+            </strong>{" "}
+            is the most important metric for comparing proposals with different
+            contract lengths. It shows the net value created per year: higher is
+            always better. Positive NAV means the proposal creates value;
+            negative means it destroys value.
           </span>
         </p>
       </div>

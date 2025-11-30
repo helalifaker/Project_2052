@@ -10,7 +10,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { authenticateUserWithRole } from "@/middleware/auth";
-import { Role } from "@prisma/client";
+import { Role } from "@/lib/types/roles";
 
 // ============================================================================
 // VALIDATION SCHEMAS
@@ -18,6 +18,25 @@ import { Role } from "@prisma/client";
 
 // Note: POST route disabled - categories are seeded via prisma/seed-capex-categories.ts
 // Only the 4 standard categories (IT_EQUIPMENT, FURNITURE, EDUCATIONAL_EQUIPMENT, BUILDING) are allowed
+
+// ============================================================================
+// TYPES
+// ============================================================================
+
+interface CategoryWithCount {
+  id: string;
+  type: string;
+  name: string;
+  usefulLife: number;
+  reinvestFrequency: number | null;
+  reinvestAmount: unknown;
+  reinvestStartYear: number | null;
+  createdAt: Date;
+  updatedAt: Date;
+  _count: {
+    assets: number;
+  };
+}
 
 // ============================================================================
 // GET - Fetch all categories
@@ -40,14 +59,14 @@ export async function GET() {
     });
 
     return NextResponse.json({
-      categories: categories.map((cat) => ({
+      categories: categories.map((cat: CategoryWithCount) => ({
         id: cat.id,
         type: cat.type,
         name: cat.name,
         usefulLife: cat.usefulLife,
         reinvestFrequency: cat.reinvestFrequency,
         reinvestAmount: cat.reinvestAmount ? Number(cat.reinvestAmount) : null,
-        reinvestStartYear: cat.reinvestStartYear,  // Year when auto-reinvestment begins
+        reinvestStartYear: cat.reinvestStartYear, // Year when auto-reinvestment begins
         assetCount: cat._count.assets,
         createdAt: cat.createdAt,
         updatedAt: cat.updatedAt,
@@ -57,7 +76,7 @@ export async function GET() {
     console.error("Failed to fetch categories:", error);
     return NextResponse.json(
       { error: "Failed to fetch categories" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -71,8 +90,9 @@ export async function POST() {
   // Only the 4 standard categories are allowed: IT_EQUIPMENT, FURNITURE, EDUCATIONAL_EQUIPMENT, BUILDING
   return NextResponse.json(
     {
-      error: "Creating categories is disabled. Use the seed script: npx tsx prisma/seed-capex-categories.ts",
+      error:
+        "Creating categories is disabled. Use the seed script: npx tsx prisma/seed-capex-categories.ts",
     },
-    { status: 405 }
+    { status: 405 },
   );
 }

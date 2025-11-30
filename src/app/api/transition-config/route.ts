@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { authenticateUserWithRole } from "@/middleware/auth";
-import { Role, Prisma } from "@prisma/client";
+import { Role } from "@/lib/types/roles";
 import { TransitionConfigUpsertSchema } from "@/lib/validation/transition";
 import { z } from "zod";
 
@@ -48,12 +48,12 @@ export async function PUT(request: Request) {
     const data = validationResult.data;
     const updateData = {
       year2025Students: data.year2025Students,
-      year2025AvgTuition: new Prisma.Decimal(data.year2025AvgTuition ?? 0),
+      year2025AvgTuition: data.year2025AvgTuition ?? 0,
       year2026Students: data.year2026Students,
-      year2026AvgTuition: new Prisma.Decimal(data.year2026AvgTuition ?? 0),
+      year2026AvgTuition: data.year2026AvgTuition ?? 0,
       year2027Students: data.year2027Students,
-      year2027AvgTuition: new Prisma.Decimal(data.year2027AvgTuition ?? 0),
-      rentGrowthPercent: new Prisma.Decimal(data.rentGrowthPercent ?? 0),
+      year2027AvgTuition: data.year2027AvgTuition ?? 0,
+      rentGrowthPercent: data.rentGrowthPercent ?? 0,
       updatedBy: authResult.user?.id,
     };
 

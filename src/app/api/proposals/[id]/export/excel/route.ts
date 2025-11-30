@@ -1,9 +1,8 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { authenticateUserWithRole } from "@/middleware/auth";
-import { Role } from "@prisma/client";
+import { Role } from "@/lib/types/roles";
 import ExcelJS from "exceljs";
-import type { Prisma } from "@prisma/client";
 import type { StoredFinancialPeriod, ExcelExportData } from "@/lib/excel/types";
 import { createSummarySheet } from "@/lib/excel/summary-builder";
 import { createInputsSheet } from "@/lib/excel/inputs-builder";
@@ -19,7 +18,7 @@ import { addChartNamedRanges } from "@/lib/excel/chart-ranges";
  * Normalize stored financial periods from Prisma JSON
  */
 const normalizeStoredPeriods = (
-  financials: Prisma.JsonValue,
+  financials: unknown,
 ): StoredFinancialPeriod[] => {
   if (!Array.isArray(financials)) return [];
 
@@ -187,8 +186,7 @@ export async function GET(
     console.error("Error generating Excel:", error);
     return NextResponse.json(
       {
-        error: "Failed to generate Excel file",
-        details: error instanceof Error ? error.message : "Unknown error",
+        error: "Failed to generate Excel file. Please try again.",
       },
       { status: 500 },
     );
