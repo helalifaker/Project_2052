@@ -38,9 +38,14 @@ type UpdateUserInput = z.infer<typeof UpdateUserSchema>;
 /**
  * GET /api/users/[id]
  *
- * Fetch user details by ID
- * Requires authentication
- * Users can fetch their own data, ADMIN can fetch any user
+ * Fetch user details by ID.
+ *
+ * NOTE: Uses authenticateUser() instead of authenticateUserWithRole() because
+ * this endpoint implements a "self-access or admin" pattern:
+ * - Any authenticated user can fetch their OWN data
+ * - ADMIN can fetch ANY user's data
+ *
+ * This pattern requires manual role checking after authentication.
  */
 export async function GET(
   request: Request,
@@ -98,9 +103,14 @@ export async function GET(
 /**
  * PUT /api/users/[id]
  *
- * Update user details
- * Users can update their own name
- * ADMIN can update any user's name, email, or role
+ * Update user details.
+ *
+ * NOTE: Uses authenticateUser() instead of authenticateUserWithRole() because
+ * this endpoint implements a "self-access or admin" pattern:
+ * - Any authenticated user can update their OWN name
+ * - ADMIN can update ANY user's name, email, or role
+ *
+ * This pattern requires manual role checking after authentication.
  */
 export async function PUT(
   request: Request,

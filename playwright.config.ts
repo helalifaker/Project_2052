@@ -7,6 +7,10 @@ export default defineConfig({
   retries: process.env.CI ? 2 : 0,
   workers: process.env.CI ? 1 : undefined,
   reporter: "html",
+
+  // Global setup for authentication
+  globalSetup: require.resolve("./tests/fixtures/global-setup"),
+
   use: {
     baseURL: "http://localhost:3000",
     trace: "on-first-retry",
@@ -25,6 +29,13 @@ export default defineConfig({
     {
       name: "webkit",
       use: { ...devices["Desktop Safari"] },
+    },
+    // RBAC-specific test project
+    {
+      name: "rbac",
+      testDir: "./tests/security",
+      testMatch: /rbac\.spec\.ts/,
+      use: { ...devices["Desktop Chrome"] },
     },
   ],
 

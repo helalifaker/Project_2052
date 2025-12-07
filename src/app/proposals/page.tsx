@@ -14,7 +14,15 @@ import {
 } from "@/components/ui/select";
 import { ProposalCard } from "@/components/proposals/ProposalCard";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Plus, Search, Filter, Grid, List, Trash2, FileText } from "lucide-react";
+import {
+  Plus,
+  Search,
+  Filter,
+  Grid,
+  List,
+  Trash2,
+  FileText,
+} from "lucide-react";
 import { toast } from "sonner";
 import Decimal from "decimal.js";
 import { useRoleCheck } from "@/lib/hooks/useRoleCheck";
@@ -80,7 +88,7 @@ const normalizeStatus = (value?: string | null) => value?.toUpperCase() ?? "";
 
 export default function ProposalsListPage() {
   const router = useRouter();
-  const { canCreate, canDelete, isViewer } = useRoleCheck();
+  const { canCreate, canDelete } = useRoleCheck();
   const [proposals, setProposals] = useState<ProposalListItem[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [filterStatus, setFilterStatus] = useState<string>("ALL");
@@ -102,7 +110,9 @@ export default function ProposalsListPage() {
       const res = await fetch("/api/proposals?includeMetrics=true");
 
       if (!res.ok) {
-        throw new Error(`Failed to fetch proposals: ${res.status} ${res.statusText}`);
+        throw new Error(
+          `Failed to fetch proposals: ${res.status} ${res.statusText}`,
+        );
       }
 
       const data = await res.json();
@@ -111,8 +121,8 @@ export default function ProposalsListPage() {
         (proposal) => {
           const metrics =
             proposal.metrics &&
-              typeof proposal.metrics === "object" &&
-              !Array.isArray(proposal.metrics)
+            typeof proposal.metrics === "object" &&
+            !Array.isArray(proposal.metrics)
               ? (proposal.metrics as Record<string, unknown>)
               : undefined;
           return {
@@ -144,14 +154,23 @@ export default function ProposalsListPage() {
                 : undefined,
             metrics: metrics
               ? {
-                totalRent: toDecimalOrUndefined(metrics.totalRent),
-                npv: toDecimalOrUndefined(metrics.npv),
-                totalEbitda: toDecimalOrUndefined(metrics.totalEbitda),
-                contractTotalRent: toDecimalOrUndefined(metrics.contractTotalRent),
-                contractRentNPV: toDecimalOrUndefined(metrics.contractRentNPV),
-                contractTotalEbitda: toDecimalOrUndefined(metrics.contractTotalEbitda),
-                contractEndYear: typeof metrics.contractEndYear === 'number' ? metrics.contractEndYear : undefined,
-              }
+                  totalRent: toDecimalOrUndefined(metrics.totalRent),
+                  npv: toDecimalOrUndefined(metrics.npv),
+                  totalEbitda: toDecimalOrUndefined(metrics.totalEbitda),
+                  contractTotalRent: toDecimalOrUndefined(
+                    metrics.contractTotalRent,
+                  ),
+                  contractRentNPV: toDecimalOrUndefined(
+                    metrics.contractRentNPV,
+                  ),
+                  contractTotalEbitda: toDecimalOrUndefined(
+                    metrics.contractTotalEbitda,
+                  ),
+                  contractEndYear:
+                    typeof metrics.contractEndYear === "number"
+                      ? metrics.contractEndYear
+                      : undefined,
+                }
               : undefined,
           };
         },
@@ -159,7 +178,9 @@ export default function ProposalsListPage() {
       setProposals(normalized);
     } catch (err) {
       console.error("Failed to load proposals", err);
-      setError(err instanceof Error ? err : new Error("Failed to load proposals"));
+      setError(
+        err instanceof Error ? err : new Error("Failed to load proposals"),
+      );
       toast.error("Failed to load proposals");
     } finally {
       setIsLoading(false);
@@ -364,8 +385,11 @@ export default function ProposalsListPage() {
       return;
     }
 
-    const ids = Array.from(selectedIds).join(",");
-    router.push(`/proposals/compare?ids=${ids}`);
+    // Use proper URL format: ?ids=id1&ids=id2&ids=id3 (not comma-separated)
+    const idsParam = Array.from(selectedIds)
+      .map((id) => `ids=${id}`)
+      .join("&");
+    router.push(`/proposals/compare?${idsParam}`);
   };
 
   // Handle error state
@@ -377,7 +401,7 @@ export default function ProposalsListPage() {
           <Breadcrumbs
             items={[
               { label: "Dashboard", href: "/dashboard" },
-              { label: "Proposals" }
+              { label: "Proposals" },
             ]}
           />
 
@@ -403,7 +427,7 @@ export default function ProposalsListPage() {
           <Breadcrumbs
             items={[
               { label: "Dashboard", href: "/dashboard" },
-              { label: "Proposals" }
+              { label: "Proposals" },
             ]}
           />
 
@@ -431,13 +455,15 @@ export default function ProposalsListPage() {
         <Breadcrumbs
           items={[
             { label: "Dashboard", href: "/dashboard" },
-            { label: "Proposals" }
+            { label: "Proposals" },
           ]}
         />
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">Rent Proposals</h1>
+            <h1 className="text-3xl font-bold tracking-tight">
+              Rent Proposals
+            </h1>
             <p className="text-muted-foreground mt-2">
               Create and manage rent proposals for different developers
             </p>
@@ -463,12 +489,15 @@ export default function ProposalsListPage() {
               </>
             ) : (
               <>
-                {!isViewer && (
-                  <Button variant="outline" onClick={() => setIsSelecting(true)}>
-                    Select Multiple
-                  </Button>
-                )}
-                <Button variant="outline" onClick={handleCompareProposals}>
+                <Button variant="outline" onClick={() => setIsSelecting(true)}>
+                  Select Multiple
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={handleCompareProposals}
+                  disabled={selectedIds.size === 0 && !isSelecting}
+                  title="Select 2-5 proposals to compare"
+                >
                   <Filter className="h-4 w-4 mr-2" />
                   Compare
                 </Button>
@@ -588,7 +617,7 @@ export default function ProposalsListPage() {
                   setFilterStatus("ALL");
                   setFilterModel("ALL");
                 },
-                variant: "outline"
+                variant: "outline",
               }}
               size="default"
             />

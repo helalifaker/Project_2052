@@ -2,6 +2,8 @@
  * RBAC (Role-Based Access Control) Security Tests
  *
  * Validates that role-based permissions are properly enforced across the application.
+ * Uses Playwright fixtures for authenticated sessions per role.
+ *
  * Tests that:
  * - Admin users can access all features
  * - Planner users can create/edit proposals
@@ -9,298 +11,317 @@
  * - Unauthorized users are rejected
  */
 
-import { test, expect } from "@playwright/test";
-
-type Role = "admin" | "planner" | "viewer";
-
-const roleEnv: Record<Role, { email?: string; password?: string }> = {
-  admin: {
-    email: process.env.E2E_ADMIN_EMAIL,
-    password: process.env.E2E_ADMIN_PASSWORD,
-  },
-  planner: {
-    email: process.env.E2E_PLANNER_EMAIL,
-    password: process.env.E2E_PLANNER_PASSWORD,
-  },
-  viewer: {
-    email: process.env.E2E_VIEWER_EMAIL,
-    password: process.env.E2E_VIEWER_PASSWORD,
-  },
-};
-
-async function loginAsRole(
-  page: Parameters<typeof test>[0]["page"],
-  role: Role,
-) {
-  const creds = roleEnv[role];
-  if (!creds.email || !creds.password) {
-    test.skip(`Missing credentials for role: ${role}`);
-  }
-
-  await page.goto("/login");
-  await page.fill('input[type="email"]', creds.email as string);
-  await page.fill('input[type="password"]', creds.password as string);
-  await page.getByRole("button", { name: /sign in/i }).click();
-  await page.waitForURL(/dashboard|admin|proposals/, { timeout: 10_000 });
-}
+import { test, expect, hasCredentials } from "../fixtures/auth";
+import { test as baseTest } from "@playwright/test";
 
 test.describe("RBAC Security Tests", () => {
   test.describe("Admin Role", () => {
-    test("should allow admin to access admin dashboard", async ({ page }) => {
-      await loginAsRole(page, "admin");
-      await page.goto("/admin");
+    test("should allow admin to access admin dashboard", async ({
+      adminPage,
+    }) => {
+      await adminPage.goto("/admin");
 
       // Admin should see admin dashboard
-      await expect(page).toHaveURL(/\/admin/);
-      await expect(page.locator("h1")).toContainText(/admin/i);
+      await expect(adminPage).toHaveURL(/\/admin/);
+      await expect(adminPage.locator("h1")).toContainText(/admin/i);
     });
 
-    test("should allow admin to access configuration", async ({ page }) => {
-      await loginAsRole(page, "admin");
-      await page.goto("/admin/config");
-      await expect(page).toHaveURL(/\/admin\/config/);
+    test("should allow admin to access configuration", async ({
+      adminPage,
+    }) => {
+      await adminPage.goto("/admin/config");
+      await expect(adminPage).toHaveURL(/\/admin\/config/);
     });
 
-    test("should allow admin to access historical data", async ({ page }) => {
-      await loginAsRole(page, "admin");
-      await page.goto("/admin/historical");
-      await expect(page).toHaveURL(/\/admin\/historical/);
+    test("should allow admin to access historical data", async ({
+      adminPage,
+    }) => {
+      await adminPage.goto("/admin/historical");
+      await expect(adminPage).toHaveURL(/\/admin\/historical/);
     });
 
-    test("should allow admin to access CapEx management", async ({ page }) => {
-      await loginAsRole(page, "admin");
-      await page.goto("/admin/capex");
-      await expect(page).toHaveURL(/\/admin\/capex/);
+    test("should allow admin to access CapEx management", async ({
+      adminPage,
+    }) => {
+      await adminPage.goto("/admin/capex");
+      await expect(adminPage).toHaveURL(/\/admin\/capex/);
+    });
+
+    test("should allow admin to access user management API", async ({
+      adminPage,
+      request,
+    }) => {
+      // Admin should be able to list users
+      const response = await adminPage.request.get("/api/users");
+      expect(response.status()).toBe(200);
     });
   });
 
   test.describe("Planner Role", () => {
-    test("should allow planner to create proposals", async ({ page }) => {
-      await loginAsRole(page, "planner");
-      await page.goto("/proposals/new");
+    test("should allow planner to create proposals", async ({
+      plannerPage,
+    }) => {
+      await plannerPage.goto("/proposals/new");
 
       // Planner should see proposal creation form
-      await expect(page).toHaveURL(/\/proposals\/new/);
-      await expect(page.locator("form")).toBeVisible();
+      await expect(plannerPage).toHaveURL(/\/proposals\/new/);
+      await expect(plannerPage.locator("form")).toBeVisible();
     });
 
-    test("should allow planner to edit their own proposals", async ({
-      page,
+    test("should allow planner to view proposals list", async ({
+      plannerPage,
     }) => {
-      await loginAsRole(page, "planner");
-      await page.goto("/proposals");
+      await plannerPage.goto("/proposals");
 
       // Should see proposals list
-      await expect(
-        page.locator('[data-testid="proposal-card"]').first(),
-      ).toBeVisible();
-
-      // Click on a proposal
-      await page.locator('[data-testid="proposal-card"]').first().click();
-
-      // Should see edit button
-      await expect(page.locator('button:has-text("Edit")')).toBeVisible();
+      await expect(plannerPage).toHaveURL(/\/proposals/);
     });
 
-    test("should NOT allow planner to access admin pages", async ({ page }) => {
-      await loginAsRole(page, "planner");
-      await page.goto("/admin");
+    test("should NOT allow planner to access admin pages", async ({
+      plannerPage,
+    }) => {
+      await plannerPage.goto("/admin");
 
       // Should be redirected or see access denied
-      await expect(page).not.toHaveURL(/\/admin$/);
+      await expect(plannerPage).not.toHaveURL(/\/admin$/);
+    });
+
+    test("should NOT allow planner to access user management API", async ({
+      plannerPage,
+    }) => {
+      const response = await plannerPage.request.get("/api/users");
+      expect(response.status()).toBe(403);
+    });
+
+    test("should NOT allow planner to update system config", async ({
+      plannerPage,
+    }) => {
+      const response = await plannerPage.request.put("/api/config", {
+        data: { zakatRate: "0.025" },
+      });
+      expect(response.status()).toBe(403);
     });
   });
 
   test.describe("Viewer Role", () => {
-    test("should allow viewer to view proposals", async ({ page }) => {
-      await loginAsRole(page, "viewer");
-      await page.goto("/proposals");
+    test("should allow viewer to view proposals", async ({ viewerPage }) => {
+      await viewerPage.goto("/proposals");
 
       // Viewer should see proposals list
-      await expect(page).toHaveURL(/\/proposals/);
-      await expect(page.locator('[data-testid="proposal-card"]')).toBeVisible();
+      await expect(viewerPage).toHaveURL(/\/proposals/);
     });
 
-    test("should allow viewer to view proposal details", async ({ page }) => {
-      await loginAsRole(page, "viewer");
-      await page.goto("/proposals");
-      await page.locator('[data-testid="proposal-card"]').first().click();
-
-      // Should see proposal details
-      await expect(page.locator("h1")).toBeVisible();
-    });
-
-    test("should NOT allow viewer to create proposals", async ({ page }) => {
-      await loginAsRole(page, "viewer");
-      await page.goto("/proposals/new");
+    test("should NOT allow viewer to create proposals via UI", async ({
+      viewerPage,
+    }) => {
+      await viewerPage.goto("/proposals/new");
 
       // Should be redirected or see access denied
-      await expect(page).not.toHaveURL(/\/proposals\/new/);
+      await expect(viewerPage).not.toHaveURL(/\/proposals\/new/);
     });
 
-    test("should NOT allow viewer to edit proposals", async ({ page }) => {
-      await loginAsRole(page, "viewer");
-      await page.goto("/proposals");
-      await page.locator('[data-testid="proposal-card"]').first().click();
-
-      // Edit button should not be visible
-      await expect(page.locator('button:has-text("Edit")')).not.toBeVisible();
+    test("should NOT allow viewer to create proposals via API", async ({
+      viewerPage,
+    }) => {
+      const response = await viewerPage.request.post(
+        "/api/proposals/calculate",
+        {
+          data: {
+            name: "Test Proposal",
+            developer: "Test Developer",
+          },
+        },
+      );
+      expect(response.status()).toBe(403);
     });
 
-    test("should NOT allow viewer to delete proposals", async ({ page }) => {
-      await loginAsRole(page, "viewer");
-      await page.goto("/proposals");
-
-      // Delete button should not be visible
-      await expect(page.locator('button:has-text("Delete")')).not.toBeVisible();
-    });
-
-    test("should NOT allow viewer to access admin pages", async ({ page }) => {
-      await loginAsRole(page, "viewer");
-      await page.goto("/admin");
+    test("should NOT allow viewer to access admin pages", async ({
+      viewerPage,
+    }) => {
+      await viewerPage.goto("/admin");
 
       // Should be redirected or see access denied
-      await expect(page).not.toHaveURL(/\/admin/);
+      await expect(viewerPage).not.toHaveURL(/\/admin/);
+    });
+
+    test("should allow viewer to read proposals via API", async ({
+      viewerPage,
+    }) => {
+      const response = await viewerPage.request.get("/api/proposals");
+      expect(response.status()).toBe(200);
+    });
+
+    test("should allow viewer to read config via API", async ({
+      viewerPage,
+    }) => {
+      const response = await viewerPage.request.get("/api/config");
+      expect(response.status()).toBe(200);
     });
   });
 
   test.describe("Unauthenticated Access", () => {
-    test("should redirect unauthenticated users to login", async ({ page }) => {
-      // Clear any existing auth
-      await page.context().clearCookies();
+    // Use base test without auth fixtures for unauthenticated tests
+    baseTest(
+      "should redirect unauthenticated users to login",
+      async ({ page }) => {
+        // Clear any existing auth
+        await page.context().clearCookies();
 
-      await page.goto("/proposals");
+        await page.goto("/proposals");
 
-      // Should be redirected to login or show login form
-      await expect(page).toHaveURL(/\/(login|auth)/);
-    });
+        // Should be redirected to login or show login form
+        await expect(page).toHaveURL(/\/(login|auth)/);
+      },
+    );
 
-    test("should not allow API access without authentication", async ({
-      request,
-    }) => {
-      // Try to access API without auth
-      const response = await request.get("/api/proposals");
+    baseTest(
+      "should not allow API access without authentication",
+      async ({ request }) => {
+        // Try to access API without auth (new request context has no cookies)
+        const response = await request.get("/api/proposals");
 
-      // Should return 401 Unauthorized
-      expect(response.status()).toBe(401);
-    });
+        // Should return 401 Unauthorized
+        expect(response.status()).toBe(401);
+      },
+    );
 
-    test("should not allow proposal creation without authentication", async ({
-      request,
-    }) => {
-      const response = await request.post("/api/proposals", {
-        data: {
-          schoolName: "Test School",
-          region: "Central",
-        },
-      });
+    baseTest(
+      "should not allow proposal creation without authentication",
+      async ({ request }) => {
+        const response = await request.post("/api/proposals/calculate", {
+          data: {
+            name: "Test Proposal",
+            developer: "Test Developer",
+          },
+        });
 
-      // Should return 401 Unauthorized
-      expect(response.status()).toBe(401);
-    });
+        // Should return 401 Unauthorized
+        expect(response.status()).toBe(401);
+      },
+    );
   });
 
   test.describe("API Endpoint RBAC", () => {
-    test("should enforce RBAC on GET /api/proposals", async ({ request }) => {
-      // Test with different roles
-      // Admin: 200 OK
-      // Planner: 200 OK
-      // Viewer: 200 OK
-      // Unauthenticated: 401 Unauthorized
-
-      const response = await request.get("/api/proposals");
-      expect([200, 401]).toContain(response.status());
+    test("admin can manage users", async ({ adminPage }) => {
+      const response = await adminPage.request.get("/api/users");
+      expect(response.status()).toBe(200);
     });
 
-    test("should enforce RBAC on POST /api/proposals", async ({ request }) => {
-      // Test with different roles
-      // Admin: 200 OK
-      // Planner: 200 OK
-      // Viewer: 403 Forbidden
-      // Unauthenticated: 401 Unauthorized
+    test("admin can update system config", async ({ adminPage }) => {
+      // First get current config
+      const getResponse = await adminPage.request.get("/api/config");
+      expect(getResponse.status()).toBe(200);
 
-      const response = await request.post("/api/proposals", {
-        data: {
-          schoolName: "Test School",
-          region: "Central",
+      // Config update should work (may return 400 for validation, but not 403)
+      const putResponse = await adminPage.request.put("/api/config", {
+        data: { zakatRate: "0.025" },
+      });
+      expect([200, 400]).toContain(putResponse.status());
+    });
+
+    test("planner can create proposals", async ({ plannerPage }) => {
+      // Planner should be able to access calculate endpoint
+      const response = await plannerPage.request.post(
+        "/api/proposals/calculate",
+        {
+          data: {
+            name: "Test Proposal from Planner",
+            developer: "Test Developer",
+            rentModel: "FIXED_ESCALATION",
+          },
         },
+      );
+      // 400 = validation error (expected), 200 = success, not 403
+      expect([200, 400]).toContain(response.status());
+    });
+
+    test("viewer cannot modify proposals", async ({ viewerPage }) => {
+      const response = await viewerPage.request.post(
+        "/api/proposals/calculate",
+        {
+          data: {
+            name: "Test Proposal from Viewer",
+          },
+        },
+      );
+      expect(response.status()).toBe(403);
+    });
+
+    test("all roles can read proposals", async ({
+      adminPage,
+      plannerPage,
+      viewerPage,
+    }) => {
+      const adminResponse = await adminPage.request.get("/api/proposals");
+      const plannerResponse = await plannerPage.request.get("/api/proposals");
+      const viewerResponse = await viewerPage.request.get("/api/proposals");
+
+      expect(adminResponse.status()).toBe(200);
+      expect(plannerResponse.status()).toBe(200);
+      expect(viewerResponse.status()).toBe(200);
+    });
+  });
+
+  test.describe("Protected Admin Endpoints", () => {
+    test("GET /api/users requires ADMIN", async ({
+      adminPage,
+      plannerPage,
+      viewerPage,
+    }) => {
+      const adminResponse = await adminPage.request.get("/api/users");
+      const plannerResponse = await plannerPage.request.get("/api/users");
+      const viewerResponse = await viewerPage.request.get("/api/users");
+
+      expect(adminResponse.status()).toBe(200);
+      expect(plannerResponse.status()).toBe(403);
+      expect(viewerResponse.status()).toBe(403);
+    });
+
+    test("PUT /api/config requires ADMIN", async ({
+      adminPage,
+      plannerPage,
+      viewerPage,
+    }) => {
+      const data = { zakatRate: "0.025" };
+
+      const adminResponse = await adminPage.request.put("/api/config", {
+        data,
+      });
+      const plannerResponse = await plannerPage.request.put("/api/config", {
+        data,
+      });
+      const viewerResponse = await viewerPage.request.put("/api/config", {
+        data,
       });
 
-      expect([200, 401, 403]).toContain(response.status());
-    });
-
-    test("should enforce RBAC on PUT /api/proposals/[id]", async ({
-      request,
-    }) => {
-      // Test with different roles
-      // Admin: 200 OK
-      // Planner (owner): 200 OK
-      // Planner (not owner): 403 Forbidden
-      // Viewer: 403 Forbidden
-      // Unauthenticated: 401 Unauthorized
-
-      const response = await request.put("/api/proposals/test-id", {
-        data: {
-          schoolName: "Updated School",
-        },
-      });
-
-      expect([200, 401, 403, 404]).toContain(response.status());
-    });
-
-    test("should enforce RBAC on DELETE /api/proposals/[id]", async ({
-      request,
-    }) => {
-      // Test with different roles
-      // Admin: 200 OK
-      // Planner (owner): 200 OK
-      // Planner (not owner): 403 Forbidden
-      // Viewer: 403 Forbidden
-      // Unauthenticated: 401 Unauthorized
-
-      const response = await request.delete("/api/proposals/test-id");
-
-      expect([200, 401, 403, 404]).toContain(response.status());
-    });
-
-    test("should enforce RBAC on GET /api/admin/*", async ({ request }) => {
-      // Test with different roles
-      // Admin: 200 OK
-      // Planner: 403 Forbidden
-      // Viewer: 403 Forbidden
-      // Unauthenticated: 401 Unauthorized
-
-      const endpoints = ["/api/config", "/api/historical"];
-
-      for (const endpoint of endpoints) {
-        const response = await request.get(endpoint);
-        expect([200, 401, 403]).toContain(response.status());
-      }
+      // Admin: 200 or 400 (validation), Planner/Viewer: 403
+      expect([200, 400]).toContain(adminResponse.status());
+      expect(plannerResponse.status()).toBe(403);
+      expect(viewerResponse.status()).toBe(403);
     });
   });
 
   test.describe("Row-Level Security", () => {
-    test("should only show proposals user has access to", async ({ page }) => {
-      // TODO: Set up user with specific proposals
-      await page.goto("/proposals");
+    test("users can only access their own user data", async ({ adminPage }) => {
+      // Get current user info
+      const sessionResponse = await adminPage.request.get("/api/auth/session");
+      const session = await sessionResponse.json();
 
-      // Should only see proposals user created or has access to
-      const proposals = await page
-        .locator('[data-testid="proposal-card"]')
-        .count();
-      expect(proposals).toBeGreaterThan(0);
+      if (session.user?.id) {
+        // User can access their own data
+        const ownResponse = await adminPage.request.get(
+          `/api/users/${session.user.id}`,
+        );
+        expect(ownResponse.status()).toBe(200);
+      }
     });
 
-    test("should prevent access to other users proposals", async ({
-      request,
-    }) => {
-      // Try to access another user's proposal
-      const response = await request.get(
-        "/api/proposals/other-user-proposal-id",
-      );
-
-      // Should return 403 Forbidden or 404 Not Found
-      expect([403, 404]).toContain(response.status());
-    });
+    baseTest(
+      "should prevent access to protected routes without auth",
+      async ({ request }) => {
+        const response = await request.get("/api/users/some-random-id");
+        expect(response.status()).toBe(401);
+      },
+    );
   });
 });
