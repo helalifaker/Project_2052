@@ -1,3 +1,6 @@
+# Single-package workspace (not a monorepo)
+packages: []
+
 ignoredBuiltDependencies:
   - '@playwright/browser-chromium'
   - '@prisma/engines'
