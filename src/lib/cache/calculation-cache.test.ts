@@ -25,6 +25,7 @@ const createMockInput = (id: string): CalculationEngineInput => ({
     depositInterestRate: new Decimal(0.02),
     minCashBalance: new Decimal(1000000),
   },
+  contractPeriodYears: 25,
   historicalPeriods: [
     {
       year: 2023,
@@ -103,21 +104,29 @@ const createMockInput = (id: string): CalculationEngineInput => ({
       growthRate: new Decimal(0.03),
       frequency: 1,
     },
-    otherOpexPercent: new Decimal(0.10), // 10% of revenue
+    otherOpexPercent: new Decimal(0.1), // 10% of revenue
     capexConfig: {
-      autoReinvestEnabled: false,
-      reinvestAmount: new Decimal(0),
-      reinvestFrequency: 0,
-      existingAssets: [],
-      newAssets: [],
+      categories: [],
+      historicalState: {
+        grossPPE2024: new Decimal(8000000),
+        accumulatedDepreciation2024: new Decimal(2000000),
+        annualDepreciation: new Decimal(500000),
+        remainingToDepreciate: new Decimal(6000000),
+      },
+      transitionCapex: [],
+      virtualAssets: [],
     },
   },
   capexConfig: {
-    autoReinvestEnabled: false,
-    reinvestAmount: new Decimal(0),
-    reinvestFrequency: 0,
-    existingAssets: [],
-    newAssets: [],
+    categories: [],
+    historicalState: {
+      grossPPE2024: new Decimal(8000000),
+      accumulatedDepreciation2024: new Decimal(2000000),
+      annualDepreciation: new Decimal(500000),
+      remainingToDepreciate: new Decimal(6000000),
+    },
+    transitionCapex: [],
+    virtualAssets: [],
   },
   circularSolverConfig: {
     maxIterations: 100,
@@ -144,6 +153,12 @@ const createMockOutput = (id: string) => ({
     contractRentNPV: new Decimal(35000000),
     contractFinalCash: new Decimal(10000000),
     contractEndYear: 2052,
+    // Contract period NPV & Annualized Metrics
+    contractEbitdaNPV: new Decimal(80000000),
+    contractNetTenantSurplus: new Decimal(45000000),
+    contractAnnualizedEbitda: new Decimal(5000000),
+    contractAnnualizedRent: new Decimal(2000000),
+    contractNAV: new Decimal(3000000),
   },
   validation: {
     allPeriodsBalanced: true,

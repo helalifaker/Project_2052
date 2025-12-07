@@ -84,13 +84,13 @@ export const CreateProposalSchema = z
           .optional(),
       })
       .passthrough(),
-    rentParams: z
-      .union([
-        FixedRentParamsSchema.extend({ model: z.literal("FIXED") }),
-        RevenueShareParamsSchema.extend({ model: z.literal("REVSHARE") }),
-        PartnerParamsSchema.extend({ model: z.literal("PARTNER") }),
-      ])
-      .or(z.record(z.string(), z.unknown())), // Fallback for JSON storage flexibility
+    // SECURITY: Strict rent params validation - no arbitrary JSON fallback
+    // Each rent model has specific required fields that must be validated
+    rentParams: z.union([
+      FixedRentParamsSchema.extend({ model: z.literal("FIXED") }),
+      RevenueShareParamsSchema.extend({ model: z.literal("REVSHARE") }),
+      PartnerParamsSchema.extend({ model: z.literal("PARTNER") }),
+    ]),
     otherOpexPercent: z.number().min(0).max(1), // % of revenue as decimal (e.g., 0.31 = 31%)
     financials: z.record(z.string(), z.unknown()).optional(),
     metrics: z.record(z.string(), z.unknown()).optional(),
@@ -161,13 +161,13 @@ export const UpdateProposalSchema = z
       })
       .passthrough()
       .optional(),
+    // SECURITY: Strict rent params validation - no arbitrary JSON fallback
     rentParams: z
       .union([
         FixedRentParamsSchema.extend({ model: z.literal("FIXED") }),
         RevenueShareParamsSchema.extend({ model: z.literal("REVSHARE") }),
         PartnerParamsSchema.extend({ model: z.literal("PARTNER") }),
       ])
-      .or(z.record(z.string(), z.unknown()))
       .optional(),
     otherOpexPercent: z.number().min(0).max(1).optional(),
     financials: z.record(z.string(), z.unknown()).optional(),

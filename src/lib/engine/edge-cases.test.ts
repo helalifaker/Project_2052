@@ -156,7 +156,7 @@ function createDynamicPeriodConfig(overrides?: {
       fixedStaffCost: new Decimal(20000000),
       variableStaffCostPerStudent: new Decimal(10000),
     },
-    otherOpexPercent: new Decimal(0.10), // 10% of revenue
+    otherOpexPercent: new Decimal(0.1), // 10% of revenue
     rentModel: RentModel.FIXED_ESCALATION,
     rentParams: {
       baseRent: new Decimal(10000000),
@@ -164,11 +164,6 @@ function createDynamicPeriodConfig(overrides?: {
       frequency: 1,
     },
     capexConfig: {
-      autoReinvestEnabled: false,
-      reinvestAmount: new Decimal(0),
-      reinvestFrequency: 5,
-      existingAssets: [],
-      newAssets: [],
       categories: [
         {
           id: "cat-it",
@@ -222,6 +217,7 @@ function buildEngineInput(
 
   return {
     systemConfig: createSystemConfig(),
+    contractPeriodYears: 30,
     historicalPeriods: createHistoricalPeriods(config.historicalOverrides),
     transitionPeriods: createTransitionPeriods(config.revenueGrowthRate),
     workingCapitalRatios: createWorkingCapitalRatios(),
@@ -229,11 +225,6 @@ function buildEngineInput(
     rentModel,
     rentParams,
     capexConfig: {
-      autoReinvestEnabled: false,
-      reinvestAmount: new Decimal(0),
-      reinvestFrequency: 5,
-      existingAssets: [],
-      newAssets: [],
       categories: [
         {
           id: "cat-it",

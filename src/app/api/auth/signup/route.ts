@@ -3,23 +3,28 @@
  *
  * Creates a user in the Prisma database after successful Supabase signup.
  * This endpoint syncs Supabase auth users with the application database.
+ *
+ * SECURITY: Verifies JWT token before creating user to prevent IDOR attacks.
  */
 
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { createClient } from "@/lib/supabase/server";
 import { z } from "zod";
 
 /**
- * Input validation schema
+ * Input validation schema - name is optional, will be extracted from JWT if available
  */
 const SignupSchema = z.object({
-  email: z.string().email("Invalid email format"),
   name: z.string().min(1, "Name is required").max(255, "Name too long"),
-  supabaseUserId: z.string().uuid("Invalid Supabase user ID"),
 });
 
 /**
  * POST - Create user in database after Supabase signup
+ *
+ * SECURITY: This endpoint now verifies the JWT token and uses the authenticated
+ * user's ID and email directly from Supabase, preventing attackers from
+ * creating user records for arbitrary Supabase IDs.
  */
 export async function POST(request: Request) {
   try {
@@ -32,9 +37,34 @@ export async function POST(request: Request) {
       );
     }
 
+    // SECURITY: Verify JWT token to get authenticated user
+    const supabase = await createClient();
+    const {
+      data: { user: authUser },
+      error: authError,
+    } = await supabase.auth.getUser();
+
+    if (authError || !authUser) {
+      return NextResponse.json(
+        { error: "Unauthorized. Please sign in with Supabase first." },
+        { status: 401 },
+      );
+    }
+
+    // Use verified user ID and email from JWT, not client-provided values
+    const supabaseUserId = authUser.id;
+    const email = authUser.email;
+
+    if (!email) {
+      return NextResponse.json(
+        { error: "Email not available from authentication" },
+        { status: 400 },
+      );
+    }
+
     const body = await request.json();
 
-    // Validate input
+    // Validate input (only name is from client now)
     const parseResult = SignupSchema.safeParse(body);
     if (!parseResult.success) {
       return NextResponse.json(
@@ -43,7 +73,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const { email, name, supabaseUserId } = parseResult.data;
+    const { name } = parseResult.data;
 
     // Check if user already exists
     const existingUser = await prisma.user.findFirst({
@@ -53,19 +83,14 @@ export async function POST(request: Request) {
     });
 
     if (existingUser) {
-      // User already exists - return success with existing user data
+      // SECURITY: User already exists - return 409 Conflict
+      // Previously returned 200 which allowed email enumeration attacks
+      // The authenticated user's Supabase ID or email already has a profile
       return NextResponse.json(
         {
-          user: {
-            id: existingUser.id,
-            email: existingUser.email,
-            name: existingUser.name,
-            role: existingUser.role,
-            createdAt: existingUser.createdAt,
-          },
-          message: "User already exists",
+          error: "User profile already exists",
         },
-        { status: 200 },
+        { status: 409 },
       );
     }
 

@@ -38,6 +38,8 @@ export async function POST(request: Request) {
     ]);
     if (!authResult.success) return authResult.error;
 
+    const { user } = authResult;
+
     // Parse and validate request body
     const body = await request.json();
     const validation = bulkDeleteSchema.safeParse(body);
@@ -58,19 +60,61 @@ export async function POST(request: Request) {
       errors: [] as Array<{ id: string; error: string }>,
     };
 
-    // Delete proposals in a transaction for safety
+    // Fetch proposals to check ownership before deletion
+    const proposals = await prisma.leaseProposal.findMany({
+      where: { id: { in: proposalIds } },
+      select: { id: true, createdBy: true },
+    });
+
+    const proposalMap = new Map(proposals.map((p) => [p.id, p.createdBy]));
+
+    // Validate all proposals first - separate valid from invalid
+    const validIdsToDelete: string[] = [];
+
     for (const proposalId of proposalIds) {
-      try {
-        await prisma.leaseProposal.delete({
-          where: { id: proposalId },
-        });
-        results.deleted++;
-      } catch (error) {
+      const createdBy = proposalMap.get(proposalId);
+
+      // Check if proposal exists
+      if (createdBy === undefined) {
         results.failed++;
         results.errors.push({
           id: proposalId,
-          error: error instanceof Error ? error.message : "Unknown error",
+          error: "Proposal not found",
         });
+        continue;
+      }
+
+      // Check ownership: only allow if user is ADMIN or the creator
+      if (user.role !== Role.ADMIN && createdBy !== user.id) {
+        results.failed++;
+        results.errors.push({
+          id: proposalId,
+          error: "Not authorized to delete this proposal",
+        });
+        continue;
+      }
+
+      // This proposal is valid for deletion
+      validIdsToDelete.push(proposalId);
+    }
+
+    // Delete all valid proposals in a single atomic transaction
+    // This ensures either all deletions succeed or none do
+    if (validIdsToDelete.length > 0) {
+      try {
+        const deleteResult = await prisma.leaseProposal.deleteMany({
+          where: { id: { in: validIdsToDelete } },
+        });
+        results.deleted = deleteResult.count;
+      } catch (error) {
+        // If transaction fails, mark all valid proposals as failed
+        for (const id of validIdsToDelete) {
+          results.failed++;
+          results.errors.push({
+            id,
+            error: error instanceof Error ? error.message : "Database error",
+          });
+        }
       }
     }
 

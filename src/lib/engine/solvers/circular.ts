@@ -41,6 +41,85 @@ import type {
 } from "../core/types";
 
 // ============================================================================
+// CONVERGENCE TRACKING
+// ============================================================================
+
+/**
+ * Statistics for monitoring solver performance across all years.
+ * Helps identify if the solver is efficient or needs tuning.
+ */
+export interface SolverConvergenceStats {
+  totalIterations: number;
+  totalYearsProcessed: number;
+  avgIterationsPerYear: number;
+  maxIterationsUsed: number;
+  earlyConvergenceCount: number; // Years that converged in < 10 iterations
+  nonConvergenceCount: number; // Years that hit max iterations
+  lastResetTime: number;
+}
+
+// Global convergence statistics (reset per calculation run)
+let convergenceStats: SolverConvergenceStats = {
+  totalIterations: 0,
+  totalYearsProcessed: 0,
+  avgIterationsPerYear: 0,
+  maxIterationsUsed: 0,
+  earlyConvergenceCount: 0,
+  nonConvergenceCount: 0,
+  lastResetTime: Date.now(),
+};
+
+/**
+ * Reset convergence stats at the start of a new calculation.
+ * Call this before running a full 30-year projection.
+ */
+export function resetConvergenceStats(): void {
+  convergenceStats = {
+    totalIterations: 0,
+    totalYearsProcessed: 0,
+    avgIterationsPerYear: 0,
+    maxIterationsUsed: 0,
+    earlyConvergenceCount: 0,
+    nonConvergenceCount: 0,
+    lastResetTime: Date.now(),
+  };
+}
+
+/**
+ * Get current convergence statistics.
+ * Useful for performance monitoring and debugging.
+ */
+export function getConvergenceStats(): SolverConvergenceStats {
+  return { ...convergenceStats };
+}
+
+/**
+ * Update stats after a year completes.
+ */
+function updateConvergenceStats(
+  iterations: number,
+  converged: boolean,
+  maxIterations: number,
+): void {
+  convergenceStats.totalIterations += iterations;
+  convergenceStats.totalYearsProcessed += 1;
+  convergenceStats.avgIterationsPerYear =
+    convergenceStats.totalIterations / convergenceStats.totalYearsProcessed;
+
+  if (iterations > convergenceStats.maxIterationsUsed) {
+    convergenceStats.maxIterationsUsed = iterations;
+  }
+
+  if (iterations < 10) {
+    convergenceStats.earlyConvergenceCount += 1;
+  }
+
+  if (!converged || iterations >= maxIterations) {
+    convergenceStats.nonConvergenceCount += 1;
+  }
+}
+
+// ============================================================================
 // TYPES
 // ============================================================================
 
@@ -171,6 +250,11 @@ export function solveCircularDependencies(
   // Initial guess: debt from prior year (or zero for first year)
   let debtEstimate = priorPeriod?.balanceSheet?.debtBalance ?? ZERO;
 
+  // Divergence detection: track if difference is getting worse
+  let previousDifference: Decimal | null = null;
+  let divergenceCount = 0;
+  const MAX_DIVERGENCE_COUNT = 5; // Exit if diverging for 5 consecutive iterations
+
   // Iteration loop
   for (let iteration = 0; iteration < maxIterations; iteration++) {
     // Calculate iteration state
@@ -197,12 +281,15 @@ export function solveCircularDependencies(
       minCashBalance,
     });
 
-    // Check convergence
-    if (isLessThan(state.debtDifference, convergenceTolerance)) {
-      // Converged!
+    // Check convergence (use <= instead of < to catch exact tolerance match)
+    if (state.debtDifference.lessThanOrEqualTo(convergenceTolerance)) {
+      // Converged! Update stats and return
+      const iterationCount = iteration + 1;
+      updateConvergenceStats(iterationCount, true, maxIterations);
+
       return {
         converged: true,
-        iterations: iteration + 1,
+        iterations: iterationCount,
         finalDifference: state.debtDifference,
         interestExpense: state.interestExpense,
         interestIncome: state.interestIncome,
@@ -215,6 +302,42 @@ export function solveCircularDependencies(
       };
     }
 
+    // Divergence detection: check if difference is getting worse
+    if (
+      previousDifference !== null &&
+      isGreaterThan(state.debtDifference, previousDifference)
+    ) {
+      divergenceCount++;
+      if (divergenceCount >= MAX_DIVERGENCE_COUNT) {
+        // Diverging - exit early to prevent wasted iterations
+        if (process.env.NODE_ENV === "development") {
+          console.warn(
+            `[CircularSolver] Year ${year}: Divergence detected after ${iteration + 1} iterations. ` +
+              `Difference increasing: ${previousDifference.toFixed(2)} → ${state.debtDifference.toFixed(2)}`,
+          );
+        }
+        updateConvergenceStats(iteration + 1, false, maxIterations);
+
+        return {
+          converged: false,
+          iterations: iteration + 1,
+          finalDifference: state.debtDifference,
+          interestExpense: state.interestExpense,
+          interestIncome: state.interestIncome,
+          netInterest: state.netInterest,
+          zakatExpense: state.zakat,
+          debtBalance: state.requiredDebt,
+          ebt: state.ebt,
+          netIncome: state.netIncome,
+          cash: state.cash,
+        };
+      }
+    } else {
+      // Reset divergence counter if difference is improving
+      divergenceCount = 0;
+    }
+    previousDifference = state.debtDifference;
+
     // Update estimate with relaxation for stability
     // new_estimate = old_estimate * relax + new_value * (1 - relax)
     debtEstimate = add(
@@ -224,6 +347,9 @@ export function solveCircularDependencies(
   }
 
   // Did not converge within max iterations
+  // Update stats for non-convergence
+  updateConvergenceStats(maxIterations, false, maxIterations);
+
   // Return last state but mark as not converged
   const finalState = calculateIterationState({
     debtEstimate,
@@ -247,6 +373,14 @@ export function solveCircularDependencies(
     depositInterestRate,
     minCashBalance,
   });
+
+  // Log non-convergence warning for debugging
+  if (process.env.NODE_ENV === "development") {
+    console.warn(
+      `[CircularSolver] Year ${year}: Did not converge after ${maxIterations} iterations. ` +
+        `Final difference: ${finalState.debtDifference.toFixed(2)}`,
+    );
+  }
 
   return {
     converged: false,
@@ -372,7 +506,8 @@ function calculateIterationState(params: {
 
   // Step 6: Calculate cash flow (indirect method)
   // Operating Cash Flow
-  const cfoNetIncome = netIncome;
+  // OPTIMIZATION: Pre-calculate non-income CFO components once (constant within iteration)
+  // These values don't change when net income is refined, so we compute them once
   const cfoDepreciation = depreciation; // Add back (non-cash)
   const cfoARDecrease = subtract(priorAR, accountsReceivable); // - for increase, + for decrease
   const cfoPrepaidDecrease = subtract(priorPrepaid, prepaidExpenses);
@@ -380,19 +515,20 @@ function calculateIterationState(params: {
   const cfoAccruedIncrease = subtract(accruedExpenses, priorAccrued);
   const cfoDeferredIncrease = subtract(deferredRevenue, priorDeferred);
 
-  let operatingCashFlow = add(
+  // Pre-calculate the sum of non-income components (constant within iteration)
+  const cfoNonIncomeSum = add(
     add(
       add(
-        add(
-          add(add(cfoNetIncome, cfoDepreciation), cfoARDecrease),
-          cfoPrepaidDecrease,
-        ),
+        add(add(cfoDepreciation, cfoARDecrease), cfoPrepaidDecrease),
         cfoAPIncrease,
       ),
       cfoAccruedIncrease,
     ),
     cfoDeferredIncrease,
   );
+
+  // Operating Cash Flow = Net Income + Non-Income Components
+  let operatingCashFlow = add(netIncome, cfoNonIncomeSum);
 
   // Investing Cash Flow
   const investingCashFlow = capex; // Already negative
@@ -438,19 +574,8 @@ function calculateIterationState(params: {
   netIncome = subtract(ebt, zakat);
 
   // Step 10: Recalculate cash flow with refined net income
-  operatingCashFlow = add(
-    add(
-      add(
-        add(
-          add(add(netIncome, cfoDepreciation), cfoARDecrease),
-          cfoPrepaidDecrease,
-        ),
-        cfoAPIncrease,
-      ),
-      cfoAccruedIncrease,
-    ),
-    cfoDeferredIncrease,
-  );
+  // OPTIMIZATION: Reuse pre-calculated cfoNonIncomeSum instead of recomputing
+  operatingCashFlow = add(netIncome, cfoNonIncomeSum);
   netCashFlow = add(
     add(operatingCashFlow, investingCashFlow),
     financingCashFlow,

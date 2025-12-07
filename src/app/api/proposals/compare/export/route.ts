@@ -116,13 +116,30 @@ export async function POST(request: Request) {
 
     const { proposalIds } = validation.data;
 
-    // Fetch all proposals
+    // Fetch proposals with only the fields needed for PDF generation
+    // PERFORMANCE: Using select instead of include to avoid fetching large JSON fields
+    // that aren't needed (enrollment, curriculum, staff, rentParams)
     const proposals: ProposalWithMetrics[] =
       await prisma.leaseProposal.findMany({
         where: {
           id: { in: proposalIds },
         },
-        include: {
+        select: {
+          id: true,
+          name: true,
+          developer: true,
+          property: true,
+          rentModel: true,
+          financials: true, // Needed for Year 10 financial statements
+          metrics: true, // Needed for comparison matrix
+          calculatedAt: true,
+          createdAt: true,
+          updatedAt: true,
+          // Excluded: enrollment, curriculum, staff, rentParams (not used in PDF)
+          enrollment: true, // Keep for type compatibility (can be removed if type is updated)
+          curriculum: true,
+          staff: true,
+          rentParams: true,
           creator: {
             select: {
               email: true,

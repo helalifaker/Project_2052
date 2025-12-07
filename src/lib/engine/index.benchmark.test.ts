@@ -20,7 +20,7 @@ import type {
   TransitionPeriodInput,
   DynamicPeriodInput,
 } from "./core/types";
-import { RentModel } from "./core/types";
+import { RentModel, CapExCategoryType } from "./core/types";
 
 // ============================================================================
 // BENCHMARK TEST DATA HELPERS
@@ -196,12 +196,12 @@ function createBenchmarkInput(rentModel: RentModel): CalculationEngineInput {
     },
     rentModel,
     rentParams,
-    otherOpexPercent: new Decimal(0.10), // 10% of revenue
+    otherOpexPercent: new Decimal(0.1), // 10% of revenue
     capexConfig: {
       categories: [
         {
           id: "cat-building",
-          type: "BUILDING" as const,
+          type: CapExCategoryType.BUILDING,
           name: "Building",
           usefulLife: 20,
           reinvestFrequency: 1,
@@ -225,7 +225,7 @@ function createBenchmarkInput(rentModel: RentModel): CalculationEngineInput {
     categories: [
       {
         id: "cat-building",
-        type: "BUILDING" as const,
+        type: CapExCategoryType.BUILDING,
         name: "Building",
         usefulLife: 20,
         reinvestFrequency: 1,
@@ -251,6 +251,7 @@ function createBenchmarkInput(rentModel: RentModel): CalculationEngineInput {
 
   return {
     systemConfig,
+    contractPeriodYears: 30,
     historicalPeriods,
     transitionPeriods,
     workingCapitalRatios,
@@ -307,7 +308,7 @@ describe("Performance Benchmarks - 30-Year Calculation Engine", () => {
       );
 
       // Validate all periods calculated
-      expect(result.periods).toHaveLength(31); // 2023-2053 = 31 years (including historical 2023)
+      expect(result.periods).toHaveLength(35); // 2 historical + 3 transition + 30 dynamic = 35 periods
 
       // Validate balance sheet balancing
       expect(result.validation.allPeriodsBalanced).toBe(true);
@@ -349,7 +350,7 @@ describe("Performance Benchmarks - 30-Year Calculation Engine", () => {
       );
 
       // Validate all periods calculated
-      expect(result.periods).toHaveLength(31);
+      expect(result.periods).toHaveLength(35); // 2 historical + 3 transition + 30 dynamic = 35 periods
 
       // Validate balance sheet balancing
       expect(result.validation.allPeriodsBalanced).toBe(true);
@@ -391,7 +392,7 @@ describe("Performance Benchmarks - 30-Year Calculation Engine", () => {
       );
 
       // Validate all periods calculated
-      expect(result.periods).toHaveLength(31);
+      expect(result.periods).toHaveLength(35); // 2 historical + 3 transition + 30 dynamic = 35 periods
 
       // Validate balance sheet balancing
       expect(result.validation.allPeriodsBalanced).toBe(true);

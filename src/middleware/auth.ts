@@ -13,6 +13,69 @@ export interface AuthenticatedUser {
   role: Role;
 }
 
+// ============================================================================
+// SESSION CACHE - Reduces database lookups by caching user data
+// ============================================================================
+
+interface CachedUser {
+  user: AuthenticatedUser;
+  expiresAt: number;
+}
+
+/**
+ * In-memory cache for authenticated user sessions.
+ * TTL: 10 minutes - balances performance with role change propagation.
+ */
+const SESSION_CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes
+const MAX_CACHE_SIZE = 1000; // Prevent unbounded growth
+const userSessionCache = new Map<string, CachedUser>();
+
+/**
+ * Get cached user data if not expired
+ */
+function getCachedUser(userId: string): AuthenticatedUser | null {
+  const cached = userSessionCache.get(userId);
+  if (!cached) return null;
+
+  // Check if expired
+  if (Date.now() > cached.expiresAt) {
+    userSessionCache.delete(userId);
+    return null;
+  }
+
+  return cached.user;
+}
+
+/**
+ * Cache user data with TTL
+ */
+function cacheUser(user: AuthenticatedUser): void {
+  // Prevent unbounded cache growth - evict oldest if at limit
+  if (userSessionCache.size >= MAX_CACHE_SIZE) {
+    const oldestKey = userSessionCache.keys().next().value;
+    if (oldestKey) userSessionCache.delete(oldestKey);
+  }
+
+  userSessionCache.set(user.id, {
+    user,
+    expiresAt: Date.now() + SESSION_CACHE_TTL_MS,
+  });
+}
+
+/**
+ * Invalidate a user's cached session (call on role change, logout, etc.)
+ */
+export function invalidateUserSession(userId: string): void {
+  userSessionCache.delete(userId);
+}
+
+/**
+ * Clear all cached sessions (useful for testing or admin actions)
+ */
+export function clearAllSessions(): void {
+  userSessionCache.clear();
+}
+
 /**
  * Result of authentication attempt
  */
@@ -75,7 +138,7 @@ export async function authenticateUser(): Promise<AuthResult> {
   try {
     const supabase = await createSupabaseServerClient();
 
-    // Get authenticated user from Supabase Auth
+    // Get authenticated user from Supabase Auth (JWT validation - always required)
     const {
       data: { user: authUser },
       error: authError,
@@ -92,7 +155,13 @@ export async function authenticateUser(): Promise<AuthResult> {
       };
     }
 
-    // Fetch user details from database to get role
+    // Check session cache first (avoids database lookup)
+    const cachedUser = getCachedUser(authUser.id);
+    if (cachedUser) {
+      return { success: true, user: cachedUser };
+    }
+
+    // Cache miss - fetch user details from database to get role
     try {
       const dbUser = await prisma.user.findUnique({
         where: { id: authUser.id },
@@ -109,14 +178,16 @@ export async function authenticateUser(): Promise<AuthResult> {
         };
       }
 
-      return {
-        success: true,
-        user: {
-          id: dbUser.id,
-          email: dbUser.email,
-          role: dbUser.role,
-        },
+      const authenticatedUser: AuthenticatedUser = {
+        id: dbUser.id,
+        email: dbUser.email,
+        role: dbUser.role,
       };
+
+      // Cache the user for subsequent requests
+      cacheUser(authenticatedUser);
+
+      return { success: true, user: authenticatedUser };
     } catch (dbError) {
       console.error("Database error in authenticateUser:", dbError);
       return {

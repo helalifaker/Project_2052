@@ -10,6 +10,7 @@
  */
 
 import { describe, it, expect, vi } from "vitest";
+import { NextResponse } from "next/server";
 
 // Define Role enum locally to avoid Prisma client dependency in tests
 enum Role {
@@ -348,9 +349,7 @@ describe("POST /api/proposals/calculate - API Integration", () => {
       const { authenticateUserWithRole } = await import("@/middleware/auth");
       vi.mocked(authenticateUserWithRole).mockResolvedValueOnce({
         success: false,
-        error: new Response(JSON.stringify({ error: "Unauthorized" }), {
-          status: 401,
-        }),
+        error: NextResponse.json({ error: "Unauthorized" }, { status: 401 }),
       });
 
       const request = new Request(

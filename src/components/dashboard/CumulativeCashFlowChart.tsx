@@ -1,5 +1,6 @@
 "use client";
 
+import { memo, useMemo } from "react";
 import { Card } from "@/components/ui/card";
 import {
   AreaChart,
@@ -8,15 +9,22 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip,
-  Legend,
   ResponsiveContainer,
   ReferenceLine,
   type TooltipProps,
 } from "recharts";
 import type { Payload } from "recharts/types/component/DefaultTooltipContent";
 import { formatMillions } from "@/lib/utils/financial";
-import { getProposalColor, chartColors } from "@/lib/design-tokens/chart-colors";
+import {
+  getProposalColor,
+  chartColors,
+} from "@/lib/design-tokens/chart-colors";
 import { getAxisProps, getGridProps } from "@/lib/design-tokens/chart-config";
+import {
+  ChartLegend,
+  type ChartLegendItem,
+} from "@/components/charts/ChartLegend";
+import { ChartInsight } from "@/components/charts/ChartInsight";
 
 interface CashFlowData {
   proposalId: string;
@@ -47,32 +55,49 @@ type ChartTooltipProps = TooltipProps<number, string> & {
 const CustomTooltip = ({ active, payload, label }: ChartTooltipProps) => {
   if (active && payload && payload.length) {
     return (
-      <div className="executive-tooltip">
-        <p className="executive-tooltip-label">Year {label}</p>
-        {payload.map((entry, index) => {
-          const value = toNumber(entry.value);
-          const isPositive = value >= 0;
-          return (
-            <div
-              key={String(entry.dataKey ?? entry.name ?? index)}
-              className="flex items-center gap-2 text-sm mb-1"
-            >
+      <div
+        className="rounded-xl border p-3 shadow-floating"
+        style={{
+          backgroundColor: "hsl(var(--color-background))",
+          borderColor: "hsl(24 6% 83%)",
+          minWidth: "180px",
+        }}
+      >
+        <div className="text-xs uppercase tracking-wider font-semibold mb-2 pb-2 border-b border-border">
+          Year {label}
+        </div>
+        <div className="space-y-1.5">
+          {payload.map((entry, index) => {
+            const value = toNumber(entry.value);
+            const isPositive = value >= 0;
+            return (
               <div
-                className="w-3 h-3 rounded-full"
-                style={{ backgroundColor: entry.color }}
-              />
-              <span className="text-muted-foreground">
-                {(entry.name ?? entry.dataKey ?? "Value").toString()}:
-              </span>
-              <span
-                className="font-medium tabular-nums"
-                style={{ color: isPositive ? chartColors.positive : chartColors.negative }}
+                key={String(entry.dataKey ?? entry.name ?? index)}
+                className="flex items-center justify-between gap-3"
               >
-                {formatMillions(value * 1_000_000)}
-              </span>
-            </div>
-          );
-        })}
+                <div className="flex items-center gap-2">
+                  <div
+                    className="w-2 h-2 rounded-full flex-shrink-0"
+                    style={{ backgroundColor: entry.color }}
+                  />
+                  <span className="text-xs text-muted-foreground">
+                    {(entry.name ?? entry.dataKey ?? "Value").toString()}
+                  </span>
+                </div>
+                <span
+                  className="font-semibold tabular-nums text-xs"
+                  style={{
+                    color: isPositive
+                      ? chartColors.positive
+                      : chartColors.negative,
+                  }}
+                >
+                  {formatMillions(value * 1_000_000)}
+                </span>
+              </div>
+            );
+          })}
+        </div>
       </div>
     );
   }
@@ -83,48 +108,85 @@ const CustomTooltip = ({ active, payload, label }: ChartTooltipProps) => {
  * Chart 3: Cumulative Cash Flow
  *
  * Area chart showing cumulative cash flow over time
- * Green zones for positive cash flow
- * Red zones for negative cash flow
+ * Simplified to match dashboard design system
+ *
+ * Performance: Wrapped with memo and uses useMemo for derived data
  */
-export function CumulativeCashFlowChart({
-  data,
-}: CumulativeCashFlowChartProps) {
-  if (!data || data.length === 0) {
+function CumulativeCashFlowChartInner({ data }: CumulativeCashFlowChartProps) {
+  // Memoize derived data to prevent recalculation on every render
+  const { chartData, winner, legendItems } = useMemo(() => {
+    if (!data || data.length === 0) {
+      return { chartData: [], winner: null, legendItems: [] };
+    }
+
+    // Get all unique years
+    const allYears = Array.from(
+      new Set(data.flatMap((p) => p.data.map((d) => d.year))),
+    ).sort((a, b) => a - b);
+
+    // Sample every 2 years for better readability
+    const sampledYears = allYears.filter((_, idx) => idx % 2 === 0);
+
+    // Create chart data
+    const chartData: ChartPoint[] = sampledYears.map((year) => {
+      const point: ChartPoint = { year };
+      data.forEach((proposal) => {
+        const yearData = proposal.data.find((d) => d.year === year);
+        if (yearData) {
+          point[proposal.proposalId] = yearData.cumulative / 1_000_000; // Convert to millions
+        }
+      });
+      return point;
+    });
+
+    // Determine winner (highest final cumulative cash)
+    const finalCashByProposal = data.map((p) => ({
+      ...p,
+      finalCash: p.data[p.data.length - 1]?.cumulative || 0,
+    }));
+    const winner = finalCashByProposal.reduce((best, curr) =>
+      curr.finalCash > best.finalCash ? curr : best,
+    );
+
+    // Build legend items
+    const legendItems: ChartLegendItem[] = data.map((proposal, index) => {
+      const finalCash =
+        proposal.data[proposal.data.length - 1]?.cumulative || 0;
+      const isWinner = proposal.proposalId === winner.proposalId;
+      return {
+        id: proposal.proposalId,
+        label: proposal.proposalName,
+        color: getProposalColor(index),
+        value: formatMillions(finalCash),
+        isWinner,
+        isPositive: finalCash >= 0,
+      };
+    });
+
+    return { chartData, winner, legendItems };
+  }, [data]);
+
+  // Early return for empty data
+  if (!data || data.length === 0 || !winner) {
     return (
       <Card className="p-6">
         <h3 className="text-lg font-semibold mb-4">Cumulative Cash Flow</h3>
-        <div className="h-[400px] flex items-center justify-center text-muted-foreground">
+        <div className="h-[280px] flex items-center justify-center text-muted-foreground">
           <p>No cash flow data available</p>
         </div>
       </Card>
     );
   }
 
-  // Get all unique years
-  const allYears = Array.from(
-    new Set(data.flatMap((p) => p.data.map((d) => d.year))),
-  ).sort((a, b) => a - b);
-
-  // Sample every 2 years for better readability
-  const sampledYears = allYears.filter((_, idx) => idx % 2 === 0);
-
-  // Create chart data
-  const chartData: ChartPoint[] = sampledYears.map((year) => {
-    const point: ChartPoint = { year };
-    data.forEach((proposal) => {
-      const yearData = proposal.data.find((d) => d.year === year);
-      if (yearData) {
-        point[proposal.proposalId] = yearData.cumulative / 1_000_000; // Convert to millions
-      }
-    });
-    return point;
-  });
-
   return (
-    <div className="flex flex-col h-full gap-4">
-      <div className="flex-1 min-h-[300px]">
+    <div className="flex flex-col h-full">
+      {/* Chart */}
+      <div className="flex-1 min-h-0">
         <ResponsiveContainer width="100%" height="100%">
-          <AreaChart data={chartData}>
+          <AreaChart
+            data={chartData}
+            margin={{ top: 5, right: 20, left: 10, bottom: 5 }}
+          >
             <defs>
               {data.map((proposal, index) => {
                 const color = getProposalColor(index);
@@ -137,21 +199,12 @@ export function CumulativeCashFlowChart({
                     x2="0"
                     y2="1"
                   >
-                    <stop
-                      offset="5%"
-                      stopColor={color}
-                      stopOpacity={0.4}
-                    />
-                    <stop
-                      offset="95%"
-                      stopColor={color}
-                      stopOpacity={0.05}
-                    />
+                    <stop offset="5%" stopColor={color} stopOpacity={0.3} />
+                    <stop offset="95%" stopColor={color} stopOpacity={0.05} />
                   </linearGradient>
                 );
               })}
             </defs>
-            {/* Minimal horizontal grid */}
             <CartesianGrid {...getGridProps()} />
             <XAxis
               {...getAxisProps("x")}
@@ -163,23 +216,16 @@ export function CumulativeCashFlowChart({
               tickFormatter={(value) => `${value.toFixed(0)}M`}
             />
             <Tooltip content={<CustomTooltip />} />
-            <Legend
-              wrapperStyle={{ paddingTop: "20px" }}
-              formatter={(value) => {
-                const proposal = data.find((p) => p.proposalId === value);
-                return <span className="text-sm text-foreground">{proposal ? proposal.proposalName : value}</span>;
-              }}
-            />
             <ReferenceLine
               y={0}
               stroke={chartColors.axis}
-              strokeDasharray="5 5"
-              strokeWidth={2}
+              strokeDasharray="4 4"
+              strokeWidth={1.5}
               label={{
                 value: "Break-even",
                 position: "right",
                 fill: "hsl(var(--muted-foreground))",
-                fontSize: 12,
+                fontSize: 10,
               }}
             />
             {data.map((proposal, index) => (
@@ -188,7 +234,9 @@ export function CumulativeCashFlowChart({
                 type="monotone"
                 dataKey={proposal.proposalId}
                 stroke={getProposalColor(index)}
-                strokeWidth={2}
+                strokeWidth={
+                  proposal.proposalId === winner.proposalId ? 2.5 : 1.5
+                }
                 fill={`url(#gradient-${proposal.proposalId})`}
                 name={proposal.proposalName}
               />
@@ -197,56 +245,14 @@ export function CumulativeCashFlowChart({
         </ResponsiveContainer>
       </div>
 
-      {/* Legend with theme colors */}
-      <div className="flex flex-wrap gap-4 pt-4 border-t border-border shrink-0">
-        {data.map((proposal, index) => {
-          const finalCash =
-            proposal.data[proposal.data.length - 1]?.cumulative || 0;
-          const isPositive = finalCash >= 0;
-          return (
-            <div
-              key={proposal.proposalId}
-              className="flex items-center gap-2"
-            >
-              <div
-                className="w-3 h-3 rounded-full"
-                style={{
-                  backgroundColor: getProposalColor(index),
-                }}
-              />
-              <span className="text-sm">
-                {proposal.proposalName}:{" "}
-                <span
-                  className="font-medium tabular-nums"
-                  style={{ color: isPositive ? chartColors.positive : chartColors.negative }}
-                >
-                  {formatMillions(finalCash)}
-                </span>
-              </span>
-            </div>
-          );
-        })}
-      </div>
+      {/* Unified Legend */}
+      <ChartLegend items={legendItems} showValues compact />
 
-      {/* Info Box with theme colors */}
-      <div className="bg-accent/50 rounded-xl p-4 border border-border shrink-0">
-        <h4 className="font-semibold text-sm mb-2">Interpretation:</h4>
-        <ul className="text-xs text-muted-foreground space-y-1">
-          <li>
-            <span style={{ color: chartColors.positive }} className="font-semibold">
-              Positive values
-            </span>
-            : Cash surplus (good financial health)
-          </li>
-          <li>
-            <span style={{ color: chartColors.negative }} className="font-semibold">
-              Negative values
-            </span>
-            : Cash deficit (requires external financing)
-          </li>
-          <li>The break-even line shows when proposals turn cash-positive</li>
-        </ul>
-      </div>
+      {/* Insight Message */}
+      <ChartInsight message="💡 Break-even line shows when proposals turn cash-positive." />
     </div>
   );
 }
+
+// Memoize component to prevent re-renders when parent state changes but data hasn't
+export const CumulativeCashFlowChart = memo(CumulativeCashFlowChartInner);

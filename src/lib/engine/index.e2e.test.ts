@@ -251,7 +251,7 @@ function createCalculationInput(rentModel: RentModel): CalculationEngineInput {
     },
     rentModel,
     rentParams,
-    otherOpexPercent: new Decimal(0.10), // 10% of revenue
+    otherOpexPercent: new Decimal(0.1), // 10% of revenue
     capexConfig, // Use the properly configured CAPEX
   };
 
@@ -263,6 +263,7 @@ function createCalculationInput(rentModel: RentModel): CalculationEngineInput {
 
   return {
     systemConfig,
+    contractPeriodYears: 30,
     historicalPeriods,
     transitionPeriods,
     workingCapitalRatios,

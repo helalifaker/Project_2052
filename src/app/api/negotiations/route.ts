@@ -74,13 +74,27 @@ export async function GET(req: Request) {
       where.status = statusFilter as ProposalStatus;
     }
 
+    // Use select to only fetch needed fields - avoids loading large JSON columns
+    // (financials/metrics can be 50-100KB each)
     const proposals = await prisma.leaseProposal.findMany({
       where,
+      select: {
+        id: true,
+        developer: true,
+        property: true,
+        version: true,
+        origin: true,
+        status: true,
+        negotiationRound: true,
+        createdAt: true,
+        updatedAt: true,
+      },
       orderBy: [
         { developer: "asc" },
         { property: "asc" },
         { updatedAt: "desc" },
       ],
+      take: 500, // Limit to prevent memory issues with large datasets
     });
 
     const threads = new Map<string, NegotiationThread>();

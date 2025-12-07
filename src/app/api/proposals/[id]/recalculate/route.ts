@@ -12,7 +12,10 @@ import { prisma } from "@/lib/prisma";
 import { authenticateUserWithRole } from "@/middleware/auth";
 import { Role } from "@/lib/types/roles";
 import type { InputJsonValue } from "@/lib/types/prisma-helpers";
-import { calculateFinancialProjections } from "@/lib/engine";
+import {
+  calculateWithTimeout,
+  CalculationTimeoutError,
+} from "@/lib/engine/core/calculation-utils";
 import type { CalculationEngineOutput } from "@/lib/engine/core/types";
 import {
   reconstructCalculationInput,
@@ -93,10 +96,25 @@ export async function POST(
     // Invalidate cache for this proposal
     invalidateProposalCache(proposalId);
 
-    // Run calculation
+    // Run calculation with timeout protection
     const calculationStartTime = performance.now();
-    const result: CalculationEngineOutput =
-      await calculateFinancialProjections(input);
+    let result: CalculationEngineOutput;
+    try {
+      result = await calculateWithTimeout(input);
+    } catch (error) {
+      if (error instanceof CalculationTimeoutError) {
+        console.error("⏱️ Recalculation timeout:", error.message);
+        return NextResponse.json(
+          {
+            error: "Calculation timed out",
+            message:
+              "The financial recalculation took too long. Please try again later.",
+          },
+          { status: 504 },
+        );
+      }
+      throw error;
+    }
     const calculationTimeMs = performance.now() - calculationStartTime;
 
     console.log(

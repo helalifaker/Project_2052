@@ -40,10 +40,9 @@ import type {
   SystemConfiguration,
   WorkingCapitalRatios,
   CapExConfiguration,
-  CapExAsset,
   BalanceSheet,
 } from "../core/types";
-import { PeriodType, RentModel, DepreciationMethod } from "../core/types";
+import { PeriodType, RentModel } from "../core/types";
 import { ZERO, ONE } from "../core/constants";
 
 // ============================================================================
@@ -69,21 +68,15 @@ const mockWorkingCapitalRatios: WorkingCapitalRatios = {
 };
 
 const mockCapExConfig: CapExConfiguration = {
-  autoReinvestEnabled: false,
-  existingAssets: [
-    {
-      id: "asset-1",
-      assetName: "Building",
-      purchaseYear: 2023,
-      purchaseAmount: new D(10000000),
-      usefulLife: 20,
-      depreciationMethod: DepreciationMethod.STRAIGHT_LINE,
-      accumulatedDepreciation: new D(500000),
-      netBookValue: new D(9500000),
-      fullyDepreciated: false,
-    },
-  ],
-  newAssets: [],
+  categories: [],
+  historicalState: {
+    grossPPE2024: new D(10000000),
+    accumulatedDepreciation2024: new D(500000),
+    annualDepreciation: new D(500000),
+    remainingToDepreciate: new D(9500000),
+  },
+  transitionCapex: [],
+  virtualAssets: [],
 };
 
 function createMockPriorPeriod(year: number): FinancialPeriod {
@@ -580,7 +573,7 @@ describe("Profit & Loss Statement", () => {
         growthRate: new D(0.03),
         frequency: 1,
       },
-      otherOpexPercent: new D(0.10), // 10% of revenue
+      otherOpexPercent: new D(0.1), // 10% of revenue
       capexConfig: mockCapExConfig,
     };
 
@@ -634,7 +627,7 @@ describe("Dynamic Period Calculator (Integration)", () => {
       rentParams: {
         revenueSharePercent: new D(0.15),
       },
-      otherOpexPercent: new D(0.10), // 10% of revenue
+      otherOpexPercent: new D(0.1), // 10% of revenue
       capexConfig: mockCapExConfig,
     };
 
@@ -693,7 +686,7 @@ describe("Dynamic Period Calculator (Integration)", () => {
         growthRate: new D(0.03),
         frequency: 1,
       },
-      otherOpexPercent: new D(0.10), // 10% of revenue
+      otherOpexPercent: new D(0.1), // 10% of revenue
       capexConfig: mockCapExConfig,
     };
 

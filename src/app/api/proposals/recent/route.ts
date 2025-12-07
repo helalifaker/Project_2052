@@ -50,15 +50,23 @@ export async function GET(request: Request) {
   }
 
   // 4. Return with or without transformation
+  // Short cache - user's most recent data changes with each proposal creation
+  const cacheHeaders = {
+    "Cache-Control": "private, max-age=60, stale-while-revalidate=30",
+  };
+
   if (includeFormData) {
     const formData = proposalToFormData(proposal);
-    return NextResponse.json({
-      id: proposal.id,
-      name: proposal.name,
-      createdAt: proposal.createdAt,
-      formData,
-    });
+    return NextResponse.json(
+      {
+        id: proposal.id,
+        name: proposal.name,
+        createdAt: proposal.createdAt,
+        formData,
+      },
+      { headers: cacheHeaders },
+    );
   }
 
-  return NextResponse.json(proposal);
+  return NextResponse.json(proposal, { headers: cacheHeaders });
 }

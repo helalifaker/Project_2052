@@ -219,6 +219,7 @@ model LeaseProposal {
   @@index([createdAt], name: "idx_created_at")
   @@index([rentModel], name: "idx_rent_model")
   @@index([createdAt, createdBy], name: "idx_created_composite")
+  @@index([calculatedAt], name: "idx_calculated_at") // For dashboard metrics query
 }
 
 model Scenario {

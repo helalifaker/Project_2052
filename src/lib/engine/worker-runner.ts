@@ -5,6 +5,7 @@ import type {
   CalculationEngineInput,
   CalculationEngineOutput,
 } from "./core/types";
+import { deserializeDecimals } from "./core/serialization";
 
 type WorkerPayload = {
   input: CalculationEngineInput;
@@ -38,16 +39,32 @@ export async function runCalculationInWorker(
       workerData: payload,
     });
 
+    // Track whether we've received a response to handle edge cases
+    let messageReceived = false;
+    let isSettled = false;
+
     const timeout = setTimeout(() => {
-      worker.terminate();
-      reject(new Error("Calculation worker timed out"));
+      if (!isSettled) {
+        isSettled = true;
+        worker.terminate();
+        reject(new Error("Calculation worker timed out"));
+      }
     }, WORKER_TIMEOUT_MS);
 
     worker.once("message", (result: WorkerResult) => {
+      if (isSettled) return;
+      isSettled = true;
+      messageReceived = true;
       clearTimeout(timeout);
+
       if (result.success) {
+        // Deserialize Decimal instances from worker output
+        // Worker serializes Decimals as { __decimal: '123.45' } for Structured Clone Algorithm
+        const deserializedOutput = deserializeDecimals<CalculationEngineOutput>(
+          result.output,
+        );
         resolve({
-          output: result.output,
+          output: deserializedOutput,
           calculationTimeMs: result.calculationTimeMs,
         });
       } else {
@@ -56,15 +73,28 @@ export async function runCalculationInWorker(
     });
 
     worker.once("error", (error) => {
+      if (isSettled) return;
+      isSettled = true;
       clearTimeout(timeout);
       reject(error);
     });
 
     worker.once("exit", (code) => {
       clearTimeout(timeout);
+      if (isSettled) return;
+      isSettled = true;
+
       if (code !== 0) {
         reject(new Error(`Worker stopped with exit code ${code}`));
+      } else if (!messageReceived) {
+        // Worker exited cleanly but never sent a message - this is a bug
+        reject(
+          new Error(
+            "Worker exited without sending result (possible parentPort issue)",
+          ),
+        );
       }
+      // If code === 0 and message was received, already resolved via message handler
     });
   });
 }

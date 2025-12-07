@@ -6,7 +6,13 @@ import { BaseBarChart } from "@/components/charts/BaseBarChart";
 import {
   chartColors,
   chartColorMappings,
+  getProposalColor,
 } from "@/lib/design-tokens/chart-colors";
+import {
+  ChartLegend,
+  type ChartLegendItem,
+} from "@/components/charts/ChartLegend";
+import { ChartInsight } from "@/components/charts/ChartInsight";
 
 interface WaterfallSegment {
   label: string;
@@ -37,11 +43,10 @@ interface ProfitabilityWaterfallChartProps {
 export function ProfitabilityWaterfallChart({
   data,
 }: ProfitabilityWaterfallChartProps) {
-  // Limit to 4 proposals for side-by-side comparison
-  const limitedData = data ? data.slice(0, 4) : [];
-
   // Simplify segments: combine into 5 main categories
+  // Limit to 4 proposals for side-by-side comparison
   const simplifiedData = useMemo(() => {
+    const limitedData = data ? data.slice(0, 4) : [];
     return limitedData.map((proposal) => {
       const segments = proposal.segments;
 
@@ -99,13 +104,14 @@ export function ProfitabilityWaterfallChart({
       ];
 
       return {
+        proposalId: proposal.proposalId,
         proposalName: proposal.proposalName,
         segments: simplified,
         netIncome: proposal.netIncome,
         isWinner: proposal.isWinner,
       };
     });
-  }, [limitedData]);
+  }, [data]);
 
   // Transform for Recharts - create stacked data
   const chartData = useMemo(() => {
@@ -118,7 +124,10 @@ export function ProfitabilityWaterfallChart({
     ];
 
     return allSegmentLabels.map((label, segmentIndex) => {
-      const dataPoint: any = { segment: label, segmentIndex };
+      const dataPoint: Record<string, unknown> = {
+        segment: label,
+        segmentIndex,
+      };
 
       simplifiedData.forEach((proposal, proposalIndex) => {
         const segment = proposal.segments[segmentIndex];
@@ -141,30 +150,30 @@ export function ProfitabilityWaterfallChart({
     return chartColorMappings.profitability.ebitda;
   };
 
+  // Build legend items
+  const legendItems: ChartLegendItem[] = simplifiedData.map(
+    (proposal, index) => ({
+      id: proposal.proposalId,
+      label: proposal.proposalName,
+      color: getProposalColor(index),
+      value: formatMillions(proposal.netIncome * 1_000_000),
+      isWinner: proposal.isWinner,
+      isPositive: proposal.netIncome > 0,
+    }),
+  );
+
   if (!data || data.length === 0) {
     return (
-      <div className="flex items-center justify-center h-[500px] text-muted-foreground">
-        No profitability data available
+      <div className="flex items-center justify-center h-full text-muted-foreground">
+        <p className="text-sm">No profitability data available</p>
       </div>
     );
   }
 
   return (
-    <div className="space-y-4">
-      {/* Explanatory Note */}
-      <div className="text-xs text-muted-foreground bg-muted/30 rounded-lg p-3 border border-border/50">
-        <p className="flex items-center gap-2">
-          <span className="text-base">💡</span>
-          <span>
-            Average annual profitability waterfall showing how revenue flows
-            through costs to net income. Values averaged across contract period
-            for fair comparison between 25Y and 30Y contracts.
-          </span>
-        </p>
-      </div>
-
-      {/* Chart - Using custom implementation for waterfall-specific behavior */}
-      <div className="h-[500px]">
+    <div className="flex flex-col h-full">
+      {/* Chart */}
+      <div className="flex-1 min-h-0">
         <BaseBarChart
           data={chartData}
           series={simplifiedData.map((proposal, index) => ({
@@ -172,7 +181,10 @@ export function ProfitabilityWaterfallChart({
             name: proposal.proposalName,
             color: chartColorMappings.profitability.ebitda,
             cellColors: chartData.map((entry) => {
-              const type = entry[`proposal${index}_type`];
+              const type = entry[`proposal${index}_type`] as
+                | "positive"
+                | "negative"
+                | "total";
               return getBarColor(type);
             }),
           }))}
@@ -182,61 +194,62 @@ export function ProfitabilityWaterfallChart({
           tooltipContent={
             <CustomWaterfallTooltip simplifiedData={simplifiedData} />
           }
-          height={500}
-          showLegend
+          height={320}
+          showLegend={false}
         />
       </div>
 
-      {/* Summary */}
-      <div className="grid grid-cols-3 gap-4 pt-2">
-        <div className="text-center p-3 bg-muted/20 rounded-lg border border-border/50">
-          <p className="text-xs text-muted-foreground mb-1">Most Profitable</p>
-          <p className="text-sm font-semibold">
-            {simplifiedData.find((d) => d.isWinner)?.proposalName || "N/A"}
-          </p>
-          <p
-            className="text-xs mt-1 tabular-nums font-medium"
-            style={{ color: chartColors.positive }}
-          >
-            {simplifiedData.find((d) => d.isWinner)
-              ? formatMillions(
-                  simplifiedData.find((d) => d.isWinner)!.netIncome * 1_000_000,
-                )
-              : "—"}
-          </p>
-        </div>
-        <div className="text-center p-3 bg-muted/20 rounded-lg border border-border/50">
-          <p className="text-xs text-muted-foreground mb-1">Segments</p>
-          <p className="text-sm font-semibold">Simplified View</p>
-          <p className="text-xs text-muted-foreground mt-1">5 Categories</p>
-        </div>
-        <div className="text-center p-3 bg-muted/20 rounded-lg border border-border/50">
-          <p className="text-xs text-muted-foreground mb-1">Comparing</p>
-          <p className="text-sm font-semibold">
-            {simplifiedData.length} Proposals
-          </p>
-          <p className="text-xs text-muted-foreground mt-1">
-            {data.length > 4 && `(Top 4 of ${data.length})`}
-          </p>
-        </div>
-      </div>
+      {/* Unified Legend */}
+      <ChartLegend items={legendItems} showValues compact />
+
+      {/* Insight Message */}
+      <ChartInsight message="💡 Shows how revenue flows through costs to net income." />
     </div>
   );
 }
 
 // Custom tooltip with segment type styling
-const CustomWaterfallTooltip = ({ active, payload, simplifiedData }: any) => {
+interface TooltipDataItem {
+  proposalName: string;
+  segments: WaterfallSegment[];
+  netIncome: number;
+  isWinner: boolean;
+}
+
+const CustomWaterfallTooltip = ({
+  active,
+  payload,
+  simplifiedData,
+}: {
+  active?: boolean;
+  payload?: Array<{ payload: Record<string, unknown> }>;
+  simplifiedData: TooltipDataItem[];
+}) => {
   if (active && payload && payload.length) {
     const data = payload[0].payload;
 
     return (
-      <div className="bg-background/95 backdrop-blur-sm border border-border rounded-lg p-3 shadow-lg max-w-xs">
-        <p className="font-semibold text-sm mb-2">{data.segment}</p>
-        <div className="space-y-1.5">
-          {simplifiedData.map((proposal: any, index: number) => {
-            const value = data[`proposal${index}`];
-            const cumulative = data[`proposal${index}_cumulative`];
-            const type = data[`proposal${index}_type`];
+      <div
+        className="rounded-xl border p-3 shadow-floating max-w-xs"
+        style={{
+          backgroundColor: "hsl(var(--color-background))",
+          borderColor: "hsl(24 6% 83%)",
+        }}
+      >
+        <p className="font-semibold text-sm mb-2 pb-2 border-b border-border">
+          {data.segment as string}
+        </p>
+        <div className="space-y-2">
+          {simplifiedData.map((proposal, index) => {
+            const value = data[`proposal${index}`] as number | undefined;
+            const cumulative = data[`proposal${index}_cumulative`] as
+              | number
+              | undefined;
+            const type = data[`proposal${index}_type`] as
+              | "positive"
+              | "negative"
+              | "total"
+              | undefined;
 
             if (value === undefined) return null;
 
@@ -249,7 +262,7 @@ const CustomWaterfallTooltip = ({ active, payload, simplifiedData }: any) => {
 
             return (
               <div key={index} className="text-xs">
-                <p className="text-muted-foreground mb-0.5">
+                <p className="text-muted-foreground mb-0.5 font-medium">
                   {proposal.proposalName}
                 </p>
                 <div className="flex justify-between gap-3">
@@ -258,12 +271,14 @@ const CustomWaterfallTooltip = ({ active, payload, simplifiedData }: any) => {
                     {formatMillions(value * 1_000_000)}
                   </span>
                 </div>
-                <div className="flex justify-between gap-3 text-muted-foreground">
-                  <span>Running:</span>
-                  <span className="tabular-nums">
-                    {formatMillions(cumulative * 1_000_000)}
-                  </span>
-                </div>
+                {cumulative !== undefined && (
+                  <div className="flex justify-between gap-3 text-muted-foreground">
+                    <span>Running:</span>
+                    <span className="tabular-nums">
+                      {formatMillions(cumulative * 1_000_000)}
+                    </span>
+                  </div>
+                )}
               </div>
             );
           })}

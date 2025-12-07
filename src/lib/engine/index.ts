@@ -101,10 +101,18 @@ export async function calculateFinancialProjections(
   const expectedPeriodCount = getTotalPeriodCount(input.contractPeriodYears);
 
   console.log("🎯 Starting Financial Calculation Engine...");
-  console.log(`📅 Projection Period: ${HISTORICAL_START_YEAR}-${dynamicEndYear}`);
-  console.log(`   Historical: ${HISTORICAL_START_YEAR}-${HISTORICAL_END_YEAR} (2 periods)`);
-  console.log(`   Transition: ${TRANSITION_START_YEAR}-${TRANSITION_END_YEAR} (3 periods)`);
-  console.log(`   Dynamic: ${DYNAMIC_START_YEAR}-${dynamicEndYear} (${input.contractPeriodYears} periods)`);
+  console.log(
+    `📅 Projection Period: ${HISTORICAL_START_YEAR}-${dynamicEndYear}`,
+  );
+  console.log(
+    `   Historical: ${HISTORICAL_START_YEAR}-${HISTORICAL_END_YEAR} (2 periods)`,
+  );
+  console.log(
+    `   Transition: ${TRANSITION_START_YEAR}-${TRANSITION_END_YEAR} (3 periods)`,
+  );
+  console.log(
+    `   Dynamic: ${DYNAMIC_START_YEAR}-${dynamicEndYear} (${input.contractPeriodYears} periods)`,
+  );
   console.log(`   Total: ${expectedPeriodCount} periods`);
 
   try {
@@ -117,7 +125,7 @@ export async function calculateFinancialProjections(
     const capexValidationErrors = validateCapexConfig(input.capexConfig);
     if (capexValidationErrors.length > 0) {
       console.error("❌ CAPEX Configuration Errors:");
-      capexValidationErrors.forEach(err => console.error(`   - ${err}`));
+      capexValidationErrors.forEach((err) => console.error(`   - ${err}`));
       throw new Error("Invalid CAPEX configuration");
     }
 
@@ -125,7 +133,8 @@ export async function calculateFinancialProjections(
     // These values come from the first historical period in input
     let historicalDepreciationState: HistoricalDepreciationState = {
       grossPPE2024: input.capexConfig.historicalState.grossPPE2024,
-      accumulatedDepreciation2024: input.capexConfig.historicalState.accumulatedDepreciation2024,
+      accumulatedDepreciation2024:
+        input.capexConfig.historicalState.accumulatedDepreciation2024,
       annualDepreciation: input.capexConfig.historicalState.annualDepreciation,
       remainingToDepreciate: subtract(
         input.capexConfig.historicalState.grossPPE2024,
@@ -134,9 +143,15 @@ export async function calculateFinancialProjections(
     };
 
     console.log(`  ✓ Historical Depreciation Initialized`);
-    console.log(`    - Gross PPE 2024: ${historicalDepreciationState.grossPPE2024.toFixed(2)}`);
-    console.log(`    - Annual Depreciation: ${historicalDepreciationState.annualDepreciation.toFixed(2)}`);
-    console.log(`    - Remaining: ${historicalDepreciationState.remainingToDepreciate.toFixed(2)}`);
+    console.log(
+      `    - Gross PPE 2024: ${historicalDepreciationState.grossPPE2024.toFixed(2)}`,
+    );
+    console.log(
+      `    - Annual Depreciation: ${historicalDepreciationState.annualDepreciation.toFixed(2)}`,
+    );
+    console.log(
+      `    - Remaining: ${historicalDepreciationState.remainingToDepreciate.toFixed(2)}`,
+    );
 
     // Track all virtual assets across periods
     let allVirtualAssets = [...input.capexConfig.virtualAssets];
@@ -165,7 +180,9 @@ export async function calculateFinancialProjections(
       );
 
       console.log(`  ✓ Year ${historicalInput.year} calculated`);
-      console.log(`    - Remaining to Depreciate: ${historicalDepreciationState.remainingToDepreciate.toFixed(2)}`);
+      console.log(
+        `    - Remaining to Depreciate: ${historicalDepreciationState.remainingToDepreciate.toFixed(2)}`,
+      );
     }
 
     // ========================================================================
@@ -201,7 +218,10 @@ export async function calculateFinancialProjections(
 
       // Accumulate virtual assets (transition period can create new ones)
       if ((period as any).capexResult) {
-        allVirtualAssets = [...allVirtualAssets, ...(period as any).capexResult.newAssets];
+        allVirtualAssets = [
+          ...allVirtualAssets,
+          ...(period as any).capexResult.newAssets,
+        ];
       }
 
       console.log(`  ✓ Year ${transitionInput.year} calculated`);
@@ -210,7 +230,9 @@ export async function calculateFinancialProjections(
     // ========================================================================
     // PHASE 3: DYNAMIC PERIOD (variable: 2028-2052 or 2028-2057)
     // ========================================================================
-    console.log(`📊 Calculating Dynamic Period (${DYNAMIC_START_YEAR}-${dynamicEndYear})...`);
+    console.log(
+      `📊 Calculating Dynamic Period (${DYNAMIC_START_YEAR}-${dynamicEndYear})...`,
+    );
 
     for (let year = DYNAMIC_START_YEAR; year <= dynamicEndYear; year++) {
       const previousPeriod = allPeriods[allPeriods.length - 1];
@@ -249,7 +271,10 @@ export async function calculateFinancialProjections(
 
       // Accumulate virtual assets created this year
       if ((period as any).capexResult) {
-        allVirtualAssets = [...allVirtualAssets, ...(period as any).capexResult.newAssets];
+        allVirtualAssets = [
+          ...allVirtualAssets,
+          ...(period as any).capexResult.newAssets,
+        ];
       }
 
       if (year % 5 === 0 || year === dynamicEndYear) {
@@ -393,9 +418,7 @@ function calculateMetrics(
       console.error(
         `❌ calculateMetrics: Period ${period.year} missing required statements`,
       );
-      throw new Error(
-        `Invalid period structure for year ${period.year}`,
-      );
+      throw new Error(`Invalid period structure for year ${period.year}`);
     }
   }
 
@@ -412,7 +435,9 @@ function calculateMetrics(
 
   // Validate totalEbitda is reasonable (scaled based on contract period length)
   // Base ranges: -3B to +15B for 30 years, scaled proportionally for 25 years
-  const yearsMultiplier = new Decimal(input.contractPeriodYears || 30).dividedBy(30);
+  const yearsMultiplier = new Decimal(
+    input.contractPeriodYears || 30,
+  ).dividedBy(30);
   const MAX_REASONABLE_TOTAL_EBITDA = new Decimal(15e9).times(yearsMultiplier); // 15B * (25/30 or 30/30)
   const MIN_REASONABLE_TOTAL_EBITDA = new Decimal(-3e9).times(yearsMultiplier); // -3B * (25/30 or 30/30)
   if (
@@ -435,7 +460,7 @@ function calculateMetrics(
 
   // Filter to contract period only (2028 to contractEndYear)
   const contractPeriods = periods.filter(
-    (p) => p.year >= contractStartYear && p.year <= contractEndYear
+    (p) => p.year >= contractStartYear && p.year <= contractEndYear,
   );
 
   // Calculate contract period rent
@@ -456,9 +481,10 @@ function calculateMetrics(
   const contractRentNPV = calculateNPV(contractRentCashFlows, discountRate);
 
   // Final cash at end of contract period
-  const contractFinalCash = contractPeriods.length > 0
-    ? contractPeriods[contractPeriods.length - 1].balanceSheet.cash
-    : ZERO;
+  const contractFinalCash =
+    contractPeriods.length > 0
+      ? contractPeriods[contractPeriods.length - 1].balanceSheet.cash
+      : ZERO;
 
   // ========================================================================
   // CONTRACT PERIOD NPV & ANNUALIZED METRICS (Equivalent Annual Value)
@@ -472,26 +498,26 @@ function calculateMetrics(
   // Note: contractRentNPV is negative (costs), so we subtract its absolute value
   const contractNetTenantSurplus = subtract(
     contractEbitdaNPV,
-    contractRentNPV.abs()
+    contractRentNPV.abs(),
   );
 
   // Calculate Annualization Factor: r / (1 - (1 + r)^(-n))
   // This converts NPV to Equivalent Annual Value (EAV) for fair comparison
   const annualizationFactor = calculateAnnualizationFactor(
     discountRate,
-    contractPeriodYears
+    contractPeriodYears,
   );
 
   // Calculate Annualized EBITDA
   const contractAnnualizedEbitda = multiply(
     contractEbitdaNPV,
-    annualizationFactor
+    annualizationFactor,
   );
 
   // Calculate Annualized Rent (absolute value)
   const contractAnnualizedRent = multiply(
     contractRentNPV.abs(),
-    annualizationFactor
+    annualizationFactor,
   );
 
   // Calculate Net Annualized Value (NAV) - KEY DECISION METRIC
@@ -499,7 +525,7 @@ function calculateMetrics(
   // Higher NAV = better proposal for the school (tenant)
   const contractNAV = subtract(
     contractAnnualizedEbitda,
-    contractAnnualizedRent
+    contractAnnualizedRent,
   );
 
   // Calculate average ROE
@@ -583,3 +609,10 @@ function calculatePaybackPeriod(cashFlows: Decimal[]): Decimal | null {
 
 export { calculateFinancialProjections as default };
 export type { CalculationEngineInput, CalculationEngineOutput };
+
+// Re-export convergence stats for performance monitoring
+export {
+  getConvergenceStats,
+  resetConvergenceStats,
+  type SolverConvergenceStats,
+} from "./solvers/circular";

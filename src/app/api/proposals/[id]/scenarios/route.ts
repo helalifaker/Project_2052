@@ -29,6 +29,10 @@ import { prisma } from "@/lib/prisma";
 import { authenticateUserWithRole } from "@/middleware/auth";
 import { Role } from "@/lib/types/roles";
 import { calculateFinancialProjections } from "@/lib/engine";
+import {
+  calculateWithTimeout,
+  CalculationTimeoutError,
+} from "@/lib/engine/core/calculation-utils";
 import type {
   CalculationEngineInput,
   CalculationEngineOutput,
@@ -246,13 +250,33 @@ export async function POST(
     // Apply scenario variables to create modified input
     const scenarioInput = applyScenarioVariables(baselineInput, variables);
 
-    // Run calculation with modified input
+    // Run calculation with modified input (with timeout protection)
     console.log(
       `🎯 Running scenario calculation for proposal ${proposalId}...`,
     );
     const calculationStartTime = performance.now();
 
-    const result = await calculateFinancialProjections(scenarioInput);
+    let result: CalculationEngineOutput;
+    let baselineResult: CalculationEngineOutput;
+
+    try {
+      // Run both calculations with timeout protection
+      result = await calculateWithTimeout(scenarioInput);
+      baselineResult = await calculateWithTimeout(baselineInput);
+    } catch (error) {
+      if (error instanceof CalculationTimeoutError) {
+        console.error("⏱️ Scenario calculation timeout:", error.message);
+        return NextResponse.json(
+          {
+            error: "Calculation timed out",
+            message:
+              "The scenario calculation took too long. Please try again later.",
+          },
+          { status: 504 },
+        );
+      }
+      throw error; // Re-throw other errors to be caught by outer catch
+    }
 
     const calculationTimeMs = performance.now() - calculationStartTime;
     console.log(
@@ -267,7 +291,6 @@ export async function POST(
 
     // Calculate baseline metrics fresh to ensure consistency with scenario metrics
     // This avoids mismatches due to stored data drift or rounding differences
-    const baselineResult = await calculateFinancialProjections(baselineInput);
     const baselineMetrics = extractScenarioMetrics(
       baselineResult,
       baselineInput.systemConfig.debtInterestRate ?? new Decimal(0.1),

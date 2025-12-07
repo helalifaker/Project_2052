@@ -1,7 +1,13 @@
 "use client";
 
+import { memo, useMemo } from "react";
 import { Card } from "@/components/ui/card";
 import { BaseLineChart } from "@/components/charts/BaseLineChart";
+import {
+  ChartLegend,
+  type ChartLegendItem,
+} from "@/components/charts/ChartLegend";
+import { ChartInsight } from "@/components/charts/ChartInsight";
 import { getProposalColor } from "@/lib/design-tokens/chart-colors";
 import { formatMillions } from "@/lib/utils/financial";
 import type { TooltipProps } from "recharts";
@@ -98,8 +104,63 @@ const RentTrajectoryTooltip = ({
  *
  * Line chart showing rent over 30 years for all proposals
  * Winner highlighted with thicker line
+ * Performance: Wrapped with memo and uses useMemo for derived data
  */
-export function RentTrajectoryChart({ data }: RentTrajectoryChartProps) {
+function RentTrajectoryChartInner({ data }: RentTrajectoryChartProps) {
+  // Memoize derived data to prevent recalculation on every render
+  const { chartData, proposalLookup, series, legendItems } = useMemo(() => {
+    if (!data || data.length === 0) {
+      return { chartData: [], proposalLookup: {}, series: [], legendItems: [] };
+    }
+
+    // Transform data for recharts
+    // Get all unique years
+    const allYears = Array.from(
+      new Set(data.flatMap((p) => p.data.map((d) => d.year))),
+    ).sort((a, b) => a - b);
+
+    // Sample every 2 years for better readability
+    const sampledYears = allYears.filter((_, idx) => idx % 2 === 0);
+
+    // Create chart data
+    const chartData: ChartPoint[] = sampledYears.map((year) => {
+      const point: ChartPoint = { year };
+      data.forEach((proposal) => {
+        const yearData = proposal.data.find((d) => d.year === year);
+        if (yearData) {
+          point[proposal.proposalId] = yearData.rent / 1_000_000; // Convert to millions
+        }
+      });
+      return point;
+    });
+
+    const proposalLookup: TooltipLookup = data.reduce((acc, proposal) => {
+      acc[proposal.proposalId] = {
+        proposalName: proposal.proposalName,
+        isWinner: proposal.isWinner,
+      };
+      return acc;
+    }, {} as TooltipLookup);
+
+    // Prepare series configuration for BaseLineChart
+    const series = data.map((proposal, index) => ({
+      dataKey: proposal.proposalId,
+      name: proposal.proposalName,
+      color: getProposalColor(index),
+      strokeWidth: proposal.isWinner ? 3 : 2,
+    }));
+
+    // Build legend items using the shared component interface
+    const legendItems: ChartLegendItem[] = data.map((proposal, index) => ({
+      id: proposal.proposalId,
+      label: `${proposal.proposalName} (${proposal.rentModel})`,
+      color: getProposalColor(index),
+      isWinner: proposal.isWinner,
+    }));
+
+    return { chartData, proposalLookup, series, legendItems };
+  }, [data]);
+
   if (!data || data.length === 0) {
     return (
       <Card className="p-6">
@@ -113,47 +174,10 @@ export function RentTrajectoryChart({ data }: RentTrajectoryChartProps) {
     );
   }
 
-  // Transform data for recharts
-  // Get all unique years
-  const allYears = Array.from(
-    new Set(data.flatMap((p) => p.data.map((d) => d.year))),
-  ).sort((a, b) => a - b);
-
-  // Sample every 2 years for better readability
-  const sampledYears = allYears.filter((_, idx) => idx % 2 === 0);
-
-  // Create chart data
-  const chartData: ChartPoint[] = sampledYears.map((year) => {
-    const point: ChartPoint = { year };
-    data.forEach((proposal) => {
-      const yearData = proposal.data.find((d) => d.year === year);
-      if (yearData) {
-        point[proposal.proposalId] = yearData.rent / 1_000_000; // Convert to millions
-      }
-    });
-    return point;
-  });
-
-  const proposalLookup: TooltipLookup = data.reduce((acc, proposal) => {
-    acc[proposal.proposalId] = {
-      proposalName: proposal.proposalName,
-      isWinner: proposal.isWinner,
-    };
-    return acc;
-  }, {} as TooltipLookup);
-
-  // Prepare series configuration for BaseLineChart
-  const series = data.map((proposal, index) => ({
-    dataKey: proposal.proposalId,
-    name: proposal.proposalName,
-    color: getProposalColor(index),
-    strokeWidth: proposal.isWinner ? 3 : 2,
-  }));
-
   return (
-    <div className="flex flex-col h-full gap-4">
+    <div className="flex flex-col h-full">
       {/* Chart */}
-      <div className="flex-1 min-h-[300px]">
+      <div className="flex-1 min-h-0">
         <BaseLineChart
           data={chartData}
           series={series}
@@ -163,36 +187,19 @@ export function RentTrajectoryChart({ data }: RentTrajectoryChartProps) {
           tooltipContent={
             <RentTrajectoryTooltip proposalLookup={proposalLookup} />
           }
-          showLegend={false} // Using custom legend below
-          height={300}
+          showLegend={false}
+          height={280}
         />
       </div>
 
-      {/* Custom Legend with Rent Model and Winner indicator */}
-      <div className="flex flex-wrap gap-4 pt-4 border-t border-border shrink-0">
-        {data.map((proposal, index) => (
-          <div key={proposal.proposalId} className="flex items-center gap-2">
-            <div
-              className="w-3 h-3 rounded-full"
-              style={{ backgroundColor: getProposalColor(index) }}
-            />
-            <span className="text-sm">
-              {proposal.proposalName} ({proposal.rentModel})
-            </span>
-            {proposal.isWinner && (
-              <span
-                className="text-xs px-2 py-0.5 rounded font-medium"
-                style={{
-                  backgroundColor: "hsl(var(--color-financial-positive))",
-                  color: "white",
-                }}
-              >
-                Winner
-              </span>
-            )}
-          </div>
-        ))}
-      </div>
+      {/* Unified Legend */}
+      <ChartLegend items={legendItems} />
+
+      {/* Insight Message */}
+      <ChartInsight message="💡 Lower rent trajectory = better value. Winner marked with ★" />
     </div>
   );
 }
+
+// Memoize component to prevent re-renders when parent state changes but data hasn't
+export const RentTrajectoryChart = memo(RentTrajectoryChartInner);

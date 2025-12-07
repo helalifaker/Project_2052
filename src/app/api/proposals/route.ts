@@ -51,8 +51,20 @@ export async function GET(request: Request) {
     const dateFrom = searchParams.get("dateFrom");
     const dateTo = searchParams.get("dateTo");
 
-    // Sorting
-    const sortBy = searchParams.get("sortBy") || "createdAt";
+    // Sorting with validation to prevent injection
+    const allowedSortFields = [
+      "name",
+      "createdAt",
+      "updatedAt",
+      "calculatedAt",
+      "developer",
+      "rentModel",
+      "status",
+    ];
+    const requestedSortBy = searchParams.get("sortBy") || "createdAt";
+    const sortBy = allowedSortFields.includes(requestedSortBy)
+      ? requestedSortBy
+      : "createdAt";
     const sortOrder = (searchParams.get("sortOrder") || "desc") as
       | "asc"
       | "desc";
@@ -125,15 +137,38 @@ export async function GET(request: Request) {
       },
     });
 
-    return NextResponse.json({
-      data: proposals,
-      pagination: {
-        page,
-        pageSize,
-        total,
-        totalPages: Math.ceil(total / pageSize),
+    // SECURITY: Filter creator info based on user role
+    // Non-admin users only see creator name, not email/role
+    const { user } = authResult;
+    const filteredProposals = proposals.map((proposal) => ({
+      ...proposal,
+      creator: proposal.creator
+        ? user.role === Role.ADMIN
+          ? proposal.creator
+          : {
+              id: proposal.creator.id,
+              name: proposal.creator.name,
+            }
+        : null,
+    }));
+
+    // Short cache with stale-while-revalidate for proposal list
+    return NextResponse.json(
+      {
+        data: filteredProposals,
+        pagination: {
+          page,
+          pageSize,
+          total,
+          totalPages: Math.ceil(total / pageSize),
+        },
       },
-    });
+      {
+        headers: {
+          "Cache-Control": "private, max-age=30, stale-while-revalidate=60",
+        },
+      },
+    );
   } catch (error) {
     console.error("Error fetching proposals:", error);
     return NextResponse.json(

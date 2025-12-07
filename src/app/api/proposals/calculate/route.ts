@@ -14,7 +14,10 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import Decimal from "decimal.js";
-import { calculateFinancialProjections } from "@/lib/engine";
+import {
+  calculateWithTimeout,
+  CalculationTimeoutError,
+} from "@/lib/engine/core/calculation-utils";
 import type {
   CalculationEngineInput,
   CalculationEngineOutput,
@@ -1040,8 +1043,23 @@ export async function POST(request: Request) {
       cacheHit = true;
       console.log("⚡ Using cached calculation result");
     } else {
-      // Execute calculation engine in-process
-      result = await calculateFinancialProjections(input);
+      // Execute calculation engine with timeout protection
+      try {
+        result = await calculateWithTimeout(input);
+      } catch (error) {
+        if (error instanceof CalculationTimeoutError) {
+          console.error("⏱️ Calculation timeout:", error.message);
+          return NextResponse.json(
+            {
+              error: "Calculation timed out",
+              message:
+                "The financial calculation took too long. Please try simplifying your inputs or try again later.",
+            },
+            { status: 504 },
+          );
+        }
+        throw error; // Re-throw other errors
+      }
 
       // Store result in cache for future requests
       setCachedCalculation(input, result);

@@ -19,9 +19,14 @@ import { prisma } from "@/lib/prisma";
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
-interface HealthCheckResponse {
+// SECURITY: Minimal response for production - prevents information disclosure
+interface MinimalHealthResponse {
   status: "ok" | "error";
   timestamp: string;
+}
+
+// Extended response for development/debugging (authenticated admin only in future)
+interface DetailedHealthCheckResponse extends MinimalHealthResponse {
   uptime: number;
   environment: string;
   version: string;
@@ -44,59 +49,35 @@ interface HealthCheckResponse {
  * GET /api/health
  *
  * Performs health checks on critical system components
+ *
+ * SECURITY: In production, returns minimal response to prevent information disclosure.
+ * Detailed diagnostics are logged server-side but not exposed to clients.
  */
 export async function GET() {
   const startTime = Date.now();
+  const isProduction = process.env.NODE_ENV === "production";
 
   try {
-    // Initialize health check response
-    // Security: Don't expose detailed environment info in production
-    const isProduction = process.env.NODE_ENV === "production";
-    const healthCheck: HealthCheckResponse = {
-      status: "ok",
-      timestamp: new Date().toISOString(),
-      uptime: process.uptime(),
-      environment: isProduction ? "production" : "development",
-      version: "1.0.0", // Don't expose actual version in production
-      checks: {
-        database: {
-          status: "ok",
-        },
-        memory: {
-          status: "ok",
-          used: 0,
-          total: 0,
-          percentage: 0,
-        },
-      },
-    };
+    // Initialize health check status
+    let overallStatus: "ok" | "error" = "ok";
+    let dbStatus: "ok" | "error" = "ok";
+    let dbResponseTime = 0;
+    let dbError: string | undefined;
 
     // Check 1: Database Connectivity
     try {
       const dbStartTime = Date.now();
-
-      // Simple database query to verify connectivity
       await prisma.$queryRaw`SELECT 1 as health_check`;
+      dbResponseTime = Date.now() - dbStartTime;
 
-      const dbResponseTime = Date.now() - dbStartTime;
-
-      healthCheck.checks.database = {
-        status: "ok",
-        responseTime: dbResponseTime,
-      };
-
-      // Warning if database response is slow
       if (dbResponseTime > 1000) {
-        healthCheck.checks.database.status = "ok"; // Still OK but logged
         console.warn(`Database response time is high: ${dbResponseTime}ms`);
       }
     } catch (error) {
-      healthCheck.checks.database = {
-        status: "error",
-        error:
-          error instanceof Error ? error.message : "Unknown database error",
-      };
-      healthCheck.status = "error";
+      dbStatus = "error";
+      dbError =
+        error instanceof Error ? error.message : "Unknown database error";
+      overallStatus = "error";
     }
 
     // Check 2: Memory Usage
@@ -105,38 +86,74 @@ export async function GET() {
     const heapTotal = memUsage.heapTotal;
     const heapPercentage = (heapUsed / heapTotal) * 100;
 
-    healthCheck.checks.memory = {
-      status:
-        heapPercentage > 90 ? "error" : heapPercentage > 75 ? "warning" : "ok",
-      used: Math.round(heapUsed / 1024 / 1024), // MB
-      total: Math.round(heapTotal / 1024 / 1024), // MB
-      percentage: Math.round(heapPercentage),
-    };
-
+    let memoryStatus: "ok" | "warning" | "error" = "ok";
     if (heapPercentage > 90) {
-      healthCheck.status = "error";
+      memoryStatus = "error";
+      overallStatus = "error";
       console.error(`Critical memory usage: ${heapPercentage.toFixed(2)}%`);
     } else if (heapPercentage > 75) {
+      memoryStatus = "warning";
       console.warn(`High memory usage: ${heapPercentage.toFixed(2)}%`);
     }
 
-    // Calculate total response time
     const totalResponseTime = Date.now() - startTime;
+    const statusCode = overallStatus === "ok" ? 200 : 503;
 
-    // Determine HTTP status code
-    const statusCode = healthCheck.status === "ok" ? 200 : 503;
-
-    // Log health check result
+    // Log failures server-side (always, not exposed to client in prod)
     if (statusCode !== 200) {
       console.error("Health check failed:", {
-        status: healthCheck.status,
-        checks: healthCheck.checks,
+        status: overallStatus,
+        database: {
+          status: dbStatus,
+          responseTime: dbResponseTime,
+          error: dbError,
+        },
+        memory: {
+          status: memoryStatus,
+          percentage: Math.round(heapPercentage),
+        },
         responseTime: totalResponseTime,
       });
     }
 
-    // Return appropriate response
-    return NextResponse.json(healthCheck, {
+    // SECURITY: In production, return minimal response only
+    if (isProduction) {
+      const minimalResponse: MinimalHealthResponse = {
+        status: overallStatus,
+        timestamp: new Date().toISOString(),
+      };
+
+      return NextResponse.json(minimalResponse, {
+        status: statusCode,
+        headers: {
+          "Cache-Control": "no-store, no-cache, must-revalidate",
+        },
+      });
+    }
+
+    // Development: Return detailed response for debugging
+    const detailedResponse: DetailedHealthCheckResponse = {
+      status: overallStatus,
+      timestamp: new Date().toISOString(),
+      uptime: process.uptime(),
+      environment: "development",
+      version: "1.0.0",
+      checks: {
+        database: {
+          status: dbStatus,
+          responseTime: dbResponseTime,
+          ...(dbError && { error: dbError }),
+        },
+        memory: {
+          status: memoryStatus,
+          used: Math.round(heapUsed / 1024 / 1024),
+          total: Math.round(heapTotal / 1024 / 1024),
+          percentage: Math.round(heapPercentage),
+        },
+      },
+    };
+
+    return NextResponse.json(detailedResponse, {
       status: statusCode,
       headers: {
         "Cache-Control": "no-store, no-cache, must-revalidate",
@@ -144,22 +161,20 @@ export async function GET() {
       },
     });
   } catch (error) {
-    // Catastrophic failure
+    // Catastrophic failure - log server-side, return minimal to client
     console.error("Health check endpoint error:", error);
 
-    return NextResponse.json(
-      {
-        status: "error",
-        timestamp: new Date().toISOString(),
-        error: error instanceof Error ? error.message : "Unknown error",
+    const errorResponse: MinimalHealthResponse = {
+      status: "error",
+      timestamp: new Date().toISOString(),
+    };
+
+    return NextResponse.json(errorResponse, {
+      status: 503,
+      headers: {
+        "Cache-Control": "no-store, no-cache, must-revalidate",
       },
-      {
-        status: 503,
-        headers: {
-          "Cache-Control": "no-store, no-cache, must-revalidate",
-        },
-      },
-    );
+    });
   }
 }
 

@@ -22,7 +22,12 @@ export async function GET() {
         { status: 404 },
       );
     }
-    return NextResponse.json(config);
+    // Config data rarely changes, cache for 5 minutes with stale-while-revalidate
+    return NextResponse.json(config, {
+      headers: {
+        "Cache-Control": "private, max-age=300, stale-while-revalidate=60",
+      },
+    });
   } catch (error) {
     console.error("Error fetching system config:", error);
     return NextResponse.json(

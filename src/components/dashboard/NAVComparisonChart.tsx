@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { memo, useMemo } from "react";
 import {
   BarChart,
   Bar,
@@ -14,9 +14,17 @@ import {
   LabelList,
 } from "recharts";
 import { formatMillions } from "@/lib/utils/financial";
-import { TrendingUp, Award, Target } from "lucide-react";
-import { chartColors } from "@/lib/design-tokens/chart-colors";
+import { Target } from "lucide-react";
+import {
+  chartColors,
+  getProposalColor,
+} from "@/lib/design-tokens/chart-colors";
 import { getAxisProps, getGridProps } from "@/lib/design-tokens/chart-config";
+import {
+  ChartLegend,
+  type ChartLegendItem,
+} from "@/components/charts/ChartLegend";
+import { ChartInsight } from "@/components/charts/ChartInsight";
 
 interface NAVComparisonData {
   proposalId: string;
@@ -40,6 +48,7 @@ interface NAVTooltipPayload {
   nav: number;
   navRaw: number;
   rank: number;
+  isWinner: boolean;
 }
 
 interface NAVTooltipProps {
@@ -58,65 +67,53 @@ function NAVCustomTooltip({
     const isPositive = data.nav > 0;
 
     return (
-      <div className="bg-background/98 backdrop-blur-md border-2 border-border rounded-xl p-4 shadow-2xl min-w-[280px]">
-        <div className="flex items-start justify-between gap-3 mb-3">
-          <div className="flex-1">
-            <p className="font-bold text-base mb-1">{data.name}</p>
-            <p className="text-xs text-muted-foreground">{data.developer}</p>
-          </div>
-          {data.rank === 1 && (
-            <Award className="w-6 h-6 text-amber-500 flex-shrink-0" />
-          )}
+      <div
+        className="rounded-xl border p-3 shadow-floating"
+        style={{
+          backgroundColor: "hsl(var(--color-background))",
+          borderColor: "hsl(24 6% 83%)",
+          minWidth: "200px",
+        }}
+      >
+        {/* Header */}
+        <div className="mb-2 pb-2 border-b border-border">
+          <p className="font-semibold text-sm">{data.name}</p>
+          <p className="text-xs text-muted-foreground">{data.developer}</p>
         </div>
 
-        <div className="space-y-3">
-          {/* NAV Value */}
-          <div className="bg-muted/30 rounded-lg p-3 border border-border/50">
-            <p className="text-xs text-muted-foreground mb-1">
-              Net Annualized Value
-            </p>
-            <p
-              className="text-2xl font-bold tabular-nums"
+        {/* NAV Value */}
+        <div className="space-y-1.5">
+          <div className="flex justify-between gap-4 text-xs">
+            <span className="text-muted-foreground">Net Annualized Value</span>
+            <span
+              className="font-semibold tabular-nums"
               style={{
                 color: isPositive ? chartColors.positive : chartColors.negative,
               }}
             >
-              {formatMillions(data.navRaw)}
-              <span className="text-sm font-normal text-muted-foreground ml-1">
-                /year
-              </span>
-            </p>
+              {formatMillions(data.navRaw)}/yr
+            </span>
           </div>
 
-          {/* Rank Badge */}
-          <div className="flex items-center justify-between text-sm">
+          <div className="flex justify-between gap-4 text-xs">
             <span className="text-muted-foreground">Rank</span>
-            <span className="font-semibold">
+            <span className="font-medium">
               #{data.rank} of {sortedDataLength}
             </span>
           </div>
 
-          {/* Status */}
+          {/* Status indicator */}
           <div
-            className="text-xs py-2 px-3 rounded-lg text-center font-medium"
+            className="text-xs py-1.5 px-2 rounded text-center font-medium mt-2"
             style={{
               backgroundColor: isPositive
-                ? `${chartColors.positive.replace("hsl(", "hsl(").replace(")", " / 0.15)")}`
-                : `${chartColors.negative.replace("hsl(", "hsl(").replace(")", " / 0.15)")}`,
+                ? "hsl(var(--color-financial-positive) / 0.1)"
+                : "hsl(var(--color-financial-negative) / 0.1)",
               color: isPositive ? chartColors.positive : chartColors.negative,
             }}
           >
             {isPositive ? "✓ Value Creating" : "⚠ Value Destroying"}
           </div>
-
-          {data.rank === 1 && (
-            <div className="border-t border-border pt-3 mt-3">
-              <p className="text-xs text-amber-600 dark:text-amber-400 font-medium flex items-center gap-2">
-                <Award className="w-4 h-4" />
-                Highest Value Proposal
-              </p>
-            </div>
-          )}
         </div>
       </div>
     );
@@ -125,137 +122,82 @@ function NAVCustomTooltip({
 }
 
 /**
- * NAV Comparison Chart - Executive Decision Support
+ * NAV Comparison Chart - Simplified & Consistent
  *
  * Net Annualized Value (NAV) = Annual EBITDA - Annual Rent
  * This is THE KEY METRIC for comparing proposals with different contract lengths
  *
- * A horizontal bar chart with dramatic visual hierarchy showing which proposal
- * delivers the most value per year over the contract period
+ * Simplified horizontal bar chart matching the dashboard design system
+ * Performance: Wrapped with memo and uses useMemo for derived data
  */
-export function NAVComparisonChart({ data }: NAVComparisonChartProps) {
+function NAVComparisonChartInner({ data }: NAVComparisonChartProps) {
+  // Memoize derived data to prevent recalculation on every render
+  const { sortedData, chartData, legendItems } = useMemo(() => {
+    if (!data || data.length === 0) {
+      return { sortedData: [], chartData: [], legendItems: [] };
+    }
+
+    // Sort by NAV descending and limit to top 6 for visual clarity
+    const sortedData = [...data].sort((a, b) => b.nav - a.nav).slice(0, 6);
+
+    // Transform data for display (convert to millions)
+    const chartData = sortedData.map((item, index) => ({
+      name: item.proposalName,
+      developer: item.developer,
+      nav: item.nav / 1_000_000,
+      navRaw: item.nav,
+      isWinner: index === 0, // First after sorting is winner
+      rank: index + 1,
+      percentile: item.navPercentile,
+      proposalId: item.proposalId,
+    }));
+
+    // Build legend items
+    const legendItems: ChartLegendItem[] = chartData.map((item, index) => ({
+      id: item.proposalId,
+      label: item.name,
+      color: getProposalColor(index),
+      value: formatMillions(item.navRaw),
+      isWinner: item.isWinner,
+      isPositive: item.nav > 0,
+    }));
+
+    return { sortedData, chartData, legendItems };
+  }, [data]);
+
   if (!data || data.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center h-[400px] text-muted-foreground">
-        <Target className="w-12 h-12 mb-3 opacity-20" />
-        <p>No NAV data available</p>
-        <p className="text-xs mt-1">
-          Calculate proposals to see NAV comparison
-        </p>
+      <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
+        <Target className="w-10 h-10 mb-2 opacity-20" />
+        <p className="text-sm">No NAV data available</p>
       </div>
     );
   }
 
-  // Sort by NAV descending and limit to top 6 for visual clarity
-  const sortedData = [...data].sort((a, b) => b.nav - a.nav).slice(0, 6);
-
-  // Transform data for display (convert to millions)
-  const chartData = sortedData.map((item, index) => ({
-    name: item.proposalName,
-    developer: item.developer,
-    nav: item.nav / 1_000_000,
-    navRaw: item.nav,
-    isWinner: item.isWinner,
-    rank: index + 1,
-    percentile: item.navPercentile,
-  }));
-
-  // Calculate insights
-  const winner = sortedData[0];
-  const secondBest = sortedData[1];
-  const avgNAV =
-    sortedData.reduce((sum, d) => sum + d.nav, 0) / sortedData.length;
-  const range = winner.nav - sortedData[sortedData.length - 1].nav;
-  const positiveCount = sortedData.filter((d) => d.nav > 0).length;
-  const leadMargin = secondBest
-    ? ((winner.nav - secondBest.nav) / winner.nav) * 100
-    : 0;
-
-  // Determine color based on NAV value and rank
-  const getBarColor = (item: (typeof chartData)[0]) => {
-    if (item.rank === 1) {
-      // Winner: Gold (Solid for better visibility)
-      return chartColors.warning; // amber
-    } else if (item.rank === 2) {
-      // Second: Silver (Solid)
-      return chartColors.axis; // slate-400
-    } else if (item.nav > 0) {
-      // Positive: Green
-      return chartColors.positive;
-    } else {
-      // Negative: Red
-      return chartColors.negative;
-    }
-  };
-
   return (
-    <div className="space-y-5">
-      {/* Hero Metric - Winner Spotlight */}
-      <div className="relative overflow-hidden rounded-xl border-2 border-amber-500/30 bg-gradient-to-br from-amber-500/10 via-amber-500/5 to-transparent p-5">
-        <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/10 rounded-full blur-3xl"></div>
-        <div className="relative flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <div className="flex items-center justify-center w-14 h-14 rounded-full bg-amber-500/20 border-2 border-amber-500/40">
-              <Award className="w-7 h-7 text-amber-600 dark:text-amber-400" />
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">
-                Best Value Proposal
-              </p>
-              <p className="text-xl font-bold mb-1">{winner.proposalName}</p>
-              <p className="text-sm text-muted-foreground">
-                {winner.developer}
-              </p>
-            </div>
-          </div>
-          <div className="text-right">
-            <p className="text-xs text-muted-foreground mb-1">NAV per Year</p>
-            <p className="text-3xl font-bold text-amber-600 dark:text-amber-400 tabular-nums">
-              {formatMillions(winner.nav)}
-            </p>
-            {secondBest && leadMargin > 0 && (
-              <p className="text-xs text-emerald-600 dark:text-emerald-400 mt-1">
-                +{leadMargin.toFixed(1)}% ahead of 2nd place
-              </p>
-            )}
-          </div>
-        </div>
-      </div>
-
+    <div className="flex flex-col h-full">
       {/* Chart */}
-      <div className="h-[380px]">
+      <div className="flex-1 min-h-0">
         <ResponsiveContainer width="100%" height="100%">
           <BarChart
             data={chartData}
             layout="vertical"
-            margin={{ top: 10, right: 80, left: 130, bottom: 10 }}
+            margin={{ top: 5, right: 60, left: 100, bottom: 5 }}
           >
-            <defs>
-              {/* Gradients removed for better visibility as requested */}
-            </defs>
-
             <CartesianGrid
               {...getGridProps({ horizontal: true, vertical: false })}
             />
             <XAxis
               {...getAxisProps("x")}
               type="number"
-              label={{
-                value: "Net Annualized Value (SAR Millions/Year)",
-                position: "insideBottom",
-                offset: -5,
-                style: {
-                  fontSize: 13,
-                  fontWeight: 600,
-                  fill: "hsl(var(--foreground))",
-                },
-              }}
+              tickFormatter={(value) => `${value.toFixed(0)}M`}
             />
             <YAxis
               {...getAxisProps("y")}
               type="category"
               dataKey="name"
-              width={120}
+              width={95}
+              tick={{ fontSize: 11 }}
             />
             <Tooltip
               content={
@@ -266,36 +208,27 @@ export function NAVComparisonChart({ data }: NAVComparisonChartProps) {
             <ReferenceLine
               x={0}
               stroke={chartColors.axis}
-              strokeDasharray="5 5"
-              strokeWidth={2}
+              strokeDasharray="4 4"
+              strokeWidth={1.5}
             />
-            <Bar dataKey="nav" radius={[0, 6, 6, 0]} barSize={32}>
+            <Bar dataKey="nav" radius={[0, 4, 4, 0]} barSize={24}>
               {chartData.map((entry, index) => (
                 <Cell
                   key={`cell-${index}`}
-                  fill={getBarColor(entry)}
-                  opacity={
-                    entry.rank === 1 ? 1 : entry.rank === 2 ? 0.95 : 0.85
-                  }
-                  stroke={entry.rank <= 2 ? "hsl(var(--border))" : "none"}
-                  strokeWidth={entry.rank <= 2 ? 2 : 0}
+                  fill={getProposalColor(index)}
+                  opacity={entry.isWinner ? 1 : 0.85}
                 />
               ))}
               <LabelList
                 dataKey="nav"
                 position="right"
                 formatter={(value) => {
-                  if (value === undefined || value === null || value === false)
-                    return "";
-                  const num =
-                    typeof value === "number"
-                      ? value
-                      : parseFloat(String(value));
-                  return `${num.toFixed(1)}M`;
+                  if (typeof value !== "number") return "";
+                  return `${value.toFixed(1)}M`;
                 }}
                 style={{
-                  fontSize: 11,
-                  fontWeight: 600,
+                  fontSize: 10,
+                  fontWeight: 500,
                   fill: "hsl(var(--foreground))",
                 }}
               />
@@ -304,61 +237,14 @@ export function NAVComparisonChart({ data }: NAVComparisonChartProps) {
         </ResponsiveContainer>
       </div>
 
-      {/* Insights Grid */}
-      <div className="grid grid-cols-4 gap-3">
-        <div className="text-center p-4 bg-gradient-to-br from-amber-500/10 to-amber-500/5 rounded-lg border border-amber-500/30">
-          <TrendingUp className="w-5 h-5 text-amber-600 dark:text-amber-400 mx-auto mb-2" />
-          <p className="text-xs text-muted-foreground mb-1">Winner</p>
-          <p className="text-sm font-bold truncate" title={winner.proposalName}>
-            {winner.proposalName}
-          </p>
-          <p className="text-xs text-amber-600 dark:text-amber-400 mt-1 tabular-nums font-semibold">
-            {formatMillions(winner.nav)}/yr
-          </p>
-        </div>
+      {/* Unified Legend */}
+      <ChartLegend items={legendItems} showValues compact />
 
-        <div className="text-center p-4 bg-muted/20 rounded-lg border border-border/50">
-          <p className="text-xs text-muted-foreground mb-1">Average NAV</p>
-          <p className="text-sm font-semibold">All Proposals</p>
-          <p className="text-xs text-muted-foreground mt-1 tabular-nums">
-            {formatMillions(avgNAV)}/yr
-          </p>
-        </div>
-
-        <div className="text-center p-4 bg-muted/20 rounded-lg border border-border/50">
-          <p className="text-xs text-muted-foreground mb-1">Value Spread</p>
-          <p className="text-sm font-semibold">Range</p>
-          <p className="text-xs text-muted-foreground mt-1 tabular-nums">
-            {formatMillions(range)}/yr
-          </p>
-        </div>
-
-        <div className="text-center p-4 bg-muted/20 rounded-lg border border-border/50">
-          <p className="text-xs text-muted-foreground mb-1">Value Creating</p>
-          <p className="text-sm font-semibold">
-            {positiveCount} of {sortedData.length}
-          </p>
-          <p className="text-xs text-emerald-600 dark:text-emerald-400 mt-1 font-medium">
-            {((positiveCount / sortedData.length) * 100).toFixed(0)}%
-          </p>
-        </div>
-      </div>
-
-      {/* Explanation Note */}
-      <div className="text-xs text-muted-foreground bg-muted/30 rounded-lg p-3 border border-border/50">
-        <p className="flex items-start gap-2">
-          <span className="text-base flex-shrink-0">💡</span>
-          <span>
-            <strong className="text-foreground">
-              NAV (Net Annualized Value)
-            </strong>{" "}
-            is the most important metric for comparing proposals with different
-            contract lengths. It shows the net value created per year: higher is
-            always better. Positive NAV means the proposal creates value;
-            negative means it destroys value.
-          </span>
-        </p>
-      </div>
+      {/* Insight Message */}
+      <ChartInsight message="💡 NAV = Annual value created. Higher is better; negative destroys value." />
     </div>
   );
 }
+
+// Memoize component to prevent re-renders when parent state changes but data hasn't
+export const NAVComparisonChart = memo(NAVComparisonChartInner);

@@ -30,11 +30,13 @@ function expectWithinTolerance(
   actual: number,
   expected: number,
   label: string,
+  customTolerance?: number,
 ) {
+  const tolerance = customTolerance ?? TOLERANCE;
   const diff = Math.abs(actual - expected);
-  expect(diff).toBeLessThanOrEqual(TOLERANCE);
+  expect(diff).toBeLessThanOrEqual(tolerance);
 
-  if (diff > TOLERANCE) {
+  if (diff > tolerance) {
     console.error(
       `${label}: Expected ${expected}, got ${actual}, diff: ${diff}`,
     );

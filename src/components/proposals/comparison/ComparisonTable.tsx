@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/table";
 import { formatMillions } from "@/lib/utils/financial";
 import { cn } from "@/lib/utils";
-import { Check, TrendingDown, TrendingUp } from "lucide-react";
+import { Check } from "lucide-react";
 
 export type ProposalSummary = {
   id: string;
@@ -22,7 +22,16 @@ export type ProposalSummary = {
     totalRent?: number;
     npv?: number;
     totalEbitda?: number;
+    avgEbitda?: number;
     finalCash?: number;
+    maxDebt?: number;
+    peakDebt?: number;
+    // NAV & Annualized Metrics
+    contractEbitdaNPV?: number;
+    contractNetTenantSurplus?: number;
+    contractAnnualizedEbitda?: number;
+    contractAnnualizedRent?: number;
+    contractNAV?: number;
   };
 };
 

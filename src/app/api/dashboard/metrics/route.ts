@@ -119,10 +119,9 @@ type FinancialPeriodSnapshot = {
   balanceSheet?: Record<string, unknown>;
 };
 
-// Allow dashboard to render in local/test environments only when explicitly enabled
-const allowNonProdBypass =
-  process.env.NODE_ENV !== "production" &&
-  process.env.BYPASS_DASHBOARD_AUTH === "true";
+// SECURITY: Auth bypass removed - authentication is always required
+// Previously allowed dashboard to render without auth in non-production environments
+// This was a security risk as dev environments may still contain sensitive data
 
 const parseNumber = (value: unknown): number => {
   if (typeof value === "number") return value;
@@ -206,15 +205,9 @@ export async function GET(_request: Request) {
       Role.VIEWER,
     ]);
 
-    // In non-production we still want the dashboard to render for demos/tests even if auth isn't set up
+    // SECURITY: Always require authentication - no bypass allowed
     if (!authResult.success) {
-      if (allowNonProdBypass) {
-        console.warn(
-          "Dashboard metrics: auth check failed, bypassing in non-production environment",
-        );
-      } else {
-        return authResult.error;
-      }
+      return authResult.error;
     }
 
     // Fetch SystemConfig for discount rate
@@ -223,7 +216,8 @@ export async function GET(_request: Request) {
     });
     const discountRate = systemConfig?.discountRate || new Decimal(0.08);
 
-    // Fetch all calculated proposals
+    // Fetch calculated proposals with pagination to prevent memory issues
+    // Limit to 100 most recently calculated proposals
     const proposals = await prisma.leaseProposal.findMany({
       where: {
         calculatedAt: {
@@ -239,6 +233,10 @@ export async function GET(_request: Request) {
         financials: true,
         contractPeriodYears: true,
       },
+      orderBy: {
+        calculatedAt: "desc",
+      },
+      take: 100, // Performance: prevent OOM with large datasets
     });
 
     if (proposals.length === 0) {
@@ -307,49 +305,34 @@ export async function GET(_request: Request) {
     // Detect contract end year from proposals
     const contractEndYear = detectContractEndYear(typedProposals);
 
-    return NextResponse.json({
-      isEmpty: false,
-      insights,
-      kpis,
-      rentTrajectory: chartData.rentTrajectory,
-      costBreakdown: chartData.costBreakdown, // Keep for backward compatibility
-      avgAnnualCosts: chartData.avgAnnualCosts,
-      npvComparison,
-      navComparison, // KEY METRIC for comparing different contract lengths
-      profitabilityWaterfall,
-      cashFlow: chartData.cashFlow, // Keep for existing components
-      cashFlowComparison: chartData.cashFlowComparison,
-      sensitivity, // Keep for backward compatibility
-      proposalCount: proposals.length,
-      contractEndYear,
-    });
+    return NextResponse.json(
+      {
+        isEmpty: false,
+        insights,
+        kpis,
+        rentTrajectory: chartData.rentTrajectory,
+        costBreakdown: chartData.costBreakdown, // Keep for backward compatibility
+        avgAnnualCosts: chartData.avgAnnualCosts,
+        npvComparison,
+        navComparison, // KEY METRIC for comparing different contract lengths
+        profitabilityWaterfall,
+        cashFlow: chartData.cashFlow, // Keep for existing components
+        cashFlowComparison: chartData.cashFlowComparison,
+        sensitivity, // Keep for backward compatibility
+        proposalCount: proposals.length,
+        contractEndYear,
+      },
+      {
+        headers: {
+          // Cache for 60 seconds - dashboard data can be slightly stale
+          "Cache-Control": "private, max-age=60, stale-while-revalidate=30",
+        },
+      },
+    );
   } catch (error) {
     console.error("Error fetching dashboard metrics:", error);
 
-    // In dev/test, return a harmless empty payload so the page doesn't crash
-    if (allowNonProdBypass) {
-      console.warn(
-        "Dashboard metrics fallback: returning empty dataset due to error in non-production environment",
-      );
-
-      return NextResponse.json({
-        isEmpty: true,
-        kpis: {
-          totalCost: "0",
-          avgNPV: "0",
-          avgIRR: "0",
-          avgPayback: "0",
-          avgNAV: "0",
-        },
-        rentTrajectory: [],
-        costBreakdown: [],
-        cashFlow: [],
-        sensitivity: [],
-        proposalCount: 0,
-        error: "Dashboard data unavailable. Please try again.",
-      });
-    }
-
+    // SECURITY: Return generic error message, log details server-side
     return NextResponse.json(
       {
         error: "Failed to fetch dashboard metrics. Please try again.",
