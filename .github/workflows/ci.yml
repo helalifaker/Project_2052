@@ -43,6 +43,9 @@ jobs:
 
       - name: Generate Prisma Client
         run: pnpm prisma generate
+        env:
+          DATABASE_URL: "postgresql://dummy:dummy@localhost:5432/dummy"
+          DIRECT_URL: "postgresql://dummy:dummy@localhost:5432/dummy"
 
       - name: Run ESLint
         run: pnpm lint
@@ -94,6 +97,9 @@ jobs:
 
       - name: Generate Prisma Client
         run: pnpm prisma generate
+        env:
+          DATABASE_URL: "postgresql://dummy:dummy@localhost:5432/dummy"
+          DIRECT_URL: "postgresql://dummy:dummy@localhost:5432/dummy"
 
       - name: Run unit tests with coverage
         run: pnpm test:coverage
@@ -149,6 +155,9 @@ jobs:
 
       - name: Generate Prisma Client
         run: pnpm prisma generate
+        env:
+          DATABASE_URL: "postgresql://dummy:dummy@localhost:5432/dummy"
+          DIRECT_URL: "postgresql://dummy:dummy@localhost:5432/dummy"
 
       - name: Build application
         run: pnpm build
