@@ -28,7 +28,6 @@ import Decimal from "decimal.js";
 import { prisma } from "@/lib/prisma";
 import { authenticateUserWithRole } from "@/middleware/auth";
 import { Role } from "@/lib/types/roles";
-import { calculateFinancialProjections } from "@/lib/engine";
 import {
   calculateWithTimeout,
   CalculationTimeoutError,
