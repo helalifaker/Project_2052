@@ -4,7 +4,8 @@ import { useMemo } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Check } from "lucide-react";
-import { formatMillions, formatPercent } from "@/lib/utils/financial";
+import { Fragment } from "react";
+import { formatMillions } from "@/lib/utils/financial";
 import { cn } from "@/lib/utils";
 
 /**
@@ -57,6 +58,36 @@ interface MetricDefinition {
   format: (value: number) => string;
   higherIsBetter: boolean;
   description?: string;
+  group: "decision" | "cash" | "rent" | "profitability";
+}
+
+// Group labels for section headers
+const GROUP_LABELS: Record<MetricDefinition["group"], string> = {
+  decision: "Primary Decision Metrics",
+  cash: "Cash Position",
+  rent: "Rent Analysis",
+  profitability: "Profitability",
+};
+
+/**
+ * Safely parse a metric value to a number.
+ * Handles: number, string (from JSON), Decimal-like objects, null/undefined
+ *
+ * IMPORTANT: Metrics are stored as strings in the database JSON (e.g., "-20200000").
+ * Direct comparison with > or < on strings yields incorrect results for negative numbers.
+ */
+function parseMetricValue(value: unknown): number | null {
+  if (value === null || value === undefined) return null;
+  if (typeof value === "number") return value;
+  if (typeof value === "string") {
+    const parsed = parseFloat(value);
+    return isNaN(parsed) ? null : parsed;
+  }
+  // Handle Decimal-like objects (from Decimal.js)
+  if (typeof value === "object" && "toNumber" in value) {
+    return (value as { toNumber: () => number }).toNumber();
+  }
+  return null;
 }
 
 export function ComparisonMetricsTable({
@@ -64,109 +95,110 @@ export function ComparisonMetricsTable({
   className,
 }: ComparisonMetricsTableProps) {
   // Calculate baseline period for labels
-  const baselinePeriod = proposals.length > 0
-    ? (proposals[0].contractPeriodYears || 30)
-    : 30;
+  const baselinePeriod =
+    proposals.length > 0 ? proposals[0].contractPeriodYears || 30 : 30;
   const finalYear = 2028 + baselinePeriod - 1;
 
-  // Define metrics to compare
+  // Define metrics to compare - grouped logically
   const metricDefinitions: MetricDefinition[] = useMemo(
     () => [
+      // === PRIMARY DECISION METRICS ===
       {
-        id: "totalRent",
-        label: `Total Rent (${baselinePeriod} Years)`,
-        getValue: (p) => p.metrics?.totalRent ?? null,
+        id: "contractNAV",
+        label: "Net Annualized Value (NAV) ⭐",
+        getValue: (p) => parseMetricValue(p.metrics?.contractNAV),
         format: (v) => formatMillions(v),
-        higherIsBetter: false, // Lower rent is better for school
-        description: `Total rent paid over ${baselinePeriod} years`,
+        higherIsBetter: true,
+        description: "Annual EBITDA - Annual Rent (Key Decision Metric)",
+        group: "decision",
       },
       {
         id: "npv",
         label: "NPV",
-        getValue: (p) => p.metrics?.npv ?? null,
+        getValue: (p) => parseMetricValue(p.metrics?.npv),
         format: (v) => formatMillions(v),
         higherIsBetter: true,
         description: "Net Present Value of the deal",
-      },
-      {
-        id: "contractNAV",
-        label: "Net Annualized Value (NAV) ⭐",
-        getValue: (p) => p.metrics?.contractNAV ?? null,
-        format: (v) => formatMillions(v),
-        higherIsBetter: true,
-        description: "Annual EBITDA - Annual Rent (Key Decision Metric)",
+        group: "decision",
       },
       {
         id: "contractEbitdaNPV",
         label: "EBITDA NPV",
-        getValue: (p) => p.metrics?.contractEbitdaNPV ?? null,
+        getValue: (p) => parseMetricValue(p.metrics?.contractEbitdaNPV),
         format: (v) => formatMillions(v),
         higherIsBetter: true,
         description: "Present Value of EBITDA over contract period",
+        group: "decision",
       },
-      {
-        id: "contractNetTenantSurplus",
-        label: "Net Tenant Surplus",
-        getValue: (p) => p.metrics?.contractNetTenantSurplus ?? null,
-        format: (v) => formatMillions(v),
-        higherIsBetter: true,
-        description: "EBITDA NPV - Rent NPV",
-      },
-      {
-        id: "contractAnnualizedEbitda",
-        label: "Annualized EBITDA",
-        getValue: (p) => p.metrics?.contractAnnualizedEbitda ?? null,
-        format: (v) => formatMillions(v),
-        higherIsBetter: true,
-        description: "Equivalent annual value of EBITDA NPV",
-      },
-      {
-        id: "contractAnnualizedRent",
-        label: "Annualized Rent",
-        getValue: (p) => p.metrics?.contractAnnualizedRent ?? null,
-        format: (v) => formatMillions(v),
-        higherIsBetter: false,
-        description: "Equivalent annual value of Rent NPV",
-      },
-      {
-        id: "avgEbitda",
-        label: "Avg EBITDA",
-        getValue: (p) => p.metrics?.avgEbitda ?? p.metrics?.totalEbitda ?? null,
-        format: (v) => formatMillions(v),
-        higherIsBetter: true,
-        description: `Average EBITDA over ${baselinePeriod} years`,
-      },
+      // === CASH POSITION ===
       {
         id: "finalCash",
         label: "Final Cash",
-        getValue: (p) => p.metrics?.finalCash ?? null,
+        getValue: (p) => parseMetricValue(p.metrics?.finalCash),
         format: (v) => formatMillions(v),
         higherIsBetter: true,
         description: `Cash balance at end of Year ${finalYear}`,
+        group: "cash",
       },
       {
         id: "maxDebt",
         label: "Peak Debt",
-        getValue: (p) => p.metrics?.maxDebt ?? p.metrics?.peakDebt ?? null,
+        getValue: (p) =>
+          parseMetricValue(p.metrics?.maxDebt) ??
+          parseMetricValue(p.metrics?.peakDebt),
         format: (v) => formatMillions(v),
-        higherIsBetter: false, // Lower debt is better
+        higherIsBetter: false,
         description: "Maximum debt balance reached",
+        group: "cash",
+      },
+      // === RENT ANALYSIS ===
+      {
+        id: "totalRent",
+        label: `Total Rent (${baselinePeriod} Years)`,
+        getValue: (p) => parseMetricValue(p.metrics?.totalRent),
+        format: (v) => formatMillions(v),
+        higherIsBetter: false,
+        description: `Total rent paid over ${baselinePeriod} years`,
+        group: "rent",
       },
       {
-        id: "irr",
-        label: "IRR",
-        getValue: (p) => p.metrics?.irr ?? null,
-        format: (v) => formatPercent(v, 2),
+        id: "contractAnnualizedRent",
+        label: "Annualized Rent",
+        getValue: (p) => parseMetricValue(p.metrics?.contractAnnualizedRent),
+        format: (v) => formatMillions(v),
+        higherIsBetter: false,
+        description: "Equivalent annual value of Rent NPV",
+        group: "rent",
+      },
+      // === PROFITABILITY ===
+      {
+        id: "avgEbitda",
+        label: "Avg EBITDA",
+        getValue: (p) =>
+          parseMetricValue(p.metrics?.avgEbitda) ??
+          parseMetricValue(p.metrics?.totalEbitda),
+        format: (v) => formatMillions(v),
         higherIsBetter: true,
-        description: "Internal Rate of Return",
+        description: `Average EBITDA over ${baselinePeriod} years`,
+        group: "profitability",
       },
       {
-        id: "paybackPeriod",
-        label: "Payback Period",
-        getValue: (p) => p.metrics?.paybackPeriod ?? null,
-        format: (v) => `${v.toFixed(1)} years`,
-        higherIsBetter: false, // Lower payback is better
-        description: "Years until initial investment is recovered",
+        id: "contractAnnualizedEbitda",
+        label: "Annualized EBITDA",
+        getValue: (p) => parseMetricValue(p.metrics?.contractAnnualizedEbitda),
+        format: (v) => formatMillions(v),
+        higherIsBetter: true,
+        description: "Equivalent annual value of EBITDA NPV",
+        group: "profitability",
+      },
+      {
+        id: "contractNetTenantSurplus",
+        label: "Net Tenant Surplus",
+        getValue: (p) => parseMetricValue(p.metrics?.contractNetTenantSurplus),
+        format: (v) => formatMillions(v),
+        higherIsBetter: true,
+        description: "EBITDA NPV - Rent NPV",
+        group: "profitability",
       },
     ],
     [baselinePeriod, finalYear],
@@ -253,66 +285,87 @@ export function ComparisonMetricsTable({
             <tbody>
               {metricDefinitions.map((metricDef, index) => {
                 const winnerId = winners[metricDef.id];
+                const prevGroup =
+                  index > 0 ? metricDefinitions[index - 1].group : null;
+                const isNewGroup = metricDef.group !== prevGroup;
 
                 return (
-                  <tr
-                    key={metricDef.id}
-                    className={cn(
-                      "border-b border-border hover:bg-muted/30 transition-colors",
-                      index % 2 === 0 ? "bg-background" : "bg-muted/10",
-                    )}
-                  >
-                    <td className="py-3 px-4 font-medium">
-                      <div className="flex items-center gap-2">
-                        <span>{metricDef.label}</span>
-                        {metricDef.description && (
-                          <span
-                            className="text-xs text-muted-foreground cursor-help"
-                            title={metricDef.description}
-                          >
-                            ⓘ
-                          </span>
-                        )}
-                      </div>
-                    </td>
-                    {proposals.map((proposal) => {
-                      const value = metricDef.getValue(proposal);
-                      const isWinner = winnerId === proposal.id;
-
-                      return (
+                  <Fragment key={metricDef.id}>
+                    {/* Group Header Row */}
+                    {isNewGroup && (
+                      <tr className="bg-muted/50">
                         <td
-                          key={proposal.id}
-                          className={cn(
-                            "py-3 px-4 text-center font-mono relative",
-                            isWinner && "bg-green-50 dark:bg-green-950/20",
-                          )}
+                          colSpan={proposals.length + 1}
+                          className="py-2 px-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground border-t-2 border-border"
                         >
-                          <div className="flex items-center justify-center gap-2">
-                            {isWinner && (
-                              <div className="absolute left-2 top-1/2 -translate-y-1/2">
-                                <div className="bg-green-500 rounded-full p-0.5">
-                                  <Check className="h-3 w-3 text-white" />
-                                </div>
-                              </div>
-                            )}
-                            {value !== null ? (
-                              <span
-                                className={cn(
-                                  "font-semibold",
-                                  isWinner &&
-                                    "text-green-700 dark:text-green-400",
-                                )}
-                              >
-                                {metricDef.format(value)}
-                              </span>
-                            ) : (
-                              <span className="text-muted-foreground">N/A</span>
-                            )}
-                          </div>
+                          {GROUP_LABELS[metricDef.group]}
                         </td>
-                      );
-                    })}
-                  </tr>
+                      </tr>
+                    )}
+                    {/* Metric Row */}
+                    <tr
+                      className={cn(
+                        "border-b border-border hover:bg-muted/30 transition-colors",
+                        metricDef.group === "decision" && "bg-primary/5",
+                      )}
+                    >
+                      <td className="py-3 px-4 font-medium">
+                        <div className="flex items-center gap-2">
+                          <span>{metricDef.label}</span>
+                          {metricDef.description && (
+                            <span
+                              className="text-xs text-muted-foreground cursor-help"
+                              title={metricDef.description}
+                            >
+                              ⓘ
+                            </span>
+                          )}
+                        </div>
+                      </td>
+                      {proposals.map((proposal) => {
+                        const value = metricDef.getValue(proposal);
+                        const isWinner = winnerId === proposal.id;
+
+                        return (
+                          <td
+                            key={proposal.id}
+                            className={cn(
+                              "py-3 px-4 text-center font-mono relative",
+                              isWinner && "bg-green-50 dark:bg-green-950/20",
+                              metricDef.group === "decision" &&
+                                !isWinner &&
+                                "bg-primary/5",
+                            )}
+                          >
+                            <div className="flex items-center justify-center gap-2">
+                              {isWinner && (
+                                <div className="absolute left-2 top-1/2 -translate-y-1/2">
+                                  <div className="bg-green-500 rounded-full p-0.5">
+                                    <Check className="h-3 w-3 text-white" />
+                                  </div>
+                                </div>
+                              )}
+                              {value !== null ? (
+                                <span
+                                  className={cn(
+                                    "font-semibold",
+                                    isWinner &&
+                                      "text-green-700 dark:text-green-400",
+                                  )}
+                                >
+                                  {metricDef.format(value)}
+                                </span>
+                              ) : (
+                                <span className="text-muted-foreground">
+                                  N/A
+                                </span>
+                              )}
+                            </div>
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  </Fragment>
                 );
               })}
             </tbody>

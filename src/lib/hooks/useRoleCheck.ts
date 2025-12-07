@@ -1,6 +1,6 @@
 "use client";
 
-import { useAuth } from "./useAuth";
+import { useAuthContext } from "@/components/providers/AuthProvider";
 import { Role } from "@/lib/types/roles";
 
 /**
@@ -26,7 +26,8 @@ import { Role } from "@/lib/types/roles";
  * ```
  */
 export function useRoleCheck() {
-  const { user, hasRole, isViewer, isAdmin, isPlanner, loading } = useAuth();
+  const { user, hasRole, isViewer, isAdmin, isPlanner, loading } =
+    useAuthContext();
 
   /**
    * Check if user can edit proposals (ADMIN or PLANNER)
@@ -83,4 +84,3 @@ export function useRoleCheck() {
     hasRole,
   };
 }
-

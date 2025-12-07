@@ -7,7 +7,7 @@ import { Card } from "@/components/ui/card";
 import { ArrowLeft, Calculator, CheckCircle, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { useAuth } from "@/lib/hooks/useAuth";
+import { useAuthContext } from "@/components/providers/AuthProvider";
 import { Role } from "@/lib/types/roles";
 import type { ProposalFormData } from "./types";
 
@@ -28,7 +28,7 @@ export interface Step7ReviewProps {
 }
 
 export function Step7Review({ data, onPrevious }: Step7ReviewProps) {
-  const { hasRole } = useAuth();
+  const { hasRole } = useAuthContext();
   const canCalculate = hasRole([Role.ADMIN, Role.PLANNER]);
   const router = useRouter();
   const [isCalculating, setIsCalculating] = useState(false);
@@ -152,12 +152,14 @@ export function Step7Review({ data, onPrevious }: Step7ReviewProps) {
       if (error instanceof TypeError && error.message.includes("fetch")) {
         toast.error(
           "Network error. Please check your connection and try again.",
-          { duration: 5000 }
+          { duration: 5000 },
         );
       } else {
         toast.error(
-          error instanceof Error ? error.message : "Failed to calculate proposal",
-          { duration: 5000 }
+          error instanceof Error
+            ? error.message
+            : "Failed to calculate proposal",
+          { duration: 5000 },
         );
       }
     } finally {

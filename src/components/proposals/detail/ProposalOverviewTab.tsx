@@ -3,7 +3,7 @@
 import { useState, useMemo, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { useAuth } from "@/lib/hooks/useAuth";
+import { useAuthContext } from "@/components/providers/AuthProvider";
 import { Role } from "@/lib/types/roles";
 import {
   Copy,
@@ -202,7 +202,7 @@ export function ProposalOverviewTab({
   onUpdate,
 }: ProposalOverviewTabProps) {
   const router = useRouter();
-  const { hasRole } = useAuth();
+  const { hasRole } = useAuthContext();
   const [deleting, setDeleting] = useState(false);
   const [adminDiscountRate, setAdminDiscountRate] = useState<Decimal>(
     new Decimal(0.05),

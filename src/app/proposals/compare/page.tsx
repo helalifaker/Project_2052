@@ -1,12 +1,15 @@
 "use client";
 
-import { Suspense, useEffect, useState, useMemo } from "react";
+import { Suspense, useEffect, useState, useMemo, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Loader2, ArrowLeft, AlertCircle } from "lucide-react";
-import { ComparisonTable, ProposalSummary } from "@/components/proposals/comparison/ComparisonTable";
+import {
+  ComparisonTable,
+  ProposalSummary,
+} from "@/components/proposals/comparison/ComparisonTable";
 import { ComparisonMetricsTable } from "@/components/proposals/comparison/ComparisonMetricsTable";
 import { FinancialStatementsComparison } from "@/components/proposals/comparison/FinancialStatementsComparison";
 import { RentTrajectoryComparisonChart } from "@/components/proposals/comparison/RentTrajectoryComparisonChart";
@@ -26,149 +29,179 @@ type FullProposal = {
     balanceSheet: Record<string, number>;
     cashFlow: Record<string, number>;
   }>;
-  metrics?: ProposalSummary['metrics'];
+  metrics?: ProposalSummary["metrics"];
 };
 
 function ProposalCompareContent() {
   const router = useRouter();
   const params = useSearchParams();
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- params.toString() used for cache key
-  const selectedIds = useMemo(() => params.getAll("ids"), [params.toString()]);
 
+  // Stable selected IDs from URL
+  const selectedIds = useMemo(() => params.getAll("ids"), [params]);
+
+  // Component state
   const [loading, setLoading] = useState(true);
   const [proposals, setProposals] = useState<ProposalSummary[]>([]);
   const [deltaMode, setDeltaMode] = useState(false);
-  const [fullProposals, setFullProposals] = useState<Map<string, FullProposal>>(new Map());
+  const [fullProposals, setFullProposals] = useState<Map<string, FullProposal>>(
+    new Map(),
+  );
   const [loadingFull, setLoadingFull] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState("overview");
 
-  // Load proposal metrics (fast initial load)
+  // Fetch guard refs (don't cause re-renders)
+  const didFetchProposals = useRef(false);
+  const didFetchFullData = useRef(false);
+
+  // Initial data fetch - runs exactly once
   useEffect(() => {
-    const load = async () => {
+    if (didFetchProposals.current) return;
+    didFetchProposals.current = true;
+
+    async function fetchProposals() {
       try {
         setLoading(true);
-        const res = await fetch("/api/proposals?includeMetrics=true");
-        const data = await res.json();
-        const all: ProposalSummary[] = data.proposals || [];
+        const res = await fetch("/api/proposals");
+
+        if (!res.ok) {
+          throw new Error(`API returned ${res.status}`);
+        }
+
+        const json = await res.json();
+        const allProposals: ProposalSummary[] = json.data || [];
+
+        // Filter by selected IDs or take first 3
         const filtered =
           selectedIds.length > 0
-            ? all.filter((p) => selectedIds.includes(p.id))
-            : all.slice(0, 3);
+            ? allProposals.filter((p) => selectedIds.includes(p.id))
+            : allProposals.slice(0, 3);
+
         setProposals(filtered);
-      } catch (error) {
-        console.error("Failed to load proposals for comparison", error);
+        setError(null);
+      } catch (err) {
+        console.error("Failed to fetch proposals:", err);
+        setError("Failed to load proposals. Please refresh the page.");
       } finally {
         setLoading(false);
       }
-    };
-    load();
+    }
+
+    fetchProposals();
   }, [selectedIds]);
 
-  // Load full proposal data (lazy load when navigating to Visual/Statements tabs)
-  const loadFullProposalData = async () => {
+  // Fetch full proposal data when switching to Visual/Statements tabs
+  useEffect(() => {
+    if (activeTab === "overview") return;
+    if (didFetchFullData.current) return;
     if (proposals.length === 0) return;
 
-    setLoadingFull(true);
-    setError(null);
+    didFetchFullData.current = true;
 
-    try {
-      const fullDataMap = new Map<string, FullProposal>();
+    async function fetchFullData() {
+      setLoadingFull(true);
 
-      // Parallel fetch all proposals
-      const fetchPromises = proposals.map(async (p) => {
-        const res = await fetch(`/api/proposals/${p.id}`);
-        if (!res.ok) throw new Error(`Failed to fetch proposal ${p.id}`);
-        const data = await res.json();
-        return { id: p.id, data };
-      });
+      try {
+        const results = await Promise.all(
+          proposals.map(async (p) => {
+            const res = await fetch(`/api/proposals/${p.id}`);
+            if (!res.ok) throw new Error(`Failed to fetch ${p.id}`);
+            const data = await res.json();
+            return { id: p.id, data };
+          }),
+        );
 
-      const results = await Promise.all(fetchPromises);
-      results.forEach(({ id, data }) => fullDataMap.set(id, data));
-
-      setFullProposals(fullDataMap);
-    } catch (err) {
-      console.error("Failed to load full proposal data", err);
-      setError("Unable to load detailed financial data. Please try again.");
-    } finally {
-      setLoadingFull(false);
+        const dataMap = new Map<string, FullProposal>();
+        results.forEach(({ id, data }) => dataMap.set(id, data));
+        setFullProposals(dataMap);
+      } catch (err) {
+        console.error("Failed to fetch full data:", err);
+        setError("Failed to load detailed data.");
+      } finally {
+        setLoadingFull(false);
+      }
     }
-  };
 
-  // Trigger full data load when navigating away from Overview tab
-  useEffect(() => {
-    if (activeTab !== "overview" && fullProposals.size === 0 && proposals.length > 0) {
-      loadFullProposalData();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    fetchFullData();
   }, [activeTab, proposals]);
 
-  // Data transformations for charts
-  const rentChartData = useMemo(() =>
-    proposals.map(p => ({
-      id: p.id,
-      name: p.name,
-      developer: p.developer ?? undefined,
-      rentModel: p.rentModel,
-      financials: {
-        years: fullProposals.get(p.id)?.financials?.map(f => ({
-          year: f.year,
-          rent: f.profitLoss?.rentExpense || 0
-        })) || []
-      },
-      metrics: p.metrics
-    }))
-  , [proposals, fullProposals]);
+  // Memoized data transformations
+  const rentChartData = useMemo(
+    () =>
+      proposals.map((p) => ({
+        id: p.id,
+        name: p.name,
+        developer: p.developer ?? undefined,
+        rentModel: p.rentModel,
+        financials: {
+          years:
+            fullProposals.get(p.id)?.financials?.map((f) => ({
+              year: f.year,
+              rent: f.profitLoss?.rentExpense || 0,
+            })) || [],
+        },
+        metrics: p.metrics,
+      })),
+    [proposals, fullProposals],
+  );
 
-  const costChartData = useMemo(() =>
-    proposals.map(p => ({
-      id: p.id,
-      name: p.name,
-      developer: p.developer ?? undefined,
-      rentModel: p.rentModel,
-      financials: {
-        years: fullProposals.get(p.id)?.financials?.map(f => ({
-          year: f.year,
-          rent: f.profitLoss?.rentExpense || 0,
-          staffSalaries: f.profitLoss?.staffCosts || 0,
-          otherOpEx: f.profitLoss?.otherOpex || 0
-        })) || []
-      },
-      metrics: p.metrics
-    }))
-  , [proposals, fullProposals]);
+  const costChartData = useMemo(
+    () =>
+      proposals.map((p) => ({
+        id: p.id,
+        name: p.name,
+        developer: p.developer ?? undefined,
+        rentModel: p.rentModel,
+        financials: {
+          years:
+            fullProposals.get(p.id)?.financials?.map((f) => ({
+              year: f.year,
+              rent: f.profitLoss?.rentExpense || 0,
+              staffSalaries: f.profitLoss?.staffCosts || 0,
+              otherOpEx: f.profitLoss?.otherOpex || 0,
+            })) || [],
+        },
+        metrics: p.metrics,
+      })),
+    [proposals, fullProposals],
+  );
 
-  const statementsData = useMemo(() =>
-    proposals.map(p => ({
-      id: p.id,
-      name: p.name,
-      developer: p.developer ?? undefined,
-      rentModel: p.rentModel,
-      financials: fullProposals.get(p.id)?.financials || []
-    }))
-  , [proposals, fullProposals]);
+  const statementsData = useMemo(
+    () =>
+      proposals.map((p) => ({
+        id: p.id,
+        name: p.name,
+        developer: p.developer ?? undefined,
+        rentModel: p.rentModel,
+        financials: fullProposals.get(p.id)?.financials || [],
+      })),
+    [proposals, fullProposals],
+  );
 
-  // Transform for ComparisonMetricsTable (convert null to undefined)
-  const metricsTableData = useMemo(() =>
-    proposals.map(p => ({
-      ...p,
-      developer: p.developer ?? undefined
-    }))
-  , [proposals]);
+  const metricsTableData = useMemo(
+    () =>
+      proposals.map((p) => ({
+        ...p,
+        developer: p.developer ?? undefined,
+      })),
+    [proposals],
+  );
 
-  // Find winner (lowest rent is best)
   const rentWinnerId = useMemo(() => {
     if (proposals.length === 0) return undefined;
-    const sorted = [...proposals].sort((a, b) =>
-      (a.metrics?.totalRent || Infinity) - (b.metrics?.totalRent || Infinity)
+    const sorted = [...proposals].sort(
+      (a, b) =>
+        (a.metrics?.totalRent || Infinity) - (b.metrics?.totalRent || Infinity),
     );
     return sorted[0].id;
   }, [proposals]);
 
+  // Loading state
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin" />
+        <span className="ml-2 text-muted-foreground">Loading proposals...</span>
       </div>
     );
   }
@@ -196,23 +229,18 @@ function ProposalCompareContent() {
       {error && (
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
-          <AlertDescription>
-            {error}
-            <Button variant="link" className="ml-2" onClick={loadFullProposalData}>
-              Retry
-            </Button>
-          </AlertDescription>
+          <AlertDescription>{error}</AlertDescription>
         </Alert>
       )}
 
       {/* Empty State */}
-      {proposals.length === 0 && !loading && (
+      {proposals.length === 0 && !loading && !error && (
         <div className="rounded-lg border border-dashed p-12 text-center">
           <h3 className="text-lg font-semibold mb-2">No Proposals Selected</h3>
           <p className="text-muted-foreground mb-4">
             Select 2-5 proposals from the proposals list to compare
           </p>
-          <Button onClick={() => router.push('/proposals')}>
+          <Button onClick={() => router.push("/proposals")}>
             Browse Proposals
           </Button>
         </div>
@@ -220,7 +248,11 @@ function ProposalCompareContent() {
 
       {/* Tabbed Content */}
       {proposals.length > 0 && (
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+        <Tabs
+          value={activeTab}
+          onValueChange={setActiveTab}
+          className="space-y-6"
+        >
           <TabsList className="grid w-full grid-cols-3 max-w-2xl">
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="visual">Visual Analysis</TabsTrigger>
@@ -229,22 +261,21 @@ function ProposalCompareContent() {
 
           {/* Tab 1: Overview */}
           <TabsContent value="overview" className="space-y-6">
-            {/* Baseline Note */}
             <div className="bg-muted/30 p-4 rounded-lg text-sm text-muted-foreground">
               <p>
-                <strong>Note:</strong> The first proposal (leftmost) is treated as the
+                <strong>Note:</strong> The first proposal (leftmost) is treated
+                as the
                 <span className="text-primary font-semibold"> Baseline</span>.
-                Enable &quot;Delta View&quot; to see how other proposals compare against it.
+                Enable &quot;Delta View&quot; to see how other proposals compare
+                against it.
               </p>
             </div>
 
-            {/* Quick Comparison */}
             <div>
               <h2 className="text-xl font-semibold mb-4">Quick Comparison</h2>
               <ComparisonTable proposals={proposals} deltaMode={deltaMode} />
             </div>
 
-            {/* Detailed Metrics */}
             <div>
               <h2 className="text-xl font-semibold mb-4">Detailed Metrics</h2>
               <ComparisonMetricsTable proposals={metricsTableData} />
@@ -262,9 +293,10 @@ function ProposalCompareContent() {
               </div>
             ) : (
               <>
-                {/* Rent Trajectory */}
                 <div>
-                  <h2 className="text-xl font-semibold mb-2">Rent Trajectory</h2>
+                  <h2 className="text-xl font-semibold mb-2">
+                    Rent Trajectory
+                  </h2>
                   <p className="text-sm text-muted-foreground mb-4">
                     See how rent evolves over the full contract period
                   </p>
@@ -274,9 +306,10 @@ function ProposalCompareContent() {
                   />
                 </div>
 
-                {/* Cost Breakdown */}
                 <div>
-                  <h2 className="text-xl font-semibold mb-2">Total Cost Analysis</h2>
+                  <h2 className="text-xl font-semibold mb-2">
+                    Total Cost Analysis
+                  </h2>
                   <p className="text-sm text-muted-foreground mb-4">
                     Compare total costs broken down by category
                   </p>

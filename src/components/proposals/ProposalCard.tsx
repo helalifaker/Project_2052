@@ -235,60 +235,55 @@ export const ProposalCard = memo(function ProposalCard({
           </div>
         </div>
 
-        <div className="flex items-center gap-1">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8 text-muted-foreground hover:text-foreground rounded-full hover:bg-white/10"
-            onClick={(e) => {
-              e.stopPropagation();
-              // Open menu
-            }}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 text-muted-foreground hover:text-foreground rounded-full hover:bg-white/10"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <MoreVertical className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent
+            align="end"
+            className="w-48 glass-panel"
+            onClick={(e) => e.stopPropagation()}
           >
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <MoreVertical className="h-4 w-4" />
-              </DropdownMenuTrigger>
-              <DropdownMenuContent
-                align="end"
-                className="w-48 glass-panel"
-                onClick={(e) => e.stopPropagation()}
-              >
-                <DropdownMenuItem onClick={handleView}>
-                  <Eye className="h-4 w-4 mr-2" /> View Details
+            <DropdownMenuItem onClick={handleView}>
+              <Eye className="h-4 w-4 mr-2" /> View Details
+            </DropdownMenuItem>
+            {canEdit && (
+              <>
+                <DropdownMenuItem onClick={handleEdit}>
+                  <Edit className="h-4 w-4 mr-2" /> Edit Proposal
                 </DropdownMenuItem>
-                {canEdit && (
-                  <>
-                    <DropdownMenuItem onClick={handleEdit}>
-                      <Edit className="h-4 w-4 mr-2" /> Edit Proposal
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={handleDuplicate}>
-                      <Copy className="h-4 w-4 mr-2" /> Duplicate
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={handleUseAsTemplate}>
-                      <FileText className="h-4 w-4 mr-2" /> Save as Template
-                    </DropdownMenuItem>
-                  </>
-                )}
+                <DropdownMenuItem onClick={handleDuplicate}>
+                  <Copy className="h-4 w-4 mr-2" /> Duplicate
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={handleUseAsTemplate}>
+                  <FileText className="h-4 w-4 mr-2" /> Save as Template
+                </DropdownMenuItem>
+              </>
+            )}
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={handleExport}>
+              <FileDown className="h-4 w-4 mr-2" /> Export PDF
+            </DropdownMenuItem>
+            {canDelete && (
+              <>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={handleExport}>
-                  <FileDown className="h-4 w-4 mr-2" /> Export PDF
+                <DropdownMenuItem
+                  onClick={handleDelete}
+                  className="text-destructive focus:text-destructive"
+                >
+                  <Trash2 className="h-4 w-4 mr-2" /> Delete
                 </DropdownMenuItem>
-                {canDelete && (
-                  <>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem
-                      onClick={handleDelete}
-                      className="text-destructive focus:text-destructive"
-                    >
-                      <Trash2 className="h-4 w-4 mr-2" /> Delete
-                    </DropdownMenuItem>
-                  </>
-                )}
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </Button>
-        </div>
+              </>
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
       {/* Body Section: Metrics */}

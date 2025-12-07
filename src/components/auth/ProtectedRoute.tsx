@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { useAuth } from "@/lib/hooks/useAuth";
+import { useAuthContext } from "@/components/providers/AuthProvider";
 import { Role } from "@/lib/types/roles";
 import { Loader2, ShieldAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -42,7 +42,7 @@ export function ProtectedRoute({
   fallback,
 }: ProtectedRouteProps) {
   const router = useRouter();
-  const { user, loading, hasRole } = useAuth();
+  const { user, loading, hasRole } = useAuthContext();
 
   useEffect(() => {
     if (!loading && !user) {
