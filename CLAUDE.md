@@ -18,12 +18,15 @@ pnpm lint                   # Run ESLint
 pnpm test                   # Run Vitest in watch mode
 pnpm test:run               # Run all unit tests once
 pnpm test:coverage          # Run tests with coverage report
+pnpm vitest run src/lib/engine/periods/dynamic.test.ts  # Run a single test file
 pnpm test:e2e               # Run Playwright E2E tests (requires dev server)
 pnpm test:e2e:headed        # E2E tests with browser visible
 pnpm test:e2e:debug         # E2E tests in debug mode
+pnpm test:load              # Run Artillery load tests
+pnpm test:load:quick        # Quick load test
 
 # Database
-npx prisma db push          # Push schema to database
+npx prisma db push          # Push schema to database (use DIRECT_URL)
 npx prisma generate         # Generate Prisma client
 npx prisma migrate dev      # Create and apply migrations
 tsx prisma/seed.ts          # Seed database
@@ -39,7 +42,9 @@ tsx prisma/seed.ts          # Seed database
 - **State**: Zustand for client state
 - **Financial Math**: Decimal.js for all monetary calculations
 - **Validation**: Zod for runtime schema validation
-- **Testing**: Vitest (unit), Playwright (E2E)
+- **Testing**: Vitest (unit), Playwright (E2E), Artillery (load)
+- **Charts**: Recharts for financial visualizations
+- **Export**: ExcelJS (spreadsheets), jsPDF (reports)
 
 ## Architecture
 
@@ -54,11 +59,22 @@ The core financial engine calculates 30-year projections across three periods:
 Key files:
 - `index.ts` - Main orchestrator that coordinates all period calculations
 - `core/types.ts` - TypeScript interfaces for all financial data structures
-- `core/constants.ts` - Pre-created Decimal constants (ZERO, ONE, rates)
-- `core/decimal-utils.ts` - Decimal.js helper functions
+- `core/constants.ts` - Pre-created Decimal constants (ZERO, ONE, rates, year boundaries)
+- `core/decimal-utils.ts` - Decimal.js helper functions (NPV, IRR, annualization)
 - `periods/historical.ts`, `transition.ts`, `dynamic.ts` - Period calculators
 - `solvers/circular.ts` - Resolves Interest ↔ Zakat ↔ Debt circular dependencies
 - `statements/` - P&L, Balance Sheet, Cash Flow statement builders
+- `capex/capex-calculator.ts` - CapEx and depreciation calculations
+- `sensitivity-analyzer.ts` - Tornado chart variable impact analysis
+- `scenario-modifier.ts` - What-if scenario adjustments
+
+### CAPEX System
+
+The CapEx system manages capital expenditures with:
+- **Categories**: IT_EQUIPMENT, FURNITURE, EDUCATIONAL_EQUIPMENT, BUILDING (each with useful life)
+- **Virtual Assets**: Track depreciation of new investments
+- **Auto-Reinvestment**: Optional periodic reinvestment by category
+- **Historical State**: Tracks 2024 PPE and accumulated depreciation forward
 
 ### Rent Models
 
@@ -70,19 +86,54 @@ Three lease proposal types handled in `periods/dynamic.ts`:
 ### API Routes (`src/app/api/`)
 
 All routes require:
-1. Authentication via Supabase
-2. RBAC authorization (use `requireAuth()` from `src/middleware/rbac.ts`)
-3. Zod input validation
+1. Authentication via Supabase using `authenticateUserWithRole()` from `src/middleware/auth.ts`
+2. Role-based authorization (ADMIN, PLANNER, VIEWER)
+3. Zod input validation using schemas from `src/lib/validation/`
 4. Proper error handling with appropriate status codes
+
+```typescript
+// Example API route pattern
+export async function POST(request: Request) {
+  const authResult = await authenticateUserWithRole([Role.ADMIN, Role.PLANNER]);
+  if (!authResult.success) return authResult.error;
+
+  const body = await request.json();
+  const parsed = CreateProposalSchema.safeParse(body);
+  if (!parsed.success) {
+    return NextResponse.json({ error: parsed.error.issues }, { status: 400 });
+  }
+  // ... rest of handler
+}
+```
+
+### Validation Layer (`src/lib/validation/`)
+
+Zod schemas organized by domain:
+- `proposal.ts` - LeaseProposal, enrollment, curriculum, staff, rent params
+- `config.ts` - SystemConfig validation
+- `transition.ts` - TransitionConfig (2025-2027 assumptions)
+- `historical.ts` - HistoricalData validation
+
+### State Management (`src/lib/stores/`)
+
+Zustand stores with devtools and persistence:
+- `ui-store.ts` - Sidebar, modals, command palette, loading states
+
+### Web Workers (`src/workers/`)
+
+Heavy calculations offloaded to prevent UI blocking:
+- `calculation.worker.ts` - Financial engine calculations
+- Use `src/lib/engine/worker-runner.ts` for integration
 
 ### Database Schema
 
 Key models in `prisma/schema.prisma`:
-- `LeaseProposal` - Main entity with negotiation tracking
+- `LeaseProposal` - Main entity with negotiation tracking, contract period config
 - `Scenario` - What-if scenarios with adjustable parameters
 - `SensitivityAnalysis` - Tornado chart data for variable impact analysis
-- `SystemConfig` - Global rates (zakat, interest, deposit)
+- `SystemConfig` - Global rates (zakat, interest, deposit, discount rate)
 - `TransitionConfig` - 2025-2027 student/tuition assumptions
+- `CapExCategory`, `CapExAsset`, `CapExTransition` - Capital expenditure tracking
 
 ## Critical Rules
 
@@ -103,7 +154,7 @@ const rent = revenue * 0.08;
 
 Use pre-created constants from `src/lib/engine/core/constants.ts`:
 ```typescript
-import { ZERO, ONE, ZAKAT_RATE } from '@/lib/engine/core/constants';
+import { ZERO, ONE, ZAKAT_RATE, HISTORICAL_START_YEAR, DYNAMIC_START_YEAR } from '@/lib/engine/core/constants';
 ```
 
 Compare Decimals using methods:
@@ -134,8 +185,15 @@ import { formatMillions } from '@/lib/formatting/millions';
 ## Testing
 
 - Unit tests colocated with source files (`*.test.ts`)
-- E2E tests in `tests/e2e/`
+- E2E tests in `tests/e2e/` (accessibility, performance, workflows)
 - Security tests in `tests/security/`
 - Coverage thresholds: 80% lines/functions/branches/statements
 - Financial engine code should target 100% coverage
-- always use Direct url for the database migration.
+- Always use DIRECT_URL for database migrations
+
+### Key E2E Test Files
+- `accessibility.spec.ts` - WCAG compliance
+- `performance.spec.ts` - Load time, calculation speed
+- `proposal-wizard.spec.ts` - Full proposal creation flow
+- `scenarios.spec.ts` - What-if scenario testing
+- `sensitivity.spec.ts` - Tornado chart validation

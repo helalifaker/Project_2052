@@ -1,6 +1,6 @@
-'use client';
+"use client";
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState } from "react";
 
 interface ModalTransitionProps {
   children: React.ReactNode;
@@ -27,14 +27,14 @@ interface ModalTransitionProps {
  */
 export function ModalTransition({
   children,
-  className = '',
+  className = "",
   isOpen = true,
 }: ModalTransitionProps) {
   const [shouldRender, setShouldRender] = useState(isOpen);
 
   useEffect(() => {
     if (isOpen) {
-      setShouldRender(true);
+      setShouldRender(true); // eslint-disable-line react-hooks/set-state-in-effect
     } else {
       // Delay unmounting to allow exit animation
       const timer = setTimeout(() => setShouldRender(false), 200);
@@ -48,7 +48,7 @@ export function ModalTransition({
     <div
       className={`modal-transition-enter ${className}`}
       style={{
-        animationPlayState: isOpen ? 'running' : 'paused',
+        animationPlayState: isOpen ? "running" : "paused",
       }}
     >
       {children}

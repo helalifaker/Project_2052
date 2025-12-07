@@ -26,7 +26,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Save, Info } from "lucide-react";
+import { Save, Info, Loader2 } from "lucide-react";
 import { z } from "zod";
 import { toast } from "sonner";
 import Decimal from "decimal.js";
@@ -149,7 +149,7 @@ function SystemConfigPageContent() {
   }
 
   return (
-    <div className="container mx-auto py-8 space-y-6">
+    <div className="container mx-auto py-8 space-y-8 animate-fade-in-up">
       {/* Navigation */}
       <div className="space-y-4">
         <BackButton href="/admin" label="Back to Admin" />
@@ -163,246 +163,262 @@ function SystemConfigPageContent() {
       </div>
 
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">
+        <h1 className="text-3xl font-serif font-bold tracking-tight text-foreground">
           System Configuration
         </h1>
-        <p className="text-muted-foreground mt-2">
-          Configure global settings that affect all financial calculations
+        <p className="text-muted-foreground mt-2 max-w-2xl">
+          Configure global settings that affect all financial calculations.
+          Changes here propagate to all new and recalculated proposals.
         </p>
       </div>
 
-      {/* Configuration Form */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Financial Parameters</CardTitle>
-          <CardDescription>
-            These settings will be applied to all proposal calculations
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Form {...form}>
-            <form onSubmit={onSubmit} className="space-y-6">
-              {/* Zakat Rate (GAP 18) */}
-              <div className="space-y-4 p-4 rounded-lg border bg-muted/30">
-                <div className="flex items-start gap-3">
-                  <Info className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" />
-                  <div className="flex-1">
-                    <h3 className="font-semibold mb-2">Zakat Rate (GAP 18)</h3>
-                    <p className="text-sm text-muted-foreground mb-4">
-                      The Zakat rate applied to earnings before tax (EBT).
-                      Default: 2.5% as per Islamic guidelines.
-                    </p>
-                    <InputField
-                      name="zakatRate"
-                      label="Zakat Rate"
-                      type="number"
-                      suffix="%"
-                      description="Applied to Earnings Before Tax (EBT)"
-                    />
+      <div className="grid gap-8 lg:grid-cols-3">
+        {/* Main Configuration Form - Executive Style */}
+        <Card className="lg:col-span-2 glass-card p-0 overflow-hidden border-0">
+          <div className="px-8 py-6 border-b border-white/5 bg-white/5 backdrop-blur-[2px]">
+            <CardTitle className="font-serif text-xl">
+              Financial Parameters
+            </CardTitle>
+            <CardDescription className="text-muted-foreground mt-1">
+              These settings will be applied to all proposal calculations
+            </CardDescription>
+          </div>
+
+          <CardContent className="p-8">
+            <Form {...form}>
+              <form onSubmit={onSubmit} className="space-y-8">
+                {/* Zakat Rate */}
+                <div className="group space-y-4 p-5 rounded-xl border border-white/5 bg-card/20 hover:border-accent-gold/20 transition-colors">
+                  <div className="flex items-start gap-4">
+                    <div className="p-2 rounded-lg bg-accent-gold/10 text-accent-gold">
+                      <Info className="h-5 w-5" />
+                    </div>
+                    <div className="flex-1 space-y-4">
+                      <div>
+                        <h3 className="font-medium text-foreground">
+                          Zakat Rate
+                        </h3>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          The Zakat rate applied to earnings before tax (EBT).
+                          Default: 2.5%.
+                        </p>
+                      </div>
+                      <InputField
+                        name="zakatRate"
+                        label=""
+                        type="number"
+                        suffix="%"
+                        placeholder="2.5"
+                        className="bg-background/50 border-white/10 focus:border-accent-gold/50 transition-colors"
+                      />
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              {/* Debt Interest Rate */}
-              <div className="space-y-4 p-4 rounded-lg border bg-muted/30">
-                <div className="flex items-start gap-3">
-                  <Info className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" />
-                  <div className="flex-1">
-                    <h3 className="font-semibold mb-2">Debt Interest Rate</h3>
-                    <p className="text-sm text-muted-foreground mb-4">
-                      The annual interest rate charged on outstanding debt. Used
-                      to calculate interest expense.
-                    </p>
+                {/* Rates Group */}
+                <div className="grid gap-6 md:grid-cols-2">
+                  {/* Debt Interest Rate */}
+                  <div className="space-y-3 p-4 rounded-xl border border-white/5 bg-card/10 hover:border-white/10 transition-colors">
+                    <div className="space-y-1">
+                      <h3 className="text-sm font-medium text-foreground">
+                        Debt Interest
+                      </h3>
+                      <p className="text-[10px] text-muted-foreground">
+                        Annual interest on outstanding debt.
+                      </p>
+                    </div>
                     <InputField
                       name="debtInterestRate"
-                      label="Debt Interest Rate"
+                      label=""
                       type="number"
                       suffix="%"
-                      description="Applied to beginning debt balance"
+                      className="bg-background/50 border-white/10"
                     />
                   </div>
-                </div>
-              </div>
 
-              {/* Deposit Interest Rate (GAP 16) */}
-              <div className="space-y-4 p-4 rounded-lg border bg-muted/30">
-                <div className="flex items-start gap-3">
-                  <Info className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" />
-                  <div className="flex-1">
-                    <h3 className="font-semibold mb-2">
-                      Deposit Interest Rate (GAP 16)
-                    </h3>
-                    <p className="text-sm text-muted-foreground mb-4">
-                      The annual interest rate earned on bank deposits when cash
-                      balance is positive.
-                    </p>
+                  {/* Deposit Interest Rate */}
+                  <div className="space-y-3 p-4 rounded-xl border border-white/5 bg-card/10 hover:border-white/10 transition-colors">
+                    <div className="space-y-1">
+                      <h3 className="text-sm font-medium text-foreground">
+                        Deposit Interest
+                      </h3>
+                      <p className="text-[10px] text-muted-foreground">
+                        Interest earned on positive cash.
+                      </p>
+                    </div>
                     <InputField
                       name="depositInterestRate"
-                      label="Deposit Interest Rate"
+                      label=""
                       type="number"
                       suffix="%"
-                      description="Applied to cash balance above minimum"
+                      className="bg-background/50 border-white/10"
                     />
                   </div>
                 </div>
-              </div>
 
-              {/* Discount Rate for NPV Calculations */}
-              <div className="space-y-4 p-4 rounded-lg border bg-muted/30">
-                <div className="flex items-start gap-3">
-                  <Info className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" />
-                  <div className="flex-1">
-                    <h3 className="font-semibold mb-2">
-                      Discount Rate (NPV Calculations)
-                    </h3>
-                    <p className="text-sm text-muted-foreground mb-4">
-                      The discount rate used for Net Present Value (NPV)
-                      calculations. Represents the weighted average cost of
-                      capital (WACC) or required return rate. Typical range:
-                      8-12% for real estate investments.
-                    </p>
+                <div className="grid gap-6 md:grid-cols-2">
+                  {/* Discount Rate */}
+                  <div className="space-y-3 p-4 rounded-xl border border-white/5 bg-card/10 hover:border-white/10 transition-colors">
+                    <div className="space-y-1">
+                      <h3 className="text-sm font-medium text-foreground">
+                        Discount Rate (NPV)
+                      </h3>
+                      <p className="text-[10px] text-muted-foreground">
+                        SARA / WACC Rate (8-12%).
+                      </p>
+                    </div>
                     <InputField
                       name="discountRate"
-                      label="Discount Rate"
+                      label=""
                       type="number"
                       suffix="%"
-                      description="Applied to future cash flows for NPV calculations"
+                      className="bg-background/50 border-white/10"
                     />
                   </div>
-                </div>
-              </div>
 
-              {/* Minimum Cash Balance (GAP 14) */}
-              <div className="space-y-4 p-4 rounded-lg border bg-muted/30">
-                <div className="flex items-start gap-3">
-                  <Info className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" />
-                  <div className="flex-1">
-                    <h3 className="font-semibold mb-2">
-                      Minimum Cash Balance (GAP 14)
-                    </h3>
-                    <p className="text-sm text-muted-foreground mb-4">
-                      The minimum cash balance that must be maintained at all
-                      times. Prevents cash from going negative.
-                    </p>
+                  {/* Minimum Cash */}
+                  <div className="space-y-3 p-4 rounded-xl border border-white/5 bg-card/10 hover:border-white/10 transition-colors">
+                    <div className="space-y-1">
+                      <h3 className="text-sm font-medium text-foreground">
+                        Min Cash Balance
+                      </h3>
+                      <p className="text-[10px] text-muted-foreground">
+                        Minimum liquidity constraint.
+                      </p>
+                    </div>
                     <InputField
                       name="minCashBalance"
-                      label="Minimum Cash Balance"
+                      label=""
                       type="number"
                       suffix="M SAR"
-                      description="Minimum cash the school must maintain (in Millions)"
+                      className="bg-background/50 border-white/10"
                     />
                   </div>
                 </div>
-              </div>
 
-              {/* Action Buttons */}
-              <div className="flex justify-end gap-4 pt-4">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => form.reset()}
-                >
-                  Reset to Defaults
-                </Button>
-                <Button type="submit" disabled={isSaving}>
-                  <Save className="h-4 w-4 mr-2" />
-                  {isSaving ? "Saving..." : "Save Configuration"}
-                </Button>
-              </div>
-            </form>
-          </Form>
-        </CardContent>
-      </Card>
+                {/* Action Buttons */}
+                <div className="flex justify-end gap-3 pt-4 border-t border-white/5">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    className="hover:bg-white/5 text-muted-foreground"
+                    onClick={() => form.reset()}
+                  >
+                    Reset Defaults
+                  </Button>
+                  <Button
+                    type="submit"
+                    disabled={isSaving}
+                    className="bg-accent-gold hover:bg-accent-gold/90 text-white min-w-[140px]"
+                  >
+                    {isSaving ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />{" "}
+                        Saving...
+                      </>
+                    ) : (
+                      <>
+                        <Save className="h-4 w-4 mr-2" /> Save Changes
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </form>
+            </Form>
+          </CardContent>
+        </Card>
 
-      {/* Current Values Display */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Current Configuration</CardTitle>
-          <CardDescription>Overview of active system settings</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid gap-4 md:grid-cols-2">
-            <div className="flex justify-between items-center p-3 rounded-lg border">
-              <span className="text-sm font-medium">Zakat Rate:</span>
-              <span className="font-mono font-semibold">
-                {form.watch("zakatRate")}%
-              </span>
-            </div>
-            <div className="flex justify-between items-center p-3 rounded-lg border">
-              <span className="text-sm font-medium">Debt Interest Rate:</span>
-              <span className="font-mono font-semibold">
-                {form.watch("debtInterestRate")}%
-              </span>
-            </div>
-            <div className="flex justify-between items-center p-3 rounded-lg border">
-              <span className="text-sm font-medium">
-                Deposit Interest Rate:
-              </span>
-              <span className="font-mono font-semibold">
-                {form.watch("depositInterestRate")}%
-              </span>
-            </div>
-            <div className="flex justify-between items-center p-3 rounded-lg border">
-              <span className="text-sm font-medium">Discount Rate (NPV):</span>
-              <span className="font-mono font-semibold">
-                {form.watch("discountRate")}%
-              </span>
-            </div>
-            <div className="flex justify-between items-center p-3 rounded-lg border">
-              <span className="text-sm font-medium">Minimum Cash Balance:</span>
-              <span className="font-mono font-semibold">
-                {form.watch("minCashBalance")} M SAR
-              </span>
-            </div>
+        {/* Current Values Display - Executive Summary Card */}
+        <Card className="h-fit glass-card p-0 overflow-hidden border-0">
+          <div className="px-6 py-5 border-b border-white/5 bg-accent-gold/5 backdrop-blur-[2px]">
+            <CardTitle className="font-serif text-lg text-foreground">
+              Current Status
+            </CardTitle>
           </div>
-        </CardContent>
-      </Card>
+          <CardContent className="p-6 space-y-1">
+            {[
+              { label: "Zakat Rate", value: form.watch("zakatRate") + "%" },
+              {
+                label: "Debt Interest",
+                value: form.watch("debtInterestRate") + "%",
+              },
+              {
+                label: "Deposit Interest",
+                value: form.watch("depositInterestRate") + "%",
+              },
+              {
+                label: "Discount Rate",
+                value: form.watch("discountRate") + "%",
+              },
+              {
+                label: "Min Cash",
+                value: form.watch("minCashBalance") + " M SAR",
+              },
+            ].map((item, i) => (
+              <div
+                key={i}
+                className="flex justify-between items-center py-3 border-b border-white/5 last:border-0 hover:bg-white/5 px-3 -mx-3 rounded-lg transition-colors"
+              >
+                <span className="text-xs uppercase tracking-wider text-muted-foreground font-medium">
+                  {item.label}
+                </span>
+                <span className="font-serif text-lg font-light text-foreground">
+                  {item.value}
+                </span>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      </div>
 
       {/* Confirmation Dialog */}
       <AlertDialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
-        <AlertDialogContent>
+        <AlertDialogContent className="glass-panel border-white/10">
           <AlertDialogHeader>
-            <AlertDialogTitle>Confirm Configuration Changes</AlertDialogTitle>
+            <AlertDialogTitle className="font-serif text-2xl">
+              Confirm Configuration Changes
+            </AlertDialogTitle>
             <AlertDialogDescription>
               These changes will affect all future proposal calculations. Are
               you sure you want to save these settings?
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <div className="py-4 space-y-2">
-            <div className="flex justify-between text-sm">
-              <span>Zakat Rate:</span>
-              <span className="font-mono font-semibold">
-                {form.watch("zakatRate")}%
-              </span>
-            </div>
-            <div className="flex justify-between text-sm">
-              <span>Debt Interest Rate:</span>
-              <span className="font-mono font-semibold">
-                {form.watch("debtInterestRate")}%
-              </span>
-            </div>
-            <div className="flex justify-between text-sm">
-              <span>Deposit Interest Rate:</span>
-              <span className="font-mono font-semibold">
-                {form.watch("depositInterestRate")}%
-              </span>
-            </div>
-            <div className="flex justify-between text-sm">
-              <span>Discount Rate (NPV):</span>
-              <span className="font-mono font-semibold">
-                {form.watch("discountRate")}%
-              </span>
-            </div>
-            <div className="flex justify-between text-sm">
-              <span>Minimum Cash Balance:</span>
-              <span className="font-mono font-semibold">
-                {form.watch("minCashBalance")} M SAR
-              </span>
-            </div>
+          <div className="py-4 space-y-2 bg-card/30 rounded-lg p-4 my-2 border border-white/5">
+            {[
+              { label: "Zakat Rate", value: form.watch("zakatRate") + "%" },
+              {
+                label: "Debt Interest",
+                value: form.watch("debtInterestRate") + "%",
+              },
+              {
+                label: "Deposit Interest",
+                value: form.watch("depositInterestRate") + "%",
+              },
+              {
+                label: "Discount Rate",
+                value: form.watch("discountRate") + "%",
+              },
+              {
+                label: "Min Cash",
+                value: form.watch("minCashBalance") + " M SAR",
+              },
+            ].map((item, i) => (
+              <div key={i} className="flex justify-between text-sm">
+                <span className="text-muted-foreground">{item.label}:</span>
+                <span className="font-medium text-foreground">
+                  {item.value}
+                </span>
+              </div>
+            ))}
           </div>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleConfirmSave}>
+            <AlertDialogCancel className="border-white/10 hover:bg-white/5">
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmSave}
+              className="bg-accent-gold hover:bg-accent-gold/90 text-white"
+            >
               Save Changes
             </AlertDialogAction>
           </AlertDialogFooter>

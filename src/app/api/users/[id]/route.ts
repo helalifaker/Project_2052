@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { authenticateUser, authenticateUserWithRole } from "@/middleware/auth";
@@ -205,7 +206,7 @@ export async function PUT(
     // Update user
     const user = await prisma.user.update({
       where: { id },
-      data: updateData,
+      data: updateData as any,
       select: {
         id: true,
         email: true,

@@ -23,8 +23,9 @@ export function ContextBar({
   return (
     <div
       className={cn(
-        "sticky top-0 z-30 flex h-16 items-center justify-between border-b px-6 transition-all duration-300",
-        "bg-background/60 backdrop-blur-md border-white/10", // Glassmorphism
+        "sticky top-0 z-30 flex h-16 items-center justify-between px-6 transition-all duration-300",
+        "bg-background/40 backdrop-blur-xl border-b border-white/5", // Enhanced Glassmorphism
+        "before:absolute before:bottom-0 before:left-0 before:right-0 before:h-[1px] before:bg-gradient-to-r before:from-transparent before:via-white/10 before:to-transparent", // Prism Border
         className,
       )}
     >

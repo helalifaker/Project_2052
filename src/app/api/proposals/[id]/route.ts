@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { authenticateUserWithRole } from "@/middleware/auth";
@@ -155,19 +156,19 @@ export async function PATCH(
     if (validatedData.property !== undefined)
       updateData.property = validatedData.property;
     if (validatedData.enrollment !== undefined)
-      updateData.enrollment = validatedData.enrollment as InputJsonValue;
+      updateData.enrollment = validatedData.enrollment as any;
     if (validatedData.curriculum !== undefined)
-      updateData.curriculum = validatedData.curriculum as InputJsonValue;
+      updateData.curriculum = validatedData.curriculum as any;
     if (validatedData.staff !== undefined)
-      updateData.staff = validatedData.staff as InputJsonValue;
+      updateData.staff = validatedData.staff as any;
     if (validatedData.rentParams !== undefined)
-      updateData.rentParams = validatedData.rentParams as InputJsonValue;
+      updateData.rentParams = validatedData.rentParams as any;
     if (validatedData.otherOpexPercent !== undefined)
       updateData.otherOpexPercent = validatedData.otherOpexPercent;
     if (validatedData.financials !== undefined)
-      updateData.financials = validatedData.financials as InputJsonValue;
+      updateData.financials = validatedData.financials as any;
     if (validatedData.metrics !== undefined)
-      updateData.metrics = validatedData.metrics as InputJsonValue;
+      updateData.metrics = validatedData.metrics as any;
     if (validatedData.calculatedAt !== undefined)
       updateData.calculatedAt = validatedData.calculatedAt
         ? new Date(validatedData.calculatedAt)
@@ -176,7 +177,7 @@ export async function PATCH(
     // Update proposal
     const updatedProposal = await prisma.leaseProposal.update({
       where: { id },
-      data: updateData,
+      data: updateData as any,
       include: {
         creator: {
           select: {

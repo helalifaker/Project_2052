@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { authenticateUserWithRole } from "@/middleware/auth";
@@ -91,11 +92,11 @@ export async function GET(request: Request) {
     }
 
     // Get total count for pagination
-    const total = await prisma.user.count({ where });
+    const total = await prisma.user.count({ where: where as any });
 
     // Fetch users with pagination
     const users = await prisma.user.findMany({
-      where,
+      where: where as any,
       orderBy: {
         [validSortBy]: sortOrder,
       },
@@ -193,7 +194,7 @@ export async function POST(request: Request) {
       data: {
         email: validatedData.email,
         name: validatedData.name,
-        role: validatedData.role,
+        role: validatedData.role as any,
       },
       select: {
         id: true,

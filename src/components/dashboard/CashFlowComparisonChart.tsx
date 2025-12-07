@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
 import React, { useMemo } from "react";
@@ -13,8 +14,10 @@ import {
   Legend,
 } from "recharts";
 import { formatMillions } from "@/lib/utils/financial";
-import { chartColors, getProposalColor } from "@/lib/design-tokens/chart-colors";
-import { CustomTooltip } from "@/components/charts/CustomTooltip";
+import {
+  chartColors,
+  getProposalColor,
+} from "@/lib/design-tokens/chart-colors";
 import {
   getAxisProps,
   getGridProps,
@@ -37,6 +40,72 @@ interface CashFlowComparisonChartProps {
   data: CashFlowComparisonData[];
 }
 
+// Custom tooltip with winner highlighting and health status
+const CashFlowTooltip = ({
+  active,
+  payload,
+  label,
+  limitedData,
+  cautionThreshold,
+}: any) => {
+  if (!active || !payload || payload.length === 0) return null;
+
+  return (
+    <div className="bg-background/95 backdrop-blur-sm border border-border rounded-lg p-3 shadow-lg max-w-sm">
+      <p className="font-semibold text-xs uppercase tracking-wider mb-2 pb-2 border-b border-border">
+        Year {label}
+      </p>
+      <div className="space-y-1.5">
+        {payload.map((entry: any, index: number) => {
+          const value = entry.value;
+          const proposalIndex = parseInt(entry.dataKey.replace("proposal", ""));
+          const proposal = limitedData[proposalIndex];
+
+          if (!proposal) return null;
+
+          const isHealthy = value > cautionThreshold / 1_000_000;
+          const isNegative = value < 0;
+
+          return (
+            <div
+              key={index}
+              className="flex justify-between items-center gap-4 text-xs"
+            >
+              <div className="flex items-center gap-2">
+                <div
+                  className="w-2 h-2 rounded-full flex-shrink-0"
+                  style={{ backgroundColor: entry.color }}
+                />
+                <span className="truncate max-w-[120px]">
+                  {proposal.proposalName}
+                </span>
+                {proposal.isWinner && (
+                  <span className="text-amber-500">⭐</span>
+                )}
+              </div>
+              <div className="flex items-center gap-2">
+                <span
+                  className="font-semibold tabular-nums"
+                  style={{
+                    color: isNegative
+                      ? chartColors.negative
+                      : isHealthy
+                        ? chartColors.positive
+                        : chartColors.warning,
+                  }}
+                >
+                  SAR {formatMillions(value * 1_000_000)}
+                </span>
+                {isNegative && <span className="text-xs">⚠</span>}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
+
 /**
  * Cash Flow Comparison Chart
  *
@@ -46,19 +115,14 @@ interface CashFlowComparisonChartProps {
 export function CashFlowComparisonChart({
   data,
 }: CashFlowComparisonChartProps) {
-  if (!data || data.length === 0) {
-    return (
-      <div className="flex items-center justify-center h-[400px] text-muted-foreground">
-        No cash flow data available
-      </div>
-    );
-  }
-
-  // Limit to 5 proposals
-  const limitedData = data.slice(0, 5);
+  // Limit to 5 proposals (safe derivation)
+  const limitedData = (data || []).slice(0, 5);
 
   // Transform data for Recharts (sample every 2 years)
+  // Hook must run unconditionally
   const chartData = useMemo(() => {
+    if (limitedData.length === 0) return [];
+
     // Get all unique years
     const years = limitedData[0]?.data.map((d) => d.year) || [];
     const sampledYears = years.filter((_, index) => index % 2 === 0);
@@ -79,9 +143,18 @@ export function CashFlowComparisonChart({
     });
   }, [limitedData]);
 
+  // Early return if no data
+  if (!data || data.length === 0) {
+    return (
+      <div className="flex items-center justify-center h-[400px] text-muted-foreground">
+        No cash flow data available
+      </div>
+    );
+  }
+
   // Calculate health zones
   const allCashValues = limitedData.flatMap((p) =>
-    p.data.map((d) => d.cumulative)
+    p.data.map((d) => d.cumulative),
   );
   const avgCash =
     allCashValues.reduce((a, b) => a + b, 0) / allCashValues.length;
@@ -89,69 +162,14 @@ export function CashFlowComparisonChart({
 
   // Find insights
   const negativeCashCount = limitedData.filter((p) =>
-    p.data.some((d) => d.cumulative < 0)
+    p.data.some((d) => d.cumulative < 0),
   ).length;
   const earliestBreakeven = limitedData
     .filter((p) => p.breakevenYear !== null)
     .reduce(
       (min, p) => (p.breakevenYear! < min ? p.breakevenYear! : min),
-      Infinity
+      Infinity,
     );
-
-  // Custom tooltip with winner highlighting and health status
-  const CashFlowTooltip = ({ active, payload, label }: any) => {
-    if (!active || !payload || payload.length === 0) return null;
-
-    return (
-      <div className="bg-background/95 backdrop-blur-sm border border-border rounded-lg p-3 shadow-lg max-w-sm">
-        <p className="font-semibold text-xs uppercase tracking-wider mb-2 pb-2 border-b border-border">
-          Year {label}
-        </p>
-        <div className="space-y-1.5">
-          {payload.map((entry: any, index: number) => {
-            const value = entry.value;
-            const proposalIndex = parseInt(entry.dataKey.replace("proposal", ""));
-            const proposal = limitedData[proposalIndex];
-
-            if (!proposal) return null;
-
-            const isHealthy = value > cautionThreshold / 1_000_000;
-            const isNegative = value < 0;
-
-            return (
-              <div key={index} className="flex justify-between items-center gap-4 text-xs">
-                <div className="flex items-center gap-2">
-                  <div
-                    className="w-2 h-2 rounded-full flex-shrink-0"
-                    style={{ backgroundColor: entry.color }}
-                  />
-                  <span className="truncate max-w-[120px]">
-                    {proposal.proposalName}
-                  </span>
-                  {proposal.isWinner && <span className="text-amber-500">⭐</span>}
-                </div>
-                <div className="flex items-center gap-2">
-                  <span
-                    className="font-semibold tabular-nums"
-                    style={{
-                      color: isNegative
-                        ? chartColors.negative
-                        : isHealthy
-                        ? chartColors.positive
-                        : chartColors.warning,
-                    }}
-                  >
-                    SAR {formatMillions(value * 1_000_000)}
-                  </span>
-                  {isNegative && <span className="text-xs">⚠</span>}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-    );
-  };
 
   return (
     <div className="space-y-4">
@@ -162,7 +180,8 @@ export function CashFlowComparisonChart({
             <span className="text-base">⚠️</span>
             <span>
               {negativeCashCount} proposal{negativeCashCount > 1 ? "s" : ""}{" "}
-              experience negative cash flow periods. Review liquidity management.
+              experience negative cash flow periods. Review liquidity
+              management.
             </span>
           </p>
         </div>
@@ -203,7 +222,14 @@ export function CashFlowComparisonChart({
                 style: { fontSize: 12, fill: chartColors.axis },
               }}
             />
-            <Tooltip content={<CashFlowTooltip />} />
+            <Tooltip
+              content={
+                <CashFlowTooltip
+                  limitedData={limitedData}
+                  cautionThreshold={cautionThreshold}
+                />
+              }
+            />
             <Legend
               wrapperStyle={{ paddingTop: "10px" }}
               formatter={(value, entry: any) => {
@@ -214,7 +240,9 @@ export function CashFlowComparisonChart({
                 return (
                   <span className="text-xs">
                     {proposal.proposalName}{" "}
-                    {proposal.isWinner && <span className="text-amber-500">⭐</span>}
+                    {proposal.isWinner && (
+                      <span className="text-amber-500">⭐</span>
+                    )}
                     <span className="text-muted-foreground ml-2">
                       ({formatMillions(proposal.finalCash)})
                     </span>
@@ -258,7 +286,9 @@ export function CashFlowComparisonChart({
       {/* Insights Panel */}
       <div className="grid grid-cols-4 gap-3 pt-2">
         <div className="text-center p-3 bg-muted/20 rounded-lg border border-border/50">
-          <p className="text-xs text-muted-foreground mb-1">Earliest Breakeven</p>
+          <p className="text-xs text-muted-foreground mb-1">
+            Earliest Breakeven
+          </p>
           <p className="text-sm font-semibold">
             {earliestBreakeven !== Infinity ? earliestBreakeven : "N/A"}
           </p>
@@ -278,7 +308,9 @@ export function CashFlowComparisonChart({
           </p>
         </div>
         <div className="text-center p-3 bg-muted/20 rounded-lg border border-border/50">
-          <p className="text-xs text-muted-foreground mb-1">Liquidity Warnings</p>
+          <p className="text-xs text-muted-foreground mb-1">
+            Liquidity Warnings
+          </p>
           <p className="text-sm font-semibold">{negativeCashCount} Proposals</p>
           <p className="text-xs text-muted-foreground mt-1">
             {negativeCashCount > 0 ? "Review Required" : "All Healthy"}
@@ -286,7 +318,9 @@ export function CashFlowComparisonChart({
         </div>
         <div className="text-center p-3 bg-muted/20 rounded-lg border border-border/50">
           <p className="text-xs text-muted-foreground mb-1">Comparing</p>
-          <p className="text-sm font-semibold">{limitedData.length} Proposals</p>
+          <p className="text-sm font-semibold">
+            {limitedData.length} Proposals
+          </p>
           <p className="text-xs text-muted-foreground mt-1">
             {data.length > 5 && `(Top 5 of ${data.length})`}
           </p>

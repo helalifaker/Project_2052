@@ -1,5 +1,4 @@
 import type ExcelJS from "exceljs";
-import type { StoredFinancialPeriod } from "./types";
 
 /**
  * Add named ranges to workbook for quick chart creation

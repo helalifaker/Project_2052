@@ -11,8 +11,7 @@
  * - Easy to maintain and update
  */
 
-import { chartColors } from './chart-colors';
-import { typography } from './typography';
+import { chartColors } from "./chart-colors";
 
 /**
  * Chart Typography Configuration
@@ -24,11 +23,11 @@ export const chartTypography = {
    * Used for X and Y axis tick labels
    */
   axis: {
-    fontSize: 11,                                    // 0.6875rem
-    fontWeight: 500,                                 // medium
-    fontFamily: 'var(--font-geist-sans)',
-    fill: 'hsl(var(--color-chart-axis))',
-    letterSpacing: '0.01em',
+    fontSize: 11, // 0.6875rem
+    fontWeight: 500, // medium
+    fontFamily: "var(--font-geist-sans)",
+    fill: "hsl(var(--color-chart-axis))",
+    letterSpacing: "0.01em",
   },
 
   /**
@@ -36,11 +35,11 @@ export const chartTypography = {
    * Used for chart legend labels
    */
   legend: {
-    fontSize: 12,                                    // 0.75rem
-    fontWeight: 500,                                 // medium
-    fontFamily: 'var(--font-geist-sans)',
-    fill: 'hsl(24 6% 46%)',                         // stone-600
-    letterSpacing: '0.01em',
+    fontSize: 12, // 0.75rem
+    fontWeight: 500, // medium
+    fontFamily: "var(--font-geist-sans)",
+    fill: "hsl(24 6% 46%)", // stone-600
+    letterSpacing: "0.01em",
   },
 
   /**
@@ -48,9 +47,9 @@ export const chartTypography = {
    * Used for tooltip text
    */
   tooltip: {
-    fontSize: 13,                                    // 0.8125rem
-    fontWeight: 500,                                 // medium
-    fontFamily: 'var(--font-geist-sans)',
+    fontSize: 13, // 0.8125rem
+    fontWeight: 500, // medium
+    fontFamily: "var(--font-geist-sans)",
   },
 
   /**
@@ -58,10 +57,10 @@ export const chartTypography = {
    * Used for labels directly on chart elements
    */
   label: {
-    fontSize: 12,                                    // 0.75rem
-    fontWeight: 600,                                 // semibold
-    fontFamily: 'var(--font-geist-sans)',
-    letterSpacing: '0.02em',
+    fontSize: 12, // 0.75rem
+    fontWeight: 600, // semibold
+    fontFamily: "var(--font-geist-sans)",
+    letterSpacing: "0.02em",
   },
 } as const;
 
@@ -106,15 +105,15 @@ export const chartSpacing = {
   /**
    * Bar Chart Spacing
    */
-  barCategoryGap: '20%',    // Gap between bar groups
-  barGap: 4,                // Gap between bars in same group
+  barCategoryGap: "20%", // Gap between bar groups
+  barGap: 4, // Gap between bars in same group
 
   /**
    * Line/Area Chart Spacing
    */
-  strokeWidth: 2,           // Default line width
-  activeDotRadius: 4,       // Active dot size on hover
-  dotRadius: 3,             // Regular dot size
+  strokeWidth: 2, // Default line width
+  activeDotRadius: 4, // Active dot size on hover
+  dotRadius: 3, // Regular dot size
 } as const;
 
 /**
@@ -123,10 +122,10 @@ export const chartSpacing = {
  */
 export const chartGrid = {
   stroke: chartColors.grid,
-  strokeDasharray: '3 3',      // Dashed lines (3px dash, 3px gap)
+  strokeDasharray: "3 3", // Dashed lines (3px dash, 3px gap)
   strokeWidth: 1,
   horizontal: true,
-  vertical: false,             // Only horizontal grid lines by default
+  vertical: false, // Only horizontal grid lines by default
 } as const;
 
 /**
@@ -143,7 +142,7 @@ export const chartAxis = {
   axisLine: {
     stroke: chartColors.axis,
   },
-  interval: 'preserveStartEnd' as const,
+  interval: "preserveStartEnd" as const,
 } as const;
 
 /**
@@ -151,11 +150,12 @@ export const chartAxis = {
  * Styling for chart tooltips
  */
 export const chartTooltipStyle = {
-  backgroundColor: 'hsl(var(--color-background))',
-  border: '1px solid hsl(24 6% 83%)',             // stone-300
-  borderRadius: '12px',
-  padding: '12px',
-  boxShadow: '0 4px 6px -1px hsl(24 10% 10% / 0.12), 0 2px 4px -2px hsl(24 10% 10% / 0.08)',
+  backgroundColor: "hsl(var(--color-background))",
+  border: "1px solid hsl(24 6% 83%)", // stone-300
+  borderRadius: "12px",
+  padding: "12px",
+  boxShadow:
+    "0 4px 6px -1px hsl(24 10% 10% / 0.12), 0 2px 4px -2px hsl(24 10% 10% / 0.08)",
   fontSize: chartTypography.tooltip.fontSize,
   fontWeight: chartTypography.tooltip.fontWeight,
   fontFamily: chartTypography.tooltip.fontFamily,
@@ -167,12 +167,12 @@ export const chartTooltipStyle = {
  */
 export const chartTooltipContentStyle = {
   labelStyle: {
-    color: 'hsl(var(--color-foreground))',
+    color: "hsl(var(--color-foreground))",
     fontWeight: 600,
-    marginBottom: '4px',
+    marginBottom: "4px",
   },
   itemStyle: {
-    color: 'hsl(var(--color-foreground))',
+    color: "hsl(var(--color-foreground))",
   },
 } as const;
 
@@ -185,10 +185,10 @@ export const chartLegendStyle = {
   fontWeight: chartTypography.legend.fontWeight,
   fontFamily: chartTypography.legend.fontFamily,
   fill: chartTypography.legend.fill,
-  iconType: 'circle' as const,
+  iconType: "circle" as const,
   iconSize: 8,
   wrapperStyle: {
-    paddingTop: '16px',
+    paddingTop: "16px",
   },
 } as const;
 
@@ -197,10 +197,10 @@ export const chartLegendStyle = {
  * Consistent animations across all charts
  */
 export const chartAnimation = {
-  duration: 500,                    // 500ms animation duration
-  easing: 'ease-out' as const,      // Ease-out easing function
-  isAnimationActive: true,          // Enable animations
-  animationBegin: 0,                // Start immediately
+  duration: 500, // 500ms animation duration
+  easing: "ease-out" as const, // Ease-out easing function
+  isAnimationActive: true, // Enable animations
+  animationBegin: 0, // Start immediately
 } as const;
 
 /**
@@ -208,10 +208,10 @@ export const chartAnimation = {
  * Breakpoints and responsive behavior
  */
 export const chartResponsive = {
-  minHeight: 200,                   // Minimum chart height
-  defaultHeight: 300,               // Default chart height
-  largeHeight: 400,                 // Large chart height
-  aspectRatio: 16 / 9,              // Default aspect ratio
+  minHeight: 200, // Minimum chart height
+  defaultHeight: 300, // Default chart height
+  largeHeight: 400, // Large chart height
+  aspectRatio: 16 / 9, // Default aspect ratio
 } as const;
 
 /**
@@ -219,9 +219,9 @@ export const chartResponsive = {
  * Pre-configured settings for line charts
  */
 export const lineChartConfig = {
-  type: 'monotone' as const,        // Smooth curves
+  type: "monotone" as const, // Smooth curves
   strokeWidth: chartSpacing.strokeWidth,
-  dot: false,                       // Hide dots by default
+  dot: false, // Hide dots by default
   activeDot: {
     r: chartSpacing.activeDotRadius,
     strokeWidth: 2,
@@ -246,9 +246,9 @@ export const barChartConfig = {
  * Pre-configured settings for area charts
  */
 export const areaChartConfig = {
-  type: 'monotone' as const,
+  type: "monotone" as const,
   strokeWidth: chartSpacing.strokeWidth,
-  fillOpacity: 0.6,                 // Semi-transparent fill
+  fillOpacity: 0.6, // Semi-transparent fill
   animationDuration: chartAnimation.duration,
   animationEasing: chartAnimation.easing,
 } as const;
@@ -258,22 +258,22 @@ export const areaChartConfig = {
  * Pre-configured settings for pie charts
  */
 export const pieChartConfig = {
-  innerRadius: '60%',               // Donut chart (60% inner radius)
-  outerRadius: '80%',
-  paddingAngle: 2,                  // Gap between slices
+  innerRadius: "60%", // Donut chart (60% inner radius)
+  outerRadius: "80%",
+  paddingAngle: 2, // Gap between slices
   animationDuration: chartAnimation.duration,
   animationEasing: chartAnimation.easing,
-  labelLine: false,                 // No label lines by default
+  labelLine: false, // No label lines by default
 } as const;
 
 /**
  * Helper: Create axis props
  * Generates complete axis configuration
  */
-export function getAxisProps(type: 'x' | 'y' = 'x') {
+export function getAxisProps(type: "x" | "y" = "x") {
   return {
     ...chartAxis,
-    axisLine: type === 'x' ? chartAxis.axisLine : { stroke: 'none' },
+    axisLine: type === "x" ? chartAxis.axisLine : { stroke: "none" },
     tickLine: chartAxis.tickLine,
   };
 }
@@ -282,7 +282,10 @@ export function getAxisProps(type: 'x' | 'y' = 'x') {
  * Helper: Create grid props
  * Generates complete grid configuration
  */
-export function getGridProps(options?: { vertical?: boolean; horizontal?: boolean }) {
+export function getGridProps(options?: {
+  vertical?: boolean;
+  horizontal?: boolean;
+}) {
   return {
     ...chartGrid,
     horizontal: options?.horizontal ?? chartGrid.horizontal,
@@ -299,7 +302,7 @@ export function getTooltipProps() {
     contentStyle: chartTooltipStyle,
     labelStyle: chartTooltipContentStyle.labelStyle,
     itemStyle: chartTooltipContentStyle.itemStyle,
-    cursor: { fill: 'hsl(var(--color-muted) / 0.1)' },
+    cursor: { fill: "hsl(var(--color-muted) / 0.1)" },
   };
 }
 

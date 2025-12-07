@@ -1,4 +1,3 @@
-import type ExcelJS from "exceljs";
 import Decimal from "decimal.js";
 import type {
   TransposedSheetConfig,
@@ -7,11 +6,9 @@ import type {
 } from "./types";
 import {
   applyStyle,
-  applyRowStyle,
   setColumnWidths,
   freezeHeaderPanes,
   indentLabel,
-  formatValue,
   CELL_STYLES,
   NUMBER_FORMATS,
 } from "./formatting";
@@ -165,7 +162,11 @@ export function createTransposedSheet(
         cell.value = "";
       } else {
         // Extract and format the value
-        const value = extractPeriodData(period, lineItem.dataKey, statementType);
+        const value = extractPeriodData(
+          period,
+          lineItem.dataKey,
+          statementType,
+        );
         cell.value = value.toNumber();
 
         // Apply number format
@@ -356,7 +357,12 @@ export const PROFIT_LOSS_LINE_ITEMS: LineItemDefinition[] = [
 export const BALANCE_SHEET_LINE_ITEMS: LineItemDefinition[] = [
   // Assets
   { label: "ASSETS", dataKey: "", styleType: "sectionHeader" },
-  { label: "Current Assets", dataKey: "", styleType: "sectionHeader", indent: 1 },
+  {
+    label: "Current Assets",
+    dataKey: "",
+    styleType: "sectionHeader",
+    indent: 1,
+  },
   { label: "Cash", dataKey: "cash", styleType: "lineItem", indent: 2 },
   {
     label: "Accounts Receivable",

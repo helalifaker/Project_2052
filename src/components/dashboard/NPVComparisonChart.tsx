@@ -57,9 +57,7 @@ const NPVTooltip = ({
           <span
             className="font-semibold tabular-nums"
             style={{
-              color: isPositive
-                ? chartColors.positive
-                : chartColors.negative,
+              color: isPositive ? chartColors.positive : chartColors.negative,
             }}
           >
             SAR {formatMillions(data.npvRaw)}
@@ -123,7 +121,7 @@ export function NPVComparisonChart({ data }: NPVComparisonChartProps) {
 
   // Generate cell colors based on positive/negative NPV
   const cellColors = chartData.map((entry) =>
-    entry.npv > 0 ? chartColors.positive : chartColors.negative
+    entry.npv > 0 ? chartColors.positive : chartColors.negative,
   );
 
   return (
@@ -153,9 +151,9 @@ export function NPVComparisonChart({ data }: NPVComparisonChartProps) {
             },
           ]}
           xAxisKey="name"
-          layout="horizontal"
+          layout="vertical"
           yAxisFormatter={(value) =>
-            typeof value === 'number' ? `${value.toFixed(1)}M` : '0.0M'
+            typeof value === "number" ? `${value.toFixed(1)}M` : "0.0M"
           }
           tooltipContent={<NPVTooltip />}
           showLegend={false}
@@ -167,7 +165,10 @@ export function NPVComparisonChart({ data }: NPVComparisonChartProps) {
       <div className="grid grid-cols-4 gap-3 pt-2">
         <div className="text-center p-3 bg-muted/20 rounded-lg border border-border/50">
           <p className="text-xs text-muted-foreground mb-1">Best NPV</p>
-          <p className="text-sm font-semibold truncate" title={bestNPV.proposalName}>
+          <p
+            className="text-sm font-semibold truncate"
+            title={bestNPV.proposalName}
+          >
             {bestNPV.proposalName}
           </p>
           <p
@@ -179,13 +180,17 @@ export function NPVComparisonChart({ data }: NPVComparisonChartProps) {
         </div>
         <div className="text-center p-3 bg-muted/20 rounded-lg border border-border/50">
           <p className="text-xs text-muted-foreground mb-1">Worst NPV</p>
-          <p className="text-sm font-semibold truncate" title={worstNPV.proposalName}>
+          <p
+            className="text-sm font-semibold truncate"
+            title={worstNPV.proposalName}
+          >
             {worstNPV.proposalName}
           </p>
           <p
             className="text-xs mt-1 tabular-nums font-medium"
             style={{
-              color: worstNPV.npv < 0 ? chartColors.negative : chartColors.positive,
+              color:
+                worstNPV.npv < 0 ? chartColors.negative : chartColors.positive,
             }}
           >
             SAR {formatMillions(worstNPV.npv)}

@@ -469,9 +469,11 @@ export async function reconstructCalculationInput(
           c.ibStudentPercentage = new Decimal(toNumber(c.ibStudentPercentage));
         }
 
-        return c;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        return c as any;
       })(),
-      staff: transformStaffConfig(proposal.staff),
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      staff: transformStaffConfig(proposal.staff) as any,
       rentModel: proposal.rentModel as RentModel,
       rentParams: transformRentParams(
         proposal.rentModel as RentModel,
@@ -611,4 +613,3 @@ export function reconstructDecimalsInObject(obj: unknown): void {
 }
 
 export { toNumber };
-export type { ProposalRecord };

@@ -101,7 +101,6 @@ export const ProposalCard = memo(function ProposalCard({
   const router = useRouter();
   const { canEdit, canDelete } = useRoleCheck();
 
-  // PERFORMANCE: Memoize event handlers to prevent child re-renders
   const handleView = useCallback(() => {
     if (onView) {
       onView(id);
@@ -121,242 +120,230 @@ export const ProposalCard = memo(function ProposalCard({
   const handleDelete = useCallback(() => onDelete?.(id), [id, onDelete]);
   const handleExport = useCallback(() => onExport?.(id), [id, onExport]);
 
-  // PERFORMANCE: Memoize status badge computation
-  const statusBadge = useMemo(() => {
-    const normalizedStatus = status?.toUpperCase() ?? "DRAFT";
-    const title = (value: string) =>
-      value
-        .toLowerCase()
-        .split(/[\s_]+/)
-        .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-        .join(" ");
-
-    const variants = {
-      DRAFT: { label: "Draft", className: "bg-gray-100 text-gray-800" },
+  // Design System Mapping for Status
+  const statusConfig = useMemo(() => {
+    const normalized = status?.toUpperCase() ?? "DRAFT";
+    // Map internal statuses to EFIR colors
+    const map: Record<string, { color: string; bg: string; border: string }> = {
+      DRAFT: {
+        color: "var(--text-secondary)",
+        bg: "var(--bg-subtle)",
+        border: "var(--border-medium)",
+      },
       READY_TO_SUBMIT: {
-        label: "Ready to Submit",
-        className: "bg-blue-100 text-blue-800",
+        color: "var(--accent-slate)",
+        bg: "var(--bg-warm)",
+        border: "var(--border-medium)",
       },
-      SUBMITTED: { label: "Submitted", className: "bg-blue-100 text-blue-800" },
+      SUBMITTED: {
+        color: "var(--accent-gold)",
+        bg: "rgba(166, 139, 91, 0.12)",
+        border: "var(--accent-gold)",
+      },
       UNDER_REVIEW: {
-        label: "Under Review",
-        className: "bg-amber-100 text-amber-800",
+        color: "var(--accent-gold)",
+        bg: "rgba(166, 139, 91, 0.12)",
+        border: "var(--accent-gold)",
       },
-      COUNTER_RECEIVED: {
-        label: "Counter Received",
-        className: "bg-purple-100 text-purple-800",
+      ACCEPTED: {
+        color: "var(--accent-sage)",
+        bg: "var(--accent-sage-light)",
+        border: "var(--accent-sage)",
       },
-      EVALUATING_COUNTER: {
-        label: "Evaluating Counter",
-        className: "bg-purple-100 text-purple-800",
-      },
-      ACCEPTED: { label: "Accepted", className: "bg-green-100 text-green-800" },
       REJECTED: {
-        label: "Rejected",
-        className: "bg-destructive/10 text-destructive",
+        color: "var(--accent-terracotta)",
+        bg: "var(--accent-terracotta-light)",
+        border: "var(--accent-terracotta)",
       },
-      NEGOTIATION_CLOSED: {
-        label: "Closed",
-        className: "bg-gray-100 text-gray-600",
-      },
-    } as const;
-
-    const variant = variants[normalizedStatus as keyof typeof variants] ?? {
-      label: title(normalizedStatus),
-      className: "bg-gray-100 text-gray-800",
     };
-
-    return (
-      <Badge variant="outline" className={variant.className}>
-        {variant.label}
-      </Badge>
-    );
+    return map[normalized] ?? map.DRAFT;
   }, [status]);
 
-  // PERFORMANCE: Memoize rent model color
-  const rentModelColor = useMemo(() => {
+  // Design System Mapping for Rent Model
+  const rentModelConfig = useMemo(() => {
     const normalized = rentModel?.toUpperCase() ?? "FIXED";
-    const colors: Record<string, string> = {
-      FIXED: "text-blue-600 bg-blue-50 border-blue-200",
-      REVSHARE: "text-green-600 bg-green-50 border-green-200",
-      PARTNER: "text-purple-600 bg-purple-50 border-purple-200",
+    const map: Record<string, { color: string; bg: string }> = {
+      FIXED: { color: "var(--accent-slate)", bg: "rgba(100, 116, 139, 0.08)" },
+      REVSHARE: { color: "var(--accent-sage)", bg: "var(--accent-sage-light)" },
+      PARTNER: { color: "var(--accent-gold)", bg: "rgba(166, 139, 91, 0.12)" },
     };
-    return colors[normalized] ?? "text-muted-foreground bg-muted border-muted";
+    return map[normalized] ?? map.FIXED;
   }, [rentModel]);
 
-  const rentModelLabel = useMemo(() => {
-    const normalized = rentModel?.toUpperCase() ?? "";
-    const labels: Record<string, string> = {
-      FIXED: "Fixed",
-      REVSHARE: "RevShare",
-      PARTNER: "Partner",
-    };
-    return labels[normalized] ?? rentModel ?? "Model";
-  }, [rentModel]);
+  // Helper for title casing
+  const formatStatus = (s: string | null) => {
+    if (!s) return "Draft";
+    return s
+      .toLowerCase()
+      .split(/[_\s]+/)
+      .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+      .join(" ");
+  };
 
-  // PERFORMANCE: Memoize formatted dates
   const formattedUpdatedDate = useMemo(
     () => (updatedAt ? new Date(updatedAt).toLocaleDateString() : "-"),
     [updatedAt],
-  );
-  const formattedCreatedDate = useMemo(
-    () => (createdAt ? new Date(createdAt).toLocaleDateString() : "-"),
-    [createdAt],
   );
 
   return (
     <Card
       className={cn(
-        "hover:shadow-lg transition-all duration-200 cursor-pointer group focus-within-ring",
+        "group relative overflow-hidden transition-all duration-500",
+        "glass-card p-0 hover:shadow-2xl hover:scale-[1.01]", // V2 Base
+        "animate-slide-up", // Entry animation
         className,
       )}
       onClick={handleView}
-      role="article"
-      aria-label={`Proposal ${name || developer || "details"}`}
     >
-      <CardHeader>
-        <div className="flex items-start justify-between">
-          <div className="space-y-1">
-            <CardTitle className="text-xl flex items-center gap-2">
-              <Building2 className="h-5 w-5 text-muted-foreground" aria-hidden="true" />
-              {name || developer || "Proposal"}
-            </CardTitle>
-            <CardDescription className="flex items-center gap-2">
-              <Calendar className="h-3 w-3" aria-hidden="true" />
-              <span className="sr-only">Last updated:</span>
-              {formattedUpdatedDate}
-            </CardDescription>
-          </div>
+      {/* Active Shimmer Border Gradient (on hover) */}
+      <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none z-0">
+        <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/5 to-transparent skew-x-12 translate-x-[-100%] group-hover:animate-[shimmer_1.5s_infinite]" />
+      </div>
+
+      {/* Header Section: Distinct Background based on Status */}
+      <div
+        className="relative z-10 px-6 py-5 border-b border-white/5 flex items-start justify-between backdrop-blur-[2px]"
+        style={{
+          background: `linear-gradient(to bottom, ${statusConfig.bg}, transparent)`,
+        }}
+      >
+        <div className="space-y-1.5">
           <div className="flex items-center gap-2">
-            {statusBadge}
+            <Badge
+              variant="outline"
+              className="text-[10px] uppercase tracking-[0.1em] font-semibold border px-2 py-0.5"
+              style={{
+                color: statusConfig.color,
+                backgroundColor: statusConfig.bg, // Deeper pill
+                borderColor: statusConfig.border,
+              }}
+            >
+              {formatStatus(status ?? null)}
+            </Badge>
+            <span className="text-[10px] text-muted-foreground uppercase tracking-wider flex items-center gap-1">
+              <span className="w-1 h-1 rounded-full bg-current opacity-50" />
+              {rentModel || "Fixed"}
+            </span>
+          </div>
+
+          <CardTitle className="text-xl font-serif font-medium text-foreground group-hover:text-accent-gold transition-colors duration-300">
+            {name || developer || "Untitled Proposal"}
+          </CardTitle>
+
+          <div className="text-[11px] text-muted-foreground flex items-center gap-1.5">
+            Updated {formattedUpdatedDate}
+          </div>
+        </div>
+
+        <div className="flex items-center gap-1">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 text-muted-foreground hover:text-foreground rounded-full hover:bg-white/10"
+            onClick={(e) => {
+              e.stopPropagation();
+              // Open menu
+            }}
+          >
             <DropdownMenu>
-              <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8 focus-ring-enhanced"
-                  aria-label="Open proposal actions menu"
-                  aria-haspopup="menu"
-                >
-                  <MoreVertical className="h-4 w-4" aria-hidden="true" />
-                  <span className="sr-only">Actions</span>
-                </Button>
+              <DropdownMenuTrigger asChild>
+                <MoreVertical className="h-4 w-4" />
               </DropdownMenuTrigger>
               <DropdownMenuContent
                 align="end"
+                className="w-48 glass-panel"
                 onClick={(e) => e.stopPropagation()}
-                role="menu"
-                aria-label="Proposal actions"
               >
-                <DropdownMenuItem onClick={handleView} role="menuitem">
-                  <Eye className="h-4 w-4 mr-2" aria-hidden="true" />
-                  View Details
+                <DropdownMenuItem onClick={handleView}>
+                  <Eye className="h-4 w-4 mr-2" /> View Details
                 </DropdownMenuItem>
                 {canEdit && (
                   <>
-                    <DropdownMenuItem onClick={handleEdit} role="menuitem">
-                      <Edit className="h-4 w-4 mr-2" aria-hidden="true" />
-                      Edit
+                    <DropdownMenuItem onClick={handleEdit}>
+                      <Edit className="h-4 w-4 mr-2" /> Edit Proposal
                     </DropdownMenuItem>
-                    <DropdownMenuItem onClick={handleDuplicate} role="menuitem">
-                      <Copy className="h-4 w-4 mr-2" aria-hidden="true" />
-                      Duplicate
+                    <DropdownMenuItem onClick={handleDuplicate}>
+                      <Copy className="h-4 w-4 mr-2" /> Duplicate
                     </DropdownMenuItem>
-                    <DropdownMenuItem onClick={handleUseAsTemplate} role="menuitem">
-                      <FileText className="h-4 w-4 mr-2" aria-hidden="true" />
-                      Use as Template
+                    <DropdownMenuItem onClick={handleUseAsTemplate}>
+                      <FileText className="h-4 w-4 mr-2" /> Save as Template
                     </DropdownMenuItem>
                   </>
                 )}
-                <DropdownMenuSeparator role="separator" />
-                <DropdownMenuItem onClick={handleExport} role="menuitem">
-                  <FileDown className="h-4 w-4 mr-2" aria-hidden="true" />
-                  Export
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={handleExport}>
+                  <FileDown className="h-4 w-4 mr-2" /> Export PDF
                 </DropdownMenuItem>
                 {canDelete && (
                   <>
-                    <DropdownMenuSeparator role="separator" />
+                    <DropdownMenuSeparator />
                     <DropdownMenuItem
                       onClick={handleDelete}
-                      role="menuitem"
                       className="text-destructive focus:text-destructive"
-                      aria-label="Delete proposal (irreversible action)"
                     >
-                      <Trash2 className="h-4 w-4 mr-2" aria-hidden="true" />
-                      Delete
+                      <Trash2 className="h-4 w-4 mr-2" /> Delete
                     </DropdownMenuItem>
                   </>
                 )}
               </DropdownMenuContent>
             </DropdownMenu>
-          </div>
+          </Button>
         </div>
-      </CardHeader>
+      </div>
 
-      <CardContent className="space-y-4">
-        {/* Rent Model */}
-        <div className="flex items-center gap-2">
-          <span className="text-sm text-muted-foreground">Model:</span>
-          <Badge className={rentModelColor} variant="outline">
-            {rentModel}
-          </Badge>
-        </div>
-
-        {/* Key Metrics - Contract Period */}
-        <div className="grid grid-cols-3 gap-4" role="list" aria-label="Key financial metrics">
-          <div className="space-y-1" role="listitem">
-            <div className="flex items-center gap-1 text-xs text-muted-foreground">
-              <DollarSign className="h-3 w-3" aria-hidden="true" />
-              <span id={`total-rent-label-${id}`}>Total Rent</span>
-            </div>
-            <div
-              className="text-lg font-bold font-mono tabular-nums"
-              aria-labelledby={`total-rent-label-${id}`}
-              aria-label={`Total rent: ${formatMillions(metrics?.contractTotalRent ?? metrics?.totalRent ?? 0)} SAR`}
-            >
-              {formatMillions(metrics?.contractTotalRent ?? metrics?.totalRent ?? 0)}
-            </div>
-          </div>
-
-          <div className="space-y-1" role="listitem">
-            <div className="flex items-center gap-1 text-xs text-muted-foreground">
-              <TrendingUp className="h-3 w-3" aria-hidden="true" />
-              <span id={`rent-npv-label-${id}`}>Rent NPV</span>
-            </div>
-            <div
-              className={cn(
-                "text-lg font-bold font-mono tabular-nums",
-                Number(metrics?.contractRentNPV ?? metrics?.npv ?? 0) >= 0
-                  ? "text-accessible-positive"
-                  : "text-accessible-negative",
+      {/* Body Section: Metrics */}
+      <CardContent className="relative z-10 px-6 py-6">
+        <div className="grid grid-cols-3 gap-6">
+          {/* Total Rent */}
+          <div className="space-y-1">
+            <span className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground font-semibold">
+              Total Rent
+            </span>
+            <span className="font-serif text-3xl font-light text-foreground tracking-tight tabular-nums block group-hover:text-accent-gold transition-colors">
+              {formatMillions(
+                metrics?.contractTotalRent ?? metrics?.totalRent ?? 0,
               )}
-              aria-labelledby={`rent-npv-label-${id}`}
-              aria-label={`Net present value: ${Number(metrics?.contractRentNPV ?? metrics?.npv ?? 0) >= 0 ? 'positive' : 'negative'} ${formatMillions(Math.abs(Number(metrics?.contractRentNPV ?? metrics?.npv ?? 0)))} SAR`}
-            >
-              {formatMillions(Math.abs(Number(metrics?.contractRentNPV ?? metrics?.npv ?? 0)))}
-            </div>
+            </span>
           </div>
 
-          <div className="space-y-1" role="listitem">
-            <div className="flex items-center gap-1 text-xs text-muted-foreground">
-              <TrendingUp className="h-3 w-3" aria-hidden="true" />
-              <span id={`total-ebitda-label-${id}`}>Total EBITDA</span>
-            </div>
-            <div
-              className="text-lg font-bold font-mono tabular-nums"
-              aria-labelledby={`total-ebitda-label-${id}`}
-              aria-label={`Total EBITDA: ${formatMillions(metrics?.contractTotalEbitda ?? metrics?.totalEbitda ?? 0)} SAR`}
+          {/* NPV */}
+          <div className="space-y-1 relative">
+            {/* Vertical Divider */}
+            <div className="absolute -left-3 top-2 bottom-2 w-px bg-border/40" />
+            <span className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground font-semibold">
+              NPV
+            </span>
+            <span
+              className={cn(
+                "font-serif text-3xl font-light tracking-tight tabular-nums block",
+                Number(metrics?.contractRentNPV ?? metrics?.npv ?? 0) >= 0
+                  ? "text-emerald-600 dark:text-emerald-400"
+                  : "text-rose-600 dark:text-rose-400",
+              )}
             >
-              {formatMillions(metrics?.contractTotalEbitda ?? metrics?.totalEbitda ?? 0)}
-            </div>
+              {formatMillions(
+                Math.abs(Number(metrics?.contractRentNPV ?? metrics?.npv ?? 0)),
+              )}
+            </span>
+          </div>
+
+          {/* EBITDA */}
+          <div className="space-y-1 relative">
+            <div className="absolute -left-3 top-2 bottom-2 w-px bg-border/40" />
+            <span className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground font-semibold">
+              EBITDA
+            </span>
+            <span className="font-serif text-3xl font-light text-foreground tracking-tight tabular-nums block">
+              {formatMillions(
+                metrics?.contractTotalEbitda ?? metrics?.totalEbitda ?? 0,
+              )}
+            </span>
           </div>
         </div>
       </CardContent>
 
-      <CardFooter className="text-xs text-muted-foreground border-t pt-4">
-        <span className="sr-only">Created on:</span>
-        {formattedCreatedDate}
-      </CardFooter>
+      {/* Footer Visual Indication */}
+      <div className="absolute bottom-0 left-0 right-0 h-[2px] opacity-0 group-hover:opacity-100 transition-opacity duration-500 bg-gradient-to-r from-transparent via-accent-gold to-transparent" />
     </Card>
   );
 });
@@ -366,27 +353,35 @@ export const ProposalCard = memo(function ProposalCard({
  */
 export function ProposalCardSkeleton() {
   return (
-    <Card className="animate-pulse">
-      <CardHeader>
+    <Card className="bg-paper border-border-light h-[280px] p-6">
+      <CardHeader className="p-0 pb-6">
         <div className="flex items-start justify-between">
-          <div className="space-y-2">
-            <div className="h-6 w-40 bg-muted rounded" />
-            <div className="h-4 w-32 bg-muted rounded" />
+          <div className="space-y-3">
+            <div className="h-7 w-48 bg-muted/50 rounded animate-shimmer" />
+            <div className="flex gap-3">
+              <div className="h-5 w-20 bg-muted/40 rounded animate-shimmer" />
+              <div className="h-5 w-24 bg-muted/30 rounded animate-shimmer" />
+            </div>
           </div>
-          <div className="h-6 w-20 bg-muted rounded" />
+          <div className="h-6 w-24 bg-muted/50 rounded-full animate-shimmer" />
         </div>
       </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="h-6 w-24 bg-muted rounded" />
-        <div className="grid grid-cols-3 gap-4">
-          <div className="h-12 bg-muted rounded" />
-          <div className="h-12 bg-muted rounded" />
-          <div className="h-12 bg-muted rounded" />
+      <CardContent className="p-0">
+        <div className="grid grid-cols-3 gap-8 py-4 border-t border-b border-border-light/40">
+          <div className="space-y-2">
+            <div className="h-3 w-16 bg-muted/40 rounded animate-pulse" />
+            <div className="h-8 w-24 bg-muted/60 rounded animate-shimmer" />
+          </div>
+          <div className="space-y-2 pl-4 border-l border-border-light/40">
+            <div className="h-3 w-16 bg-muted/40 rounded animate-pulse" />
+            <div className="h-8 w-24 bg-muted/60 rounded animate-shimmer" />
+          </div>
+          <div className="space-y-2 pl-4 border-l border-border-light/40">
+            <div className="h-3 w-16 bg-muted/40 rounded animate-pulse" />
+            <div className="h-8 w-24 bg-muted/60 rounded animate-shimmer" />
+          </div>
         </div>
       </CardContent>
-      <CardFooter className="border-t pt-4">
-        <div className="h-4 w-28 bg-muted rounded" />
-      </CardFooter>
     </Card>
   );
 }

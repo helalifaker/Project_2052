@@ -159,6 +159,7 @@ export function RentTrajectoryChart({ data }: RentTrajectoryChartProps) {
           series={series}
           xAxisKey="year"
           yAxisFormatter={(value) => `${value.toFixed(1)}M`}
+          yAxisDomain={["auto", "auto"]}
           tooltipContent={
             <RentTrajectoryTooltip proposalLookup={proposalLookup} />
           }

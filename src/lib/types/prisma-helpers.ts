@@ -17,7 +17,7 @@ export type InputJsonObject = { [key: string]: InputJsonValue };
 export type InputJsonArray = InputJsonValue[];
 
 // JSON null constant
-export const JsonNull = null as const;
+export const JsonNull = null;
 
 // String filter type
 export type StringFilter = string | { contains?: string; mode?: "insensitive" };

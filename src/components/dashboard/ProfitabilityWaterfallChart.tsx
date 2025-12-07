@@ -3,7 +3,10 @@
 import React, { useMemo } from "react";
 import { formatMillions } from "@/lib/utils/financial";
 import { BaseBarChart } from "@/components/charts/BaseBarChart";
-import { chartColors, chartColorMappings } from "@/lib/design-tokens/chart-colors";
+import {
+  chartColors,
+  chartColorMappings,
+} from "@/lib/design-tokens/chart-colors";
 
 interface WaterfallSegment {
   label: string;
@@ -34,16 +37,8 @@ interface ProfitabilityWaterfallChartProps {
 export function ProfitabilityWaterfallChart({
   data,
 }: ProfitabilityWaterfallChartProps) {
-  if (!data || data.length === 0) {
-    return (
-      <div className="flex items-center justify-center h-[500px] text-muted-foreground">
-        No profitability data available
-      </div>
-    );
-  }
-
   // Limit to 4 proposals for side-by-side comparison
-  const limitedData = data.slice(0, 4);
+  const limitedData = data ? data.slice(0, 4) : [];
 
   // Simplify segments: combine into 5 main categories
   const simplifiedData = useMemo(() => {
@@ -54,7 +49,8 @@ export function ProfitabilityWaterfallChart({
       const revenue = segments.find((s) => s.label === "Revenue")?.value || 0;
       const rent = segments.find((s) => s.label === "Rent")?.value || 0;
       const staff = segments.find((s) => s.label === "Staff")?.value || 0;
-      const otherOpex = segments.find((s) => s.label === "Other OpEx")?.value || 0;
+      const otherOpex =
+        segments.find((s) => s.label === "Other OpEx")?.value || 0;
       const ebitda = segments.find((s) => s.label === "EBITDA")?.value || 0;
       const depreciation =
         segments.find((s) => s.label === "Depreciation")?.value || 0;
@@ -138,65 +134,20 @@ export function ProfitabilityWaterfallChart({
     });
   }, [simplifiedData]);
 
-  // Custom tooltip with segment type styling
-  const CustomWaterfallTooltip = ({ active, payload }: any) => {
-    if (active && payload && payload.length) {
-      const data = payload[0].payload;
-
-      return (
-        <div className="bg-background/95 backdrop-blur-sm border border-border rounded-lg p-3 shadow-lg max-w-xs">
-          <p className="font-semibold text-sm mb-2">{data.segment}</p>
-          <div className="space-y-1.5">
-            {simplifiedData.map((proposal, index) => {
-              const value = data[`proposal${index}`];
-              const cumulative = data[`proposal${index}_cumulative`];
-              const type = data[`proposal${index}_type`];
-
-              if (value === undefined) return null;
-
-              const color =
-                type === "positive"
-                  ? chartColors.positive
-                  : type === "negative"
-                  ? chartColors.negative
-                  : chartColorMappings.profitability.ebitda;
-
-              return (
-                <div key={index} className="text-xs">
-                  <p className="text-muted-foreground mb-0.5">
-                    {proposal.proposalName}
-                  </p>
-                  <div className="flex justify-between gap-3">
-                    <span>Value:</span>
-                    <span
-                      className="font-medium tabular-nums"
-                      style={{ color }}
-                    >
-                      {formatMillions(value * 1_000_000)}
-                    </span>
-                  </div>
-                  <div className="flex justify-between gap-3 text-muted-foreground">
-                    <span>Running:</span>
-                    <span className="tabular-nums">
-                      {formatMillions(cumulative * 1_000_000)}
-                    </span>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      );
-    }
-    return null;
-  };
-
   // Helper to get bar fill color based on segment type
   const getBarColor = (type: "positive" | "negative" | "total") => {
     if (type === "positive") return chartColors.positive;
     if (type === "negative") return chartColors.negative;
     return chartColorMappings.profitability.ebitda;
   };
+
+  if (!data || data.length === 0) {
+    return (
+      <div className="flex items-center justify-center h-[500px] text-muted-foreground">
+        No profitability data available
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">
@@ -205,8 +156,9 @@ export function ProfitabilityWaterfallChart({
         <p className="flex items-center gap-2">
           <span className="text-base">💡</span>
           <span>
-            Average annual profitability waterfall showing how revenue flows through costs to net income.
-            Values averaged across contract period for fair comparison between 25Y and 30Y contracts.
+            Average annual profitability waterfall showing how revenue flows
+            through costs to net income. Values averaged across contract period
+            for fair comparison between 25Y and 30Y contracts.
           </span>
         </p>
       </div>
@@ -225,8 +177,11 @@ export function ProfitabilityWaterfallChart({
             }),
           }))}
           xAxisKey="segment"
+          layout="horizontal"
           yAxisFormatter={(value) => `${value}M`}
-          tooltipContent={<CustomWaterfallTooltip />}
+          tooltipContent={
+            <CustomWaterfallTooltip simplifiedData={simplifiedData} />
+          }
           height={500}
           showLegend
         />
@@ -245,7 +200,7 @@ export function ProfitabilityWaterfallChart({
           >
             {simplifiedData.find((d) => d.isWinner)
               ? formatMillions(
-                  simplifiedData.find((d) => d.isWinner)!.netIncome * 1_000_000
+                  simplifiedData.find((d) => d.isWinner)!.netIncome * 1_000_000,
                 )
               : "—"}
           </p>
@@ -268,3 +223,53 @@ export function ProfitabilityWaterfallChart({
     </div>
   );
 }
+
+// Custom tooltip with segment type styling
+const CustomWaterfallTooltip = ({ active, payload, simplifiedData }: any) => {
+  if (active && payload && payload.length) {
+    const data = payload[0].payload;
+
+    return (
+      <div className="bg-background/95 backdrop-blur-sm border border-border rounded-lg p-3 shadow-lg max-w-xs">
+        <p className="font-semibold text-sm mb-2">{data.segment}</p>
+        <div className="space-y-1.5">
+          {simplifiedData.map((proposal: any, index: number) => {
+            const value = data[`proposal${index}`];
+            const cumulative = data[`proposal${index}_cumulative`];
+            const type = data[`proposal${index}_type`];
+
+            if (value === undefined) return null;
+
+            const color =
+              type === "positive"
+                ? chartColors.positive
+                : type === "negative"
+                  ? chartColors.negative
+                  : chartColorMappings.profitability.ebitda;
+
+            return (
+              <div key={index} className="text-xs">
+                <p className="text-muted-foreground mb-0.5">
+                  {proposal.proposalName}
+                </p>
+                <div className="flex justify-between gap-3">
+                  <span>Value:</span>
+                  <span className="font-medium tabular-nums" style={{ color }}>
+                    {formatMillions(value * 1_000_000)}
+                  </span>
+                </div>
+                <div className="flex justify-between gap-3 text-muted-foreground">
+                  <span>Running:</span>
+                  <span className="tabular-nums">
+                    {formatMillions(cumulative * 1_000_000)}
+                  </span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
+  return null;
+};

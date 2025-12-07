@@ -54,12 +54,14 @@ export function InputField({
 }: InputFieldProps) {
   const form = useFormContext();
 
+  const value = form.watch(name);
+  const { isValidating } = useFieldValidation(value);
+
   return (
     <ShadcnFormField
       control={form.control}
       name={name}
       render={({ field, fieldState }) => {
-        const { isValidating } = useFieldValidation(field.value);
         const hasError = !!fieldState.error;
         const isValid = !hasError && fieldState.isDirty && !isValidating;
 
@@ -68,7 +70,11 @@ export function InputField({
             {label && (
               <FormLabel>
                 {label}
-                {required && <span className="text-destructive ml-1" aria-label="required">*</span>}
+                {required && (
+                  <span className="text-destructive ml-1" aria-label="required">
+                    *
+                  </span>
+                )}
               </FormLabel>
             )}
             <FormControl>
@@ -83,14 +89,18 @@ export function InputField({
                   placeholder={placeholder}
                   disabled={disabled}
                   aria-invalid={hasError}
-                  aria-describedby={description ? `${name}-description` : undefined}
+                  aria-describedby={
+                    description ? `${name}-description` : undefined
+                  }
                   aria-required={required}
                   className={cn(
                     prefix && "pl-8",
                     (suffix || showValidation) && "pr-12",
                     type === "number" && "tabular-nums",
-                    hasError && "border-financial-negative focus-visible:ring-financial-negative",
-                    isValid && "border-financial-positive focus-visible:ring-financial-positive"
+                    hasError &&
+                      "border-financial-negative focus-visible:ring-financial-negative",
+                    isValid &&
+                      "border-financial-positive focus-visible:ring-financial-positive",
                   )}
                   {...field}
                   value={field.value ?? ""}
@@ -121,7 +131,9 @@ export function InputField({
               </div>
             </FormControl>
             {description && (
-              <FormDescription id={`${name}-description`}>{description}</FormDescription>
+              <FormDescription id={`${name}-description`}>
+                {description}
+              </FormDescription>
             )}
             <FormMessage className="text-financial-negative" />
           </FormItem>

@@ -86,7 +86,7 @@ export async function GET(
       totalRent: { toString: () => string } | null;
       npv: { toString: () => string } | null;
       totalEbitda: { toString: () => string } | null;
-      avgEbitdaMargin: { toString: () => string } | null;
+
       finalCash: { toString: () => string } | null;
       maxDebt: { toString: () => string } | null;
       creator: {

@@ -10,6 +10,7 @@
  * Response: CalculationEngineOutput with complete financial projections
  */
 
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import Decimal from "decimal.js";
@@ -1074,13 +1075,13 @@ export async function POST(request: Request) {
         developer: proposalData.developer,
         createdBy: user.id,
         contractPeriodYears: input.contractPeriodYears, // FIX: Save contract period
-        enrollment: proposalData.enrollment as unknown as InputJsonValue,
-        curriculum: proposalData.curriculum as unknown as InputJsonValue,
-        staff: proposalData.staff as unknown as InputJsonValue,
-        rentParams: proposalData.rentParams as unknown as InputJsonValue,
+        enrollment: proposalData.enrollment as any,
+        curriculum: proposalData.curriculum as any,
+        staff: proposalData.staff as any,
+        rentParams: proposalData.rentParams as any,
         otherOpexPercent: new Decimal(proposalData.otherOpexPercent),
-        financials: serializedResult.periods as unknown as InputJsonValue,
-        metrics: serializedResult.metrics as unknown as InputJsonValue,
+        financials: serializedResult.periods as any,
+        metrics: serializedResult.metrics as any,
         calculatedAt: new Date(),
         transitionConfigUpdatedAt: transitionConfig?.updatedAt || new Date(),
       },

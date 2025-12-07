@@ -86,23 +86,31 @@ export function Sidebar() {
     <aside
       className={cn(
         "fixed left-0 top-0 z-40 h-screen border-r transition-all duration-300 ease-in-out",
-        "bg-background/60 backdrop-blur-md border-white/10 shadow-xl", // Glassmorphism
-        collapsed ? "w-16" : "w-64"
+        "bg-background/80 backdrop-blur-md border-border shadow-sm", // Improved visibility
+        collapsed ? "w-16" : "w-64",
       )}
       aria-label="Main navigation"
       role="navigation"
     >
       <div className="flex h-full flex-col">
         {/* Logo */}
-        <div className="flex h-16 items-center justify-between border-b border-white/10 px-4">
+        <div className="flex h-16 items-center justify-between border-b border-border px-4">
           {!collapsed && (
-            <Link href="/" className="flex items-center space-x-2" aria-label="Go to dashboard">
+            <Link
+              href="/"
+              className="flex items-center space-x-2"
+              aria-label="Go to dashboard"
+            >
               <Building2 className="h-6 w-6 text-primary" aria-hidden="true" />
               <span className="text-lg font-bold">CapEx Advisor</span>
             </Link>
           )}
           {collapsed && (
-            <Link href="/" className="flex justify-center w-full" aria-label="Go to dashboard">
+            <Link
+              href="/"
+              className="flex justify-center w-full"
+              aria-label="Go to dashboard"
+            >
               <Building2 className="h-6 w-6 text-primary" aria-hidden="true" />
             </Link>
           )}
@@ -114,12 +122,19 @@ export function Sidebar() {
             aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
             aria-expanded={!collapsed}
           >
-            {collapsed ? <ChevronRight className="h-4 w-4" aria-hidden="true" /> : <ChevronLeft className="h-4 w-4" aria-hidden="true" />}
+            {collapsed ? (
+              <ChevronRight className="h-4 w-4" aria-hidden="true" />
+            ) : (
+              <ChevronLeft className="h-4 w-4" aria-hidden="true" />
+            )}
           </Button>
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 space-y-1 overflow-y-auto p-2" aria-label="Primary navigation menu">
+        <nav
+          className="flex-1 space-y-1 overflow-y-auto p-2"
+          aria-label="Primary navigation menu"
+        >
           {/* Main Navigation */}
           <div className="space-y-1" role="list">
             {mainNavItems.map((item) => {
@@ -133,8 +148,8 @@ export function Sidebar() {
                     "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors focus-ring-enhanced",
                     isActive
                       ? "bg-primary text-primary-foreground shadow-md"
-                      : "text-muted-foreground hover:bg-white/5 hover:text-foreground",
-                    collapsed && "justify-center px-2"
+                      : "text-muted-foreground hover:bg-accent hover:text-foreground",
+                    collapsed && "justify-center px-2",
                   )}
                   aria-label={item.title}
                   aria-current={isActive ? "page" : undefined}
@@ -145,7 +160,10 @@ export function Sidebar() {
                     <>
                       {item.title}
                       {item.badge && (
-                        <span className="ml-auto rounded-full bg-primary/10 px-2 py-0.5 text-xs" aria-label={`${item.badge} notifications`}>
+                        <span
+                          className="ml-auto rounded-full bg-primary/10 px-2 py-0.5 text-xs"
+                          aria-label={`${item.badge} notifications`}
+                        >
                           {item.badge}
                         </span>
                       )}
@@ -160,11 +178,20 @@ export function Sidebar() {
           {!loading && isAdmin && (
             <div className="pt-4">
               {!collapsed && (
-                <h3 className="mb-2 px-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground" id="admin-section-heading">
+                <h3
+                  className="mb-2 px-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground"
+                  id="admin-section-heading"
+                >
                   Administration
                 </h3>
               )}
-              <div className="space-y-1" role="list" aria-labelledby={collapsed ? undefined : "admin-section-heading"}>
+              <div
+                className="space-y-1"
+                role="list"
+                aria-labelledby={
+                  collapsed ? undefined : "admin-section-heading"
+                }
+              >
                 {adminNavItems.map((item) => {
                   const isActive = pathname === item.href;
                   return (
@@ -176,14 +203,17 @@ export function Sidebar() {
                         "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors focus-ring-enhanced",
                         isActive
                           ? "bg-primary text-primary-foreground shadow-md"
-                          : "text-muted-foreground hover:bg-white/5 hover:text-foreground",
-                        collapsed && "justify-center px-2"
+                          : "text-muted-foreground hover:bg-accent hover:text-foreground",
+                        collapsed && "justify-center px-2",
                       )}
                       aria-label={item.title}
                       aria-current={isActive ? "page" : undefined}
                       title={collapsed ? item.title : undefined}
                     >
-                      <item.icon className="h-4 w-4 shrink-0" aria-hidden="true" />
+                      <item.icon
+                        className="h-4 w-4 shrink-0"
+                        aria-hidden="true"
+                      />
                       {!collapsed && item.title}
                     </Link>
                   );
@@ -194,16 +224,28 @@ export function Sidebar() {
         </nav>
 
         {/* Footer */}
-        <div className="border-t border-white/10 p-2" role="region" aria-label="User account and settings">
+        <div
+          className="border-t border-border p-2"
+          role="region"
+          aria-label="User account and settings"
+        >
           {loading ? (
-            <div className="flex items-center justify-center py-2" role="status" aria-live="polite" aria-label="Loading user information">
-              <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" aria-hidden="true" />
+            <div
+              className="flex items-center justify-center py-2"
+              role="status"
+              aria-live="polite"
+              aria-label="Loading user information"
+            >
+              <Loader2
+                className="h-5 w-5 animate-spin text-muted-foreground"
+                aria-hidden="true"
+              />
               <span className="sr-only">Loading...</span>
             </div>
           ) : (
             <div className="space-y-2">
               {!collapsed && (
-                <div className="flex items-center gap-3 rounded-lg bg-white/5 px-3 py-2 border border-white/5">
+                <div className="flex items-center gap-3 rounded-lg bg-muted px-3 py-2 border border-border">
                   <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-xs font-semibold text-primary-foreground">
                     {user?.name?.substring(0, 2).toUpperCase() || "CA"}
                   </div>
@@ -218,16 +260,28 @@ export function Sidebar() {
                 </div>
               )}
 
-              <div className={cn("flex gap-1", collapsed ? "flex-col" : "flex-row")}>
+              <div
+                className={cn(
+                  "flex gap-1",
+                  collapsed ? "flex-col" : "flex-row",
+                )}
+              >
                 <Button
                   variant="ghost"
                   size={collapsed ? "icon" : "sm"}
-                  className={cn("flex-1 focus-ring-enhanced", collapsed ? "w-full" : "")}
+                  className={cn(
+                    "flex-1 focus-ring-enhanced",
+                    collapsed ? "w-full" : "",
+                  )}
                   onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
                   aria-label={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}
                   title={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}
                 >
-                  {theme === "dark" ? <Sun className="h-4 w-4" aria-hidden="true" /> : <Moon className="h-4 w-4" aria-hidden="true" />}
+                  {theme === "dark" ? (
+                    <Sun className="h-4 w-4" aria-hidden="true" />
+                  ) : (
+                    <Moon className="h-4 w-4" aria-hidden="true" />
+                  )}
                   {!collapsed && <span className="ml-2">Theme</span>}
                 </Button>
 
@@ -236,7 +290,7 @@ export function Sidebar() {
                   size={collapsed ? "icon" : "sm"}
                   className={cn(
                     "text-muted-foreground hover:bg-destructive/10 hover:text-destructive focus-ring-enhanced",
-                    collapsed ? "w-full" : "flex-1"
+                    collapsed ? "w-full" : "flex-1",
                   )}
                   onClick={signOut}
                   aria-label="Sign out"

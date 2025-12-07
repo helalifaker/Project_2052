@@ -140,14 +140,15 @@ export const BaseBarChart = React.memo(function BaseBarChart({
   yAxisFormatter,
   showLegend,
   showGrid = true,
-  layout = "vertical",
+  layout = "horizontal",
   height = chartResponsive.defaultHeight,
   tooltipContent,
   tooltipFormat = "millions",
   className,
 }: BaseBarChartProps) {
   // Auto-enable legend for multiple series
-  const displayLegend = showLegend !== undefined ? showLegend : series.length > 1;
+  const displayLegend =
+    showLegend !== undefined ? showLegend : series.length > 1;
 
   return (
     <div className={className}>
@@ -165,24 +166,22 @@ export const BaseBarChart = React.memo(function BaseBarChart({
           {/* X Axis */}
           <XAxis
             {...getAxisProps("x")}
-            dataKey={layout === "vertical" ? xAxisKey : undefined}
-            type={layout === "vertical" ? "category" : "number"}
+            dataKey={layout === "horizontal" ? xAxisKey : undefined}
+            type={layout === "horizontal" ? "category" : "number"}
             tickFormatter={xAxisFormatter}
           />
 
           {/* Y Axis */}
           <YAxis
             {...getAxisProps("y")}
-            dataKey={layout === "horizontal" ? xAxisKey : undefined}
-            type={layout === "horizontal" ? "category" : "number"}
+            dataKey={layout === "vertical" ? xAxisKey : undefined}
+            type={layout === "vertical" ? "category" : "number"}
             tickFormatter={yAxisFormatter}
           />
 
           {/* Tooltip */}
           <Tooltip
-            content={
-              tooltipContent || <CustomTooltip format={tooltipFormat} />
-            }
+            content={tooltipContent || <CustomTooltip format={tooltipFormat} />}
             {...getTooltipProps()}
           />
 

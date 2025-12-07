@@ -59,6 +59,11 @@ export interface BaseLineChartProps {
   xAxisFormatter?: (value: any) => string;
   /** Optional Y-axis label formatter */
   yAxisFormatter?: (value: any) => string;
+  /** Optional Y-axis domain */
+  yAxisDomain?: [
+    number | "auto" | "dataMin" | "dataMax",
+    number | "auto" | "dataMin" | "dataMax",
+  ];
   /** Show legend (default: true for multiple series) */
   showLegend?: boolean;
   /** Show grid lines (default: true) */
@@ -126,6 +131,7 @@ export const BaseLineChart = React.memo(function BaseLineChart({
   xAxisKey,
   xAxisFormatter,
   yAxisFormatter,
+  yAxisDomain,
   showLegend,
   showGrid = true,
   height = chartResponsive.defaultHeight,
@@ -134,7 +140,8 @@ export const BaseLineChart = React.memo(function BaseLineChart({
   className,
 }: BaseLineChartProps) {
   // Auto-enable legend for multiple series
-  const displayLegend = showLegend !== undefined ? showLegend : series.length > 1;
+  const displayLegend =
+    showLegend !== undefined ? showLegend : series.length > 1;
 
   return (
     <div className={className}>
@@ -151,13 +158,15 @@ export const BaseLineChart = React.memo(function BaseLineChart({
           />
 
           {/* Y Axis */}
-          <YAxis {...getAxisProps("y")} tickFormatter={yAxisFormatter} />
+          <YAxis
+            {...getAxisProps("y")}
+            tickFormatter={yAxisFormatter}
+            domain={yAxisDomain}
+          />
 
           {/* Tooltip */}
           <Tooltip
-            content={
-              tooltipContent || <CustomTooltip format={tooltipFormat} />
-            }
+            content={tooltipContent || <CustomTooltip format={tooltipFormat} />}
             {...getTooltipProps()}
           />
 

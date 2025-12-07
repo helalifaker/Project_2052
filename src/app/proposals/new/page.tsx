@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useRoleCheck } from "@/lib/hooks/useRoleCheck";
 import { useWizardPersistence } from "@/lib/hooks/useWizardPersistence";
@@ -79,7 +79,7 @@ const wizardSteps = [
   },
 ];
 
-export default function NewProposalPageEnhanced() {
+function NewProposalPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { canCreate, loading } = useRoleCheck();
@@ -139,7 +139,7 @@ export default function NewProposalPageEnhanced() {
       setCurrentStep(state.currentStep);
       setFormData(state.formData);
       toast.success("Draft restored successfully");
-    }
+    },
   );
 
   // Redirect VIEWER users away from create page
@@ -195,7 +195,9 @@ export default function NewProposalPageEnhanced() {
       } catch (error) {
         console.error("Failed to load pre-fill data:", error);
         const errorMessage =
-          error instanceof Error ? error.message : "Failed to load proposal data";
+          error instanceof Error
+            ? error.message
+            : "Failed to load proposal data";
 
         setError({
           type: "network",
@@ -361,7 +363,12 @@ export default function NewProposalPageEnhanced() {
 
       if (!res.ok) {
         const errorData = await res.json().catch(() => ({}));
-        console.error("Save draft failed:", res.status, res.statusText, errorData);
+        console.error(
+          "Save draft failed:",
+          res.status,
+          res.statusText,
+          errorData,
+        );
 
         if (res.status >= 500) {
           setError({
@@ -385,7 +392,7 @@ export default function NewProposalPageEnhanced() {
     } catch (error) {
       console.error("Failed to save draft", error);
       toast.error(
-        error instanceof Error ? error.message : "Failed to save draft"
+        error instanceof Error ? error.message : "Failed to save draft",
       );
     }
   };
@@ -440,7 +447,10 @@ export default function NewProposalPageEnhanced() {
     const step = activeSteps[currentStep];
 
     // Show error state if there's a step-specific error
-    if (error && (error.type === "validation" || error.type === "calculation")) {
+    if (
+      error &&
+      (error.type === "validation" || error.type === "calculation")
+    ) {
       return (
         <div className="py-8">
           <ErrorState
@@ -602,8 +612,8 @@ export default function NewProposalPageEnhanced() {
         <Alert className="bg-blue-500/5 border-blue-500/20">
           <AlertCircle className="h-4 w-4 text-blue-500" />
           <AlertDescription className="text-sm">
-            Your progress is automatically saved. You can safely leave and return
-            later.
+            Your progress is automatically saved. You can safely leave and
+            return later.
           </AlertDescription>
         </Alert>
       )}
@@ -612,8 +622,8 @@ export default function NewProposalPageEnhanced() {
       {prefillSource && (
         <Alert>
           <AlertDescription>
-            Pre-filled from &quot;{prefillSource}&quot;. Update the fields below to
-            create a new proposal.
+            Pre-filled from &quot;{prefillSource}&quot;. Update the fields below
+            to create a new proposal.
           </AlertDescription>
         </Alert>
       )}
@@ -683,5 +693,13 @@ export default function NewProposalPageEnhanced() {
         </AlertDialogContent>
       </AlertDialog>
     </div>
+  );
+}
+
+export default function NewProposalPageEnhanced() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <NewProposalPageContent />
+    </Suspense>
   );
 }

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /**
  * POST /api/proposals/[id]/recalculate
  *
@@ -112,8 +113,8 @@ export async function POST(
     const updatedProposal = await prisma.leaseProposal.update({
       where: { id: proposalId },
       data: {
-        financials: serializedResult.periods as unknown as InputJsonValue,
-        metrics: serializedResult.metrics as unknown as InputJsonValue,
+        financials: serializedResult.periods as any,
+        metrics: serializedResult.metrics as any,
         calculatedAt: new Date(),
         transitionConfigUpdatedAt: transitionConfig?.updatedAt || new Date(),
       },

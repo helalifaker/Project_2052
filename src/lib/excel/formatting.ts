@@ -302,7 +302,7 @@ export function indentLabel(label: string, level: number): string {
  */
 export function formatValue(
   value: unknown,
-  formatType: keyof typeof NUMBER_FORMATS = "millions",
+  _formatType: keyof typeof NUMBER_FORMATS = "millions",
 ): number {
   if (typeof value === "number") return value;
   if (typeof value === "string") {

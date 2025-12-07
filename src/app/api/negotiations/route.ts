@@ -99,8 +99,8 @@ export async function GET(req: Request) {
         totalRounds: currentRound,
         currentRound,
         latestVersion: proposal.version,
-        latestStatus: proposal.status,
-        latestOrigin: proposal.origin,
+        latestStatus: proposal.status as ProposalStatus,
+        latestOrigin: proposal.origin as ProposalOrigin,
         lastActivity: proposal.updatedAt,
         proposals: [],
       };
@@ -109,16 +109,16 @@ export async function GET(req: Request) {
       if (proposal.updatedAt > entry.lastActivity) {
         entry.currentRound = currentRound;
         entry.latestVersion = proposal.version;
-        entry.latestStatus = proposal.status;
-        entry.latestOrigin = proposal.origin;
+        entry.latestStatus = proposal.status as ProposalStatus;
+        entry.latestOrigin = proposal.origin as ProposalOrigin;
         entry.lastActivity = proposal.updatedAt;
       }
 
       entry.proposals.push({
         id: proposal.id,
         version: proposal.version,
-        origin: proposal.origin,
-        status: proposal.status,
+        origin: proposal.origin as ProposalOrigin,
+        status: proposal.status as ProposalStatus,
         negotiationRound: currentRound,
         createdAt: proposal.createdAt,
         updatedAt: proposal.updatedAt,

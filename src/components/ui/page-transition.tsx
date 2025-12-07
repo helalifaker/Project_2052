@@ -1,7 +1,7 @@
-'use client';
+"use client";
 
-import { usePathname } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
 
 interface PageTransitionProps {
   children: React.ReactNode;
@@ -21,7 +21,10 @@ interface PageTransitionProps {
  * </PageTransition>
  * ```
  */
-export function PageTransition({ children, className = '' }: PageTransitionProps) {
+export function PageTransition({
+  children,
+  className = "",
+}: PageTransitionProps) {
   const pathname = usePathname();
   const [displayChildren, setDisplayChildren] = useState(children);
   const [transitioning, setTransitioning] = useState(false);
@@ -35,14 +38,15 @@ export function PageTransition({ children, className = '' }: PageTransitionProps
     }, 300);
 
     return () => clearTimeout(timer);
-  }, [pathname, children]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pathname]);
 
   return (
     <div
       className={`page-transition-enter ${className}`}
       key={pathname}
       style={{
-        animationPlayState: transitioning ? 'running' : 'paused'
+        animationPlayState: transitioning ? "running" : "paused",
       }}
     >
       {displayChildren}
