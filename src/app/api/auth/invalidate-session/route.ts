@@ -19,7 +19,7 @@ import {
   invalidateUserSession,
   clearAllSessions,
 } from "@/middleware/auth";
-import { Role } from "@prisma/client";
+import { Role } from "@/lib/types/roles";
 
 // Request body schema
 const InvalidateSessionSchema = z.object({

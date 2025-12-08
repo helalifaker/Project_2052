@@ -2,7 +2,7 @@ import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { Role } from "@prisma/client";
+import { Role } from "@/lib/types/roles";
 
 /**
  * Authenticated user with role from database
@@ -203,7 +203,8 @@ export async function authenticateUser(): Promise<AuthResult> {
       const authenticatedUser: AuthenticatedUser = {
         id: dbUser.id,
         email: dbUser.email,
-        role: dbUser.role,
+        // Safe cast: Prisma's Role enum has identical string values to our local Role enum
+        role: dbUser.role as unknown as Role,
       };
 
       // Cache the user for subsequent requests

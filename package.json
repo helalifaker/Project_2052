@@ -18,6 +18,7 @@
     "test:load": "artillery run artillery.yml",
     "test:load:quick": "artillery run artillery-quick.yml",
     "test:load:report": "artillery run --output report.json artillery.yml && artillery report report.json",
+    "postinstall": "prisma generate",
     "prepare": "husky",
     "analyze": "ANALYZE=true pnpm build"
   },
