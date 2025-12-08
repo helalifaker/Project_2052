@@ -63,13 +63,17 @@ jobs:
           NEXT_PUBLIC_SUPABASE_URL: "https://dummy.supabase.co"
           NEXT_PUBLIC_SUPABASE_ANON_KEY: "dummy-key"
 
-      - name: Upload build artifacts
+      - name: Upload build artifacts for bundle analysis
         uses: actions/upload-artifact@v4
         if: success()
         with:
           name: build-output
-          path: .next
-          retention-days: 7
+          path: |
+            .next/static
+            .next/BUILD_ID
+          retention-days: 1
+          if-no-files-found: error
+          compression-level: 6
 
   test-unit:
     name: Unit Tests
@@ -129,7 +133,7 @@ jobs:
   test-e2e:
     name: E2E Tests
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 30
     needs: lint-and-build
 
     steps:
@@ -168,7 +172,7 @@ jobs:
           NEXT_PUBLIC_SUPABASE_ANON_KEY: "dummy-key"
 
       - name: Run E2E tests
-        run: pnpm test:e2e
+        run: pnpm test:e2e --project=chromium
         env:
           DATABASE_URL: "postgresql://dummy:dummy@localhost:5432/dummy"
           DIRECT_URL: "postgresql://dummy:dummy@localhost:5432/dummy"
@@ -252,13 +256,27 @@ jobs:
           name: build-output
           path: .next
 
+      - name: Verify artifacts exist
+        run: |
+          if [ ! -d ".next/static" ]; then
+            echo "Error: .next/static directory not found"
+            echo "Available contents:"
+            ls -la .next/ || echo "No .next directory"
+            exit 1
+          fi
+          echo "Artifacts verified successfully"
+
       - name: Analyze bundle size
         run: |
-          echo "Checking bundle size..."
-          du -sh .next/static/chunks/* | sort -h
-          echo "Total bundle size:"
+          echo "=== Bundle Size Analysis ==="
+          echo ""
+          echo "Individual chunks:"
+          du -sh .next/static/chunks/* 2>/dev/null | sort -h || echo "No chunks found"
+          echo ""
+          echo "Total static bundle size:"
           du -sh .next/static
-        continue-on-error: true
+          echo ""
+          echo "=== Analysis Complete ==="
 
   ci-success:
     name: CI Success

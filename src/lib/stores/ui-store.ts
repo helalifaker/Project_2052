@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { devtools, persist } from "zustand/middleware";
+import { useEffect, useState } from "react";
 
 interface UIState {
   // Sidebar
@@ -57,8 +58,40 @@ export const useUIStore = create<UIState>()(
         partialize: (state) => ({
           sidebarCollapsed: state.sidebarCollapsed,
         }),
+        // Skip automatic hydration to prevent SSR/client mismatch
+        // This prevents the app from hanging during hard refresh
+        skipHydration: true,
       },
     ),
     { name: "UI Store" },
   ),
 );
+
+/**
+ * Manually rehydrate the UI store
+ * Call this in a useEffect on the client side only
+ */
+export function rehydrateUIStore(): void {
+  if (typeof window !== "undefined") {
+    useUIStore.persist.rehydrate();
+  }
+}
+
+/**
+ * Hook to track hydration status of the UI store
+ * Returns true once the store has been rehydrated from localStorage
+ */
+export function useUIStoreHydration(): boolean {
+  const [hydrated, setHydrated] = useState(false);
+
+  useEffect(() => {
+    // Rehydrate the store and mark as hydrated
+    useUIStore.persist.rehydrate();
+    // Defer state update to avoid synchronous setState within effect
+    queueMicrotask(() => {
+      setHydrated(true);
+    });
+  }, []);
+
+  return hydrated;
+}

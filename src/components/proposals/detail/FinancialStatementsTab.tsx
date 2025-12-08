@@ -504,6 +504,7 @@ export function FinancialStatementsTab({
             size="sm"
             onClick={() => handleExport("excel")}
             disabled={!hasFinancialData}
+            data-testid="financial-export-excel-btn"
           >
             <Download className="h-4 w-4 mr-2" />
             Export Excel
@@ -513,6 +514,7 @@ export function FinancialStatementsTab({
             size="sm"
             onClick={() => handleExport("pdf")}
             disabled={!hasFinancialData}
+            data-testid="financial-export-pdf-btn"
           >
             <Download className="h-4 w-4 mr-2" />
             Export PDF

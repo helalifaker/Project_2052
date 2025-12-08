@@ -58,7 +58,7 @@ import {
 } from "@/components/ui/executive-card";
 import { Badge } from "@/components/ui/badge";
 import { ProposalPDFReport } from "@/components/proposals/reports/ProposalPDFReport";
-import { generateComprehensiveReport } from "@/lib/pdf-service";
+import { generateExecutiveReport } from "@/lib/pdf";
 import { BentoGrid, BentoItem } from "@/components/dashboard/BentoGrid";
 
 /**
@@ -364,32 +364,49 @@ export function ProposalOverviewTab({
 
   const handleExportPDF = async () => {
     try {
-      toast.info("Generating comprehensive PDF report...");
+      toast.info("Generating executive PDF report...");
 
-      // 1. Capture Chart
+      // 1. Capture Chart using modern-screenshot (supports CSS Color Level 4)
       const chartElement = document.getElementById("proposal-pdf-report");
-      let chartImage = undefined;
+      let chartImage: string | undefined = undefined;
 
       if (chartElement) {
         try {
-          const html2canvas = (await import("html2canvas")).default;
-          const canvas = await html2canvas(chartElement, {
-            scale: 2, // High resolution
-            logging: false,
-            useCORS: true,
+          const { domToPng } = await import("modern-screenshot");
+
+          // Temporarily make the element visible for capture
+          const originalStyles = {
+            position: chartElement.style.position,
+            top: chartElement.style.top,
+            left: chartElement.style.left,
+          };
+
+          chartElement.style.position = "fixed";
+          chartElement.style.top = "0";
+          chartElement.style.left = "0";
+
+          // Allow time for Recharts to render
+          await new Promise((resolve) => setTimeout(resolve, 100));
+
+          chartImage = await domToPng(chartElement, {
+            scale: 2, // High resolution for print quality
             backgroundColor: "#ffffff",
           });
-          chartImage = canvas.toDataURL("image/png");
+
+          // Restore original positioning
+          chartElement.style.position = originalStyles.position;
+          chartElement.style.top = originalStyles.top;
+          chartElement.style.left = originalStyles.left;
         } catch (e) {
           console.error("Failed to capture chart:", e);
           toast.error("Chart capture failed, generating report without chart.");
         }
       }
 
-      // 2. Generate PDF with data and chart
-      await generateComprehensiveReport(proposal, chartImage);
+      // 2. Generate executive PDF with data and chart
+      await generateExecutiveReport(proposal, chartImage);
 
-      toast.success("PDF exported successfully!");
+      toast.success("Executive PDF report exported successfully!");
     } catch (error) {
       console.error("PDF Export Error:", error);
       toast.error("Failed to generate PDF. Please try again.");
@@ -416,6 +433,7 @@ export function ProposalOverviewTab({
           size="sm"
           onClick={handleExportExcel}
           className="h-8 text-xs"
+          data-testid="export-excel-btn"
         >
           <Download className="h-3 w-3 mr-2" />
           Export Excel
@@ -425,6 +443,7 @@ export function ProposalOverviewTab({
           size="sm"
           onClick={handleExportPDF}
           className="h-8 text-xs"
+          data-testid="export-pdf-btn"
         >
           <Download className="h-3 w-3 mr-2" />
           Export PDF
