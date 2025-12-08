@@ -15,6 +15,8 @@ import {
 } from "recharts";
 import { TrendingUp, TrendingDown, Milestone } from "lucide-react";
 import { formatMillions } from "@/lib/utils/financial";
+import { chartColors, chartColorVars } from "@/lib/design-tokens/chart-colors";
+import { chartAnimationDurations } from "@/lib/design-tokens/chart-config";
 
 type DataPoint = {
   year: number;
@@ -55,7 +57,7 @@ const CustomTooltip = ({
     <div className="bg-background/95 backdrop-blur-md border border-border/50 rounded-lg shadow-xl p-4 space-y-3">
       <div className="flex items-center justify-between gap-4">
         <div className="font-semibold text-lg">{year}</div>
-        <div className="text-xs px-2 py-1 rounded-full bg-primary/10 text-primary">
+        <div className="text-xs px-2 py-1 rounded-full bg-[var(--atelier-craft-gold-soft)] text-[var(--atelier-stone-900)]">
           {phase}
         </div>
       </div>
@@ -63,7 +65,12 @@ const CustomTooltip = ({
       <div className="space-y-2 text-sm">
         <div className="flex items-center justify-between gap-8">
           <div className="flex items-center gap-2">
-            <div className="h-3 w-3 rounded-full bg-gradient-to-r from-blue-500 to-violet-500"></div>
+            <div
+              className="h-3 w-3 rounded-full"
+              style={{
+                backgroundColor: chartColorVars["--atelier-chart-proposal-a"],
+              }}
+            ></div>
             <span className="text-muted-foreground">Revenue</span>
           </div>
           <span className="font-mono font-semibold">
@@ -73,7 +80,12 @@ const CustomTooltip = ({
 
         <div className="flex items-center justify-between gap-8">
           <div className="flex items-center gap-2">
-            <div className="h-3 w-3 rounded-full bg-gradient-to-r from-rose-500 to-rose-600"></div>
+            <div
+              className="h-3 w-3 rounded-full"
+              style={{
+                backgroundColor: chartColorVars["--atelier-ink-negative"],
+              }}
+            ></div>
             <span className="text-muted-foreground">Costs</span>
           </div>
           <span className="font-mono font-semibold">
@@ -85,11 +97,22 @@ const CustomTooltip = ({
 
         <div className="flex items-center justify-between gap-8">
           <div className="flex items-center gap-2">
-            <div className="h-3 w-3 rounded-full bg-gradient-to-r from-emerald-500 to-emerald-600"></div>
+            <div
+              className="h-3 w-3 rounded-full"
+              style={{
+                backgroundColor: chartColorVars["--atelier-ink-positive"],
+              }}
+            ></div>
             <span className="font-semibold">Net Income</span>
           </div>
           <span
-            className={`font-mono font-bold ${netIncome >= 0 ? "text-emerald-600" : "text-rose-600"}`}
+            className="font-mono font-bold"
+            style={{
+              color:
+                netIncome >= 0
+                  ? chartColorVars["--atelier-ink-positive"]
+                  : chartColorVars["--atelier-ink-negative"],
+            }}
           >
             {formatMillions(netIncome)}
           </span>
@@ -98,7 +121,13 @@ const CustomTooltip = ({
         <div className="flex items-center justify-between gap-8 text-xs">
           <span className="text-muted-foreground">Profit Margin</span>
           <span
-            className={`font-mono ${parseFloat(margin) >= 0 ? "text-emerald-600" : "text-rose-600"}`}
+            className="font-mono"
+            style={{
+              color:
+                parseFloat(margin) >= 0
+                  ? chartColorVars["--atelier-ink-positive"]
+                  : chartColorVars["--atelier-ink-negative"],
+            }}
           >
             {margin}%
           </span>
@@ -148,7 +177,10 @@ export const ProfitabilityJourneyChart = memo(
           <div className="flex items-start justify-between">
             <div className="space-y-1">
               <h3 className="text-xl font-bold flex items-center gap-2">
-                <TrendingUp className="h-5 w-5 text-emerald-600" />
+                <TrendingUp
+                  className="h-5 w-5"
+                  style={{ color: chartColorVars["--atelier-ink-positive"] }}
+                />
                 The Profitability Journey
               </h3>
               <p className="text-sm text-muted-foreground">
@@ -160,15 +192,31 @@ export const ProfitabilityJourneyChart = memo(
             {/* Legend */}
             <div className="flex items-center gap-4 text-xs">
               <div className="flex items-center gap-2">
-                <div className="h-3 w-8 rounded-full bg-gradient-to-r from-blue-500 to-violet-500"></div>
+                <div
+                  className="h-3 w-8 rounded-full"
+                  style={{
+                    backgroundColor:
+                      chartColorVars["--atelier-chart-proposal-a"],
+                  }}
+                ></div>
                 <span>Revenue</span>
               </div>
               <div className="flex items-center gap-2">
-                <div className="h-3 w-8 rounded-full bg-gradient-to-r from-rose-500 to-rose-600"></div>
+                <div
+                  className="h-3 w-8 rounded-full"
+                  style={{
+                    backgroundColor: chartColorVars["--atelier-ink-negative"],
+                  }}
+                ></div>
                 <span>Costs</span>
               </div>
               <div className="flex items-center gap-2">
-                <div className="h-3 w-8 rounded-full bg-gradient-to-r from-emerald-500 to-emerald-600"></div>
+                <div
+                  className="h-3 w-8 rounded-full"
+                  style={{
+                    backgroundColor: chartColorVars["--atelier-ink-positive"],
+                  }}
+                ></div>
                 <span>Net Income</span>
               </div>
             </div>
@@ -178,8 +226,11 @@ export const ProfitabilityJourneyChart = memo(
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 bg-muted/30 rounded-lg p-4">
             {breakevenYear && (
               <div className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-full bg-emerald-500/10 flex items-center justify-center">
-                  <TrendingUp className="h-5 w-5 text-emerald-600" />
+                <div className="h-10 w-10 rounded-full bg-[var(--atelier-ink-positive)]/10 flex items-center justify-center">
+                  <TrendingUp
+                    className="h-5 w-5"
+                    style={{ color: chartColorVars["--atelier-ink-positive"] }}
+                  />
                 </div>
                 <div>
                   <div className="text-xs text-muted-foreground">
@@ -191,8 +242,13 @@ export const ProfitabilityJourneyChart = memo(
             )}
 
             <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-full bg-violet-500/10 flex items-center justify-center">
-                <Milestone className="h-5 w-5 text-violet-600" />
+              <div className="h-10 w-10 rounded-full bg-[var(--atelier-chart-proposal-a)]/10 flex items-center justify-center">
+                <Milestone
+                  className="h-5 w-5"
+                  style={{
+                    color: chartColorVars["--atelier-chart-proposal-a"],
+                  }}
+                />
               </div>
               <div>
                 <div className="text-xs text-muted-foreground">
@@ -203,8 +259,13 @@ export const ProfitabilityJourneyChart = memo(
             </div>
 
             <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-full bg-blue-500/10 flex items-center justify-center">
-                <TrendingDown className="h-5 w-5 text-blue-600" />
+              <div className="h-10 w-10 rounded-full bg-[var(--atelier-chart-proposal-b)]/10 flex items-center justify-center">
+                <TrendingDown
+                  className="h-5 w-5"
+                  style={{
+                    color: chartColorVars["--atelier-chart-proposal-b"],
+                  }}
+                />
               </div>
               <div>
                 <div className="text-xs text-muted-foreground">
@@ -223,7 +284,7 @@ export const ProfitabilityJourneyChart = memo(
                 margin={{ top: 10, right: 30, left: 20, bottom: 60 }}
               >
                 <defs>
-                  {/* Revenue Gradient: Blue → Violet */}
+                  {/* Revenue Gradient: Royal Violet (Atelier) */}
                   <linearGradient
                     id="revenueGradient"
                     x1="0"
@@ -231,11 +292,19 @@ export const ProfitabilityJourneyChart = memo(
                     x2="0"
                     y2="1"
                   >
-                    <stop offset="0%" stopColor="#8b5cf6" stopOpacity={0.8} />
-                    <stop offset="100%" stopColor="#3b82f6" stopOpacity={0.1} />
+                    <stop
+                      offset="0%"
+                      stopColor={chartColorVars["--atelier-chart-proposal-a"]}
+                      stopOpacity={0.8}
+                    />
+                    <stop
+                      offset="100%"
+                      stopColor={chartColorVars["--atelier-chart-proposal-b"]}
+                      stopOpacity={0.1}
+                    />
                   </linearGradient>
 
-                  {/* Costs Gradient: Rose */}
+                  {/* Costs Gradient: Burgundy (Atelier) */}
                   <linearGradient
                     id="costsGradient"
                     x1="0"
@@ -243,15 +312,19 @@ export const ProfitabilityJourneyChart = memo(
                     x2="0"
                     y2="1"
                   >
-                    <stop offset="0%" stopColor="#f43f5e" stopOpacity={0.6} />
+                    <stop
+                      offset="0%"
+                      stopColor={chartColorVars["--atelier-ink-negative"]}
+                      stopOpacity={0.6}
+                    />
                     <stop
                       offset="100%"
-                      stopColor="#f43f5e"
+                      stopColor={chartColorVars["--atelier-ink-negative"]}
                       stopOpacity={0.05}
                     />
                   </linearGradient>
 
-                  {/* Net Income Gradient: Emerald */}
+                  {/* Net Income Gradient: Forest Green (Atelier) */}
                   <linearGradient
                     id="netIncomeGradient"
                     x1="0"
@@ -259,10 +332,14 @@ export const ProfitabilityJourneyChart = memo(
                     x2="0"
                     y2="1"
                   >
-                    <stop offset="0%" stopColor="#10b981" stopOpacity={0.7} />
+                    <stop
+                      offset="0%"
+                      stopColor={chartColorVars["--atelier-ink-positive"]}
+                      stopOpacity={0.7}
+                    />
                     <stop
                       offset="100%"
-                      stopColor="#10b981"
+                      stopColor={chartColorVars["--atelier-ink-positive"]}
                       stopOpacity={0.05}
                     />
                   </linearGradient>
@@ -270,21 +347,21 @@ export const ProfitabilityJourneyChart = memo(
 
                 <CartesianGrid
                   strokeDasharray="3 3"
-                  stroke="#e5e7eb"
+                  stroke={chartColors.grid}
                   opacity={0.3}
                 />
 
                 <XAxis
                   dataKey="year"
-                  stroke="#6b7280"
-                  tick={{ fill: "#6b7280", fontSize: 12 }}
-                  tickLine={{ stroke: "#6b7280" }}
+                  stroke={chartColors.axis}
+                  tick={{ fill: chartColors.axis, fontSize: 12 }}
+                  tickLine={{ stroke: chartColors.axis }}
                 />
 
                 <YAxis
-                  stroke="#6b7280"
-                  tick={{ fill: "#6b7280", fontSize: 12 }}
-                  tickLine={{ stroke: "#6b7280" }}
+                  stroke={chartColors.axis}
+                  tick={{ fill: chartColors.axis, fontSize: 12 }}
+                  tickLine={{ stroke: chartColors.axis }}
                   tickFormatter={(value) =>
                     `${(value / 1_000_000).toFixed(0)}M`
                   }
@@ -295,7 +372,7 @@ export const ProfitabilityJourneyChart = memo(
                 {/* Phase Indicators */}
                 <ReferenceLine
                   x={2024}
-                  stroke="#9ca3af"
+                  stroke={chartColorVars["--atelier-stone-500"]}
                   strokeDasharray="5 5"
                   strokeWidth={1}
                   opacity={0.5}
@@ -303,7 +380,7 @@ export const ProfitabilityJourneyChart = memo(
                   <Label
                     value="Historical"
                     position="insideTopLeft"
-                    fill="#6b7280"
+                    fill={chartColors.axis}
                     fontSize={11}
                     offset={10}
                   />
@@ -311,7 +388,7 @@ export const ProfitabilityJourneyChart = memo(
 
                 <ReferenceLine
                   x={2027}
-                  stroke="#9ca3af"
+                  stroke={chartColorVars["--atelier-stone-500"]}
                   strokeDasharray="5 5"
                   strokeWidth={1}
                   opacity={0.5}
@@ -319,7 +396,7 @@ export const ProfitabilityJourneyChart = memo(
                   <Label
                     value="Transition"
                     position="insideTopRight"
-                    fill="#6b7280"
+                    fill={chartColors.axis}
                     fontSize={11}
                     offset={10}
                   />
@@ -327,14 +404,14 @@ export const ProfitabilityJourneyChart = memo(
 
                 <ReferenceLine
                   x={2028}
-                  stroke="#8b5cf6"
+                  stroke={chartColorVars["--atelier-chart-proposal-a"]}
                   strokeWidth={2}
                   opacity={0.8}
                 >
                   <Label
                     value="Contract Start"
                     position="top"
-                    fill="#8b5cf6"
+                    fill={chartColorVars["--atelier-chart-proposal-a"]}
                     fontSize={12}
                     fontWeight="bold"
                     offset={15}
@@ -343,14 +420,14 @@ export const ProfitabilityJourneyChart = memo(
 
                 <ReferenceLine
                   x={contractEndYear}
-                  stroke="#8b5cf6"
+                  stroke={chartColorVars["--atelier-chart-proposal-a"]}
                   strokeWidth={2}
                   opacity={0.8}
                 >
                   <Label
                     value="Contract End"
                     position="top"
-                    fill="#8b5cf6"
+                    fill={chartColorVars["--atelier-chart-proposal-a"]}
                     fontSize={12}
                     fontWeight="bold"
                     offset={15}
@@ -361,28 +438,28 @@ export const ProfitabilityJourneyChart = memo(
                 <Area
                   type="monotone"
                   dataKey="revenue"
-                  stroke="#8b5cf6"
+                  stroke={chartColorVars["--atelier-chart-proposal-a"]}
                   strokeWidth={2}
                   fill="url(#revenueGradient)"
-                  animationDuration={1500}
+                  animationDuration={chartAnimationDurations.waterfall}
                 />
 
                 <Area
                   type="monotone"
                   dataKey="costs"
-                  stroke="#f43f5e"
+                  stroke={chartColorVars["--atelier-ink-negative"]}
                   strokeWidth={2}
                   fill="url(#costsGradient)"
-                  animationDuration={1500}
+                  animationDuration={chartAnimationDurations.waterfall}
                 />
 
                 <Area
                   type="monotone"
                   dataKey="netIncome"
-                  stroke="#10b981"
+                  stroke={chartColorVars["--atelier-ink-positive"]}
                   strokeWidth={2}
                   fill="url(#netIncomeGradient)"
-                  animationDuration={1500}
+                  animationDuration={chartAnimationDurations.waterfall}
                 />
               </AreaChart>
             </ResponsiveContainer>

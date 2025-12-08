@@ -8,8 +8,9 @@
 5. [Interactive Scenarios](#interactive-scenarios)
 6. [Sensitivity Analysis](#sensitivity-analysis)
 7. [Comparing Proposals](#comparing-proposals)
-8. [Editing and Managing Proposals](#editing-and-managing-proposals)
-9. [FAQs](#faqs)
+8. [Managing Negotiations](#managing-negotiations)
+9. [Editing and Managing Proposals](#editing-and-managing-proposals)
+10. [FAQs](#faqs)
 
 ---
 
@@ -994,6 +995,325 @@ Stacked bar chart showing total costs by category:
 
 ---
 
+## Managing Negotiations
+
+The Negotiation System (v2.2) provides dedicated tools for tracking and managing lease negotiations with developers across multiple rounds of offers and counter-offers.
+
+### Understanding Negotiations
+
+**What is a Negotiation?**
+
+A Negotiation is a grouping entity that organizes all proposals related to a specific developer and property combination into a single thread. Think of it as a "folder" containing all the offers exchanged with a landlord.
+
+**Key Concepts:**
+
+| Concept | Description |
+|---------|-------------|
+| **Negotiation** | Thread grouping all offers for a developer + property |
+| **Proposal** | Individual offer within a negotiation (ours or theirs) |
+| **Timeline** | Visual sequence of offers in chronological order |
+| **Origin** | Whether offer is OUR_OFFER or THEIR_COUNTER |
+| **Offer Number** | Order within the negotiation (1, 2, 3...) |
+
+### Accessing the Negotiations View
+
+**Navigation**: Dashboard → "Negotiations" tab OR Sidebar → "Negotiations"
+
+The Negotiations page shows:
+- All active negotiations as cards
+- Status badge for each negotiation (ACTIVE, ACCEPTED, REJECTED, CLOSED)
+- Latest offer summary
+- Proposal count per negotiation
+
+[Screenshot: Negotiations Dashboard]
+
+### Creating a New Negotiation
+
+**Step 1: Click "New Negotiation"**
+
+From the Negotiations page, click the "New Negotiation" button.
+
+**Step 2: Enter Developer Details**
+
+| Field | Description | Example |
+|-------|-------------|---------|
+| Developer Name | Landlord/developer company name | "ABC Real Estate" |
+| Property | Property location or identifier | "Downtown Campus" |
+| Notes | Initial negotiation notes (optional) | "First contact Dec 2025" |
+
+**Step 3: Create Initial Offer**
+
+After creating the negotiation, you'll be prompted to:
+- Create a new proposal (opens the wizard)
+- OR Link an existing proposal
+
+**Step 4: Confirmation**
+
+The negotiation is created with ACTIVE status and appears in your dashboard.
+
+[Screenshot: Create Negotiation Dialog]
+
+### Understanding the Timeline View
+
+Click on any negotiation card to open the Timeline view, which shows:
+
+```
+Timeline: Developer ABC / Downtown Campus
+─────────────────────────────────────────────────────────────────
+│                                                               │
+│  ┌─────────────────┐                                          │
+│  │ 1. Our Offer    │  Status: SUBMITTED                       │
+│  │ Dec 1, 2025     │  NPV: 125M  │  Total Rent: 420M          │
+│  │ Origin: OUR     │                                          │
+│  └─────────────────┘                                          │
+│         │                                                     │
+│         ▼                                                     │
+│  ┌─────────────────┐                                          │
+│  │ 2. Their Counter│  Status: EVALUATING_COUNTER              │
+│  │ Dec 5, 2025     │  NPV: 105M  │  Total Rent: 480M          │
+│  │ Origin: THEIR   │                                          │
+│  └─────────────────┘                                          │
+│         │                                                     │
+│         ▼                                                     │
+│  ┌─────────────────┐                                          │
+│  │ 3. Our Counter  │  Status: DRAFT                           │
+│  │ Dec 8, 2025     │  NPV: 118M  │  Total Rent: 445M          │
+│  │ Origin: OUR     │                                          │
+│  └─────────────────┘                                          │
+│                                                               │
+─────────────────────────────────────────────────────────────────
+```
+
+**Color Coding:**
+- Blue border: OUR_OFFER (our proposals)
+- Orange border: THEIR_COUNTER (developer's counter-offers)
+
+**Timeline Actions:**
+- Click any offer to view full proposal details
+- Compare offers side-by-side
+- Add new counter-offer
+
+[Screenshot: Negotiation Timeline View]
+
+### Adding Counter-Offers
+
+When you receive a counter-offer from the developer or want to send one:
+
+**Step 1: Open Negotiation Timeline**
+
+Click on the negotiation card to open the timeline.
+
+**Step 2: Click "Add Counter"**
+
+**Step 3: Choose Method**
+
+| Option | Description |
+|--------|-------------|
+| **Create New** | Create a new proposal with fresh inputs |
+| **Duplicate & Edit** | Copy the previous offer and modify terms |
+| **Link Existing** | Link an already-created proposal |
+
+**Step 4: Set Origin**
+
+- Select **OUR_OFFER** if this is our counter to them
+- Select **THEIR_COUNTER** if entering their counter to us
+
+**Step 5: Complete Proposal**
+
+If creating new:
+- Follow the proposal wizard (7 steps)
+- Proposal automatically linked to negotiation
+
+If duplicating:
+- Previous values pre-filled
+- Edit only what changed (e.g., rent terms)
+- Save and calculate
+
+**Step 6: Confirm**
+
+The new offer appears in the timeline with the correct offer number.
+
+[Screenshot: Add Counter Dialog]
+
+### Updating Negotiation Status
+
+Track the overall negotiation status:
+
+| Status | Meaning | When to Use |
+|--------|---------|-------------|
+| **ACTIVE** | Ongoing discussion | Default - negotiation in progress |
+| **ACCEPTED** | Deal agreed | Terms finalized, moving to contract |
+| **REJECTED** | Negotiation failed | No agreement possible |
+| **CLOSED** | Ended without deal | Negotiations stopped (neutral) |
+
+**How to Update Status:**
+
+1. Open the negotiation timeline
+2. Click the status badge (top right)
+3. Select new status
+4. Add notes explaining the change (optional)
+5. Click "Update"
+
+**Note:** Changing negotiation status does NOT automatically change individual proposal statuses. Update both as needed.
+
+[Screenshot: Status Update Dialog]
+
+### Reordering Offers
+
+If offers were entered in the wrong order, you can reorder them:
+
+**Step 1: Click "Reorder" button**
+
+On the timeline view, click the "Reorder Offers" button.
+
+**Step 2: Drag and Drop**
+
+Drag offers to the correct position.
+
+**Step 3: Confirm**
+
+Click "Save Order" to update offer numbers.
+
+**Note:** Reordering only changes display order, not timestamps or proposal content.
+
+[Screenshot: Reorder Offers Dialog]
+
+### Linking Existing Proposals
+
+If you have a proposal created outside a negotiation thread:
+
+**Step 1: Open Negotiation**
+
+Navigate to the negotiation timeline.
+
+**Step 2: Click "Link Proposal"**
+
+**Step 3: Select Proposal**
+
+Choose from unlinked proposals (those not already in a negotiation).
+
+**Step 4: Set Details**
+
+- Set origin (OUR_OFFER or THEIR_COUNTER)
+- Offer number auto-assigned (or specify)
+
+**Step 5: Confirm**
+
+The proposal is now part of the negotiation thread.
+
+[Screenshot: Link Proposal Dialog]
+
+### Comparing Within a Negotiation
+
+Quickly compare all offers in a negotiation:
+
+**Step 1: Open Timeline**
+
+Click on negotiation card.
+
+**Step 2: Click "Compare All"**
+
+**Step 3: View Comparison**
+
+See side-by-side metrics for all offers:
+
+| Metric | Offer 1 (Ours) | Offer 2 (Theirs) | Offer 3 (Ours) |
+|--------|----------------|------------------|----------------|
+| Total Rent | 420M | 480M | 445M |
+| NPV | 125M | 105M | 118M |
+| Final Cash | 95M | 72M | 88M |
+
+**Use this to:**
+- Track how terms evolved
+- Identify where you compromised
+- Prepare for next counter
+
+[Screenshot: In-Negotiation Comparison]
+
+### Negotiation Notes
+
+Add context and documentation at the negotiation level:
+
+**Types of Notes:**
+
+- **Negotiation Notes**: Thread-level notes (visible to all offers)
+- **Proposal Notes**: Per-offer notes (specific to one proposal)
+
+**How to Add Negotiation Notes:**
+
+1. Open timeline view
+2. Click "Notes" tab or section
+3. Enter notes (e.g., "Board approved up to 450M total rent")
+4. Save
+
+**Best Practices:**
+- Record key decisions ("Board approved range: 400-450M")
+- Note contact details ("Main contact: Sarah, 055-xxx-xxxx")
+- Track action items ("Need to check zoning permit")
+- Document rationale ("Accepting higher rent due to location")
+
+[Screenshot: Negotiation Notes Section]
+
+### Dashboard Negotiations Overview
+
+Your main dashboard shows:
+
+**Active Negotiations Card:**
+- Count of ACTIVE negotiations
+- Quick metrics (avg days in negotiation)
+- Top priority negotiations
+
+**Quick Actions:**
+- Create New Negotiation
+- View All Negotiations
+
+**Filter Options:**
+- By status (ACTIVE, ACCEPTED, REJECTED, CLOSED)
+- By developer
+- By date range
+
+[Screenshot: Dashboard Negotiations Section]
+
+### Best Practices for Negotiations
+
+**Do:**
+- ✓ Create a negotiation thread for each developer + property
+- ✓ Enter THEIR_COUNTER offers even if not ideal (for comparison)
+- ✓ Use notes liberally to document rationale
+- ✓ Update statuses promptly
+- ✓ Compare all offers before making decisions
+
+**Don't:**
+- ✗ Create standalone proposals for negotiations (use the thread)
+- ✗ Forget to update negotiation status when deal closes
+- ✗ Skip entering their counter-offers
+- ✗ Leave notes blank on important decisions
+- ✗ Mix different properties in one negotiation
+
+### Negotiation FAQs
+
+**Q: Can I move a proposal to a different negotiation?**
+
+A: Yes, unlink it from current negotiation and link to another, or contact Admin.
+
+**Q: What happens if I delete a negotiation?**
+
+A: All proposals in that negotiation are also deleted. Consider changing status to CLOSED instead.
+
+**Q: Can I have multiple negotiations with the same developer?**
+
+A: Yes, but each must be for a different property. One negotiation = one developer + one property.
+
+**Q: Who can see my negotiations?**
+
+A: All users with access to the system can see negotiations. Status updates are logged.
+
+**Q: How do I reopen a CLOSED negotiation?**
+
+A: Change status back to ACTIVE. All history is preserved.
+
+---
+
 ## Editing and Managing Proposals
 
 ### Editing an Existing Proposal
@@ -1258,6 +1578,6 @@ A:
 
 ---
 
-**Document Version:** 1.0
-**Last Updated:** November 2024
+**Document Version:** 2.0
+**Last Updated:** December 2025
 **Maintained By:** Documentation Agent

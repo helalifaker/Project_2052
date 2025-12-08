@@ -293,6 +293,7 @@ See agent specification documents for role-specific metrics.
 | Version | Date | Changes | Author |
 |---------|------|---------|--------|
 | 1.0 | 2025-11-22 | Initial agent team setup | pm-001 |
+| 2.0 | 2025-12-08 | Added v2.2 Negotiation system documentation to all agents | pm-001 |
 
 ## Document Maintenance
 

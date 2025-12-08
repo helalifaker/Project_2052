@@ -164,8 +164,8 @@ export function NAVComparisonBarChart({ data }: NAVComparisonBarChartProps) {
           ]}
           xAxisKey="name"
           layout="vertical"
-          yAxisFormatter={(value) =>
-            typeof value === "number" ? `${value.toFixed(1)}M` : "0.0M"
+          xAxisFormatter={(value) =>
+            typeof value === "number" ? `${value.toFixed(1)}M` : String(value)
           }
           tooltipContent={<NAVTooltip />}
           showLegend={false}

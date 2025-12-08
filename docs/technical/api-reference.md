@@ -2,7 +2,7 @@
 
 ## Overview
 
-The School Lease Financial Planning System provides a REST-like JSON API via Next.js 15 API Routes.
+The School Lease Financial Planning System provides a REST-like JSON API via Next.js 16 API Routes.
 
 **Base URL:** `https://yourapp.com/api`
 **Authentication:** Session-based (HTTP-only cookies)
@@ -535,6 +535,275 @@ All endpoints require authentication except login/logout.
 
 ---
 
+### Negotiations
+
+Negotiations group proposals by developer + property combination, enabling timeline tracking and counter-offer management.
+
+#### `GET /api/negotiations`
+
+**Description:** List all negotiations with filtering
+
+**Auth Required:** Yes
+
+**Query Parameters:**
+- `status` (optional): Filter by status (ACTIVE, ACCEPTED, REJECTED, CLOSED)
+- `developer` (optional): Filter by developer name
+- `page` (optional, default: 1): Page number
+- `limit` (optional, default: 50): Items per page
+
+**Response:** `200 OK`
+```json
+{
+  "negotiations": [
+    {
+      "id": "neg123",
+      "developer": "Developer A",
+      "property": "Downtown Campus",
+      "status": "ACTIVE",
+      "notes": "Initial discussions ongoing",
+      "createdBy": "user123",
+      "createdAt": "2024-11-20T10:00:00Z",
+      "updatedAt": "2024-11-25T14:30:00Z",
+      "_count": {
+        "proposals": 3
+      }
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 50,
+    "total": 15,
+    "totalPages": 1
+  }
+}
+```
+
+---
+
+#### `POST /api/negotiations`
+
+**Description:** Create a new negotiation
+
+**Auth Required:** Yes (PLANNER or ADMIN)
+
+**Request Body:**
+```json
+{
+  "developer": "Developer A",
+  "property": "Downtown Campus",
+  "notes": "Initial negotiation with Developer A"
+}
+```
+
+**Response:** `201 Created`
+```json
+{
+  "negotiation": {
+    "id": "neg123",
+    "developer": "Developer A",
+    "property": "Downtown Campus",
+    "status": "ACTIVE",
+    "notes": "Initial negotiation with Developer A",
+    "createdBy": "user123",
+    "createdAt": "2024-11-20T10:00:00Z",
+    "updatedAt": "2024-11-20T10:00:00Z"
+  }
+}
+```
+
+**Errors:**
+- `409 Conflict`: Negotiation for this developer+property already exists
+
+---
+
+#### `GET /api/negotiations/[id]`
+
+**Description:** Get negotiation details with linked proposals
+
+**Auth Required:** Yes
+
+**Path Parameters:**
+- `id`: Negotiation ID (UUID)
+
+**Response:** `200 OK`
+```json
+{
+  "negotiation": {
+    "id": "neg123",
+    "developer": "Developer A",
+    "property": "Downtown Campus",
+    "status": "ACTIVE",
+    "notes": "Initial discussions ongoing",
+    "createdBy": "user123",
+    "createdAt": "2024-11-20T10:00:00Z",
+    "updatedAt": "2024-11-25T14:30:00Z",
+    "proposals": [
+      {
+        "id": "prop1",
+        "name": "Initial Offer",
+        "offerNumber": 1,
+        "origin": "OUR_OFFER",
+        "status": "SUBMITTED",
+        "metrics": { "npv": 125000000, "totalRent": 450000000 }
+      },
+      {
+        "id": "prop2",
+        "name": "Counter 1",
+        "offerNumber": 2,
+        "origin": "THEIR_COUNTER",
+        "status": "EVALUATING_COUNTER",
+        "metrics": { "npv": 118000000, "totalRent": 480000000 }
+      }
+    ]
+  }
+}
+```
+
+---
+
+#### `PATCH /api/negotiations/[id]`
+
+**Description:** Update negotiation status or notes
+
+**Auth Required:** Yes (PLANNER or ADMIN)
+
+**Path Parameters:**
+- `id`: Negotiation ID (UUID)
+
+**Request Body:**
+```json
+{
+  "status": "ACCEPTED",
+  "notes": "Deal finalized on 2024-12-01"
+}
+```
+
+**Response:** `200 OK`
+
+**Valid Status Transitions:**
+- `ACTIVE` → `ACCEPTED`, `REJECTED`, `CLOSED`
+- `ACCEPTED`, `REJECTED`, `CLOSED` cannot be changed back to `ACTIVE`
+
+---
+
+#### `DELETE /api/negotiations/[id]`
+
+**Description:** Delete a negotiation (and unlink its proposals)
+
+**Auth Required:** Yes (ADMIN only)
+
+**Path Parameters:**
+- `id`: Negotiation ID (UUID)
+
+**Response:** `204 No Content`
+
+**Note:** Linked proposals are NOT deleted, only unlinked (negotiationId set to null)
+
+---
+
+#### `POST /api/negotiations/[id]/proposals`
+
+**Description:** Link an existing proposal to a negotiation
+
+**Auth Required:** Yes (PLANNER or ADMIN)
+
+**Path Parameters:**
+- `id`: Negotiation ID (UUID)
+
+**Request Body:**
+```json
+{
+  "proposalId": "prop123",
+  "offerNumber": 3,
+  "origin": "OUR_OFFER"
+}
+```
+
+**Response:** `200 OK`
+```json
+{
+  "proposal": {
+    "id": "prop123",
+    "negotiationId": "neg123",
+    "offerNumber": 3,
+    "origin": "OUR_OFFER",
+    "purpose": "NEGOTIATION"
+  }
+}
+```
+
+---
+
+#### `POST /api/negotiations/[id]/counter`
+
+**Description:** Create a counter-offer proposal within a negotiation
+
+**Auth Required:** Yes (PLANNER or ADMIN)
+
+**Path Parameters:**
+- `id`: Negotiation ID (UUID)
+
+**Request Body:**
+```json
+{
+  "name": "Counter Offer 2",
+  "origin": "THEIR_COUNTER",
+  "baseProposalId": "prop123",
+  "rentParams": {
+    "year1Rent": 16500000,
+    "cpiEscalation": 0.035
+  }
+}
+```
+
+**Response:** `201 Created`
+```json
+{
+  "proposal": {
+    "id": "prop456",
+    "name": "Counter Offer 2",
+    "negotiationId": "neg123",
+    "offerNumber": 4,
+    "origin": "THEIR_COUNTER",
+    "purpose": "NEGOTIATION",
+    "status": "DRAFT"
+  }
+}
+```
+
+**Note:** If `baseProposalId` is provided, the new proposal copies most fields from the base proposal
+
+---
+
+#### `PATCH /api/negotiations/[id]/reorder`
+
+**Description:** Reorder offers in a negotiation timeline
+
+**Auth Required:** Yes (PLANNER or ADMIN)
+
+**Path Parameters:**
+- `id`: Negotiation ID (UUID)
+
+**Request Body:**
+```json
+{
+  "proposalOrder": [
+    { "proposalId": "prop1", "offerNumber": 1 },
+    { "proposalId": "prop3", "offerNumber": 2 },
+    { "proposalId": "prop2", "offerNumber": 3 }
+  ]
+}
+```
+
+**Response:** `200 OK`
+```json
+{
+  "updated": 3
+}
+```
+
+---
+
 ### Configuration
 
 #### `GET /api/config`
@@ -551,6 +820,7 @@ All endpoints require authentication except login/logout.
     "zakatRate": 0.025,
     "debtInterestRate": 0.05,
     "depositInterestRate": 0.02,
+    "discountRate": 0.08,
     "minCashBalance": 1000000,
     "confirmedAt": "2024-11-01T10:00:00Z",
     "updatedBy": "admin123"
@@ -572,6 +842,7 @@ All endpoints require authentication except login/logout.
   "zakatRate": 0.025,
   "debtInterestRate": 0.05,
   "depositInterestRate": 0.02,
+  "discountRate": 0.08,
   "minCashBalance": 1000000
 }
 ```
@@ -734,6 +1005,6 @@ X-RateLimit-Reset: 1700832000
 
 ---
 
-**Document Version:** 1.0
-**Last Updated:** November 2024
+**Document Version:** 2.0
+**Last Updated:** December 2025
 **Maintained By:** Documentation Agent

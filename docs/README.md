@@ -13,6 +13,7 @@ Welcome to the documentation hub for Project Zeta - a financial planning applica
 | Learn the tech stack | [Technical Specification](specifications/03-technical-specification.md) |
 | Set up as Admin | [Admin Guide](user-guide/admin-guide.md) |
 | Create proposals as Planner | [Planner Guide](user-guide/planner-guide.md) |
+| Manage negotiations | [Negotiations Guide](features/negotiations/README.md) |
 | View reports as Viewer | [Viewer Guide](user-guide/viewer-guide.md) |
 | Deploy the application | [Deployment Guide](technical/deployment-guide.md) |
 | Understand the API | [API Reference](technical/api-reference.md) |
@@ -43,7 +44,7 @@ Core project definition documents.
 | Document | Description |
 |----------|-------------|
 | [01-business-case.md](specifications/01-business-case.md) | Business case and problem statement |
-| [02-product-requirements.md](specifications/02-product-requirements.md) | Complete PRD with v2.1 amendments |
+| [02-product-requirements.md](specifications/02-product-requirements.md) | Complete PRD with v2.2 amendments |
 | [03-technical-specification.md](specifications/03-technical-specification.md) | Comprehensive technical specification |
 | [04-financial-rules.md](specifications/04-financial-rules.md) | Financial calculation rules |
 | [05-agents-specification.md](specifications/05-agents-specification.md) | AI agent team specifications |
@@ -66,6 +67,7 @@ For system administrators:
 ### [Planner Guide](user-guide/planner-guide.md)
 For financial planners:
 - Creating lease proposals (7-step wizard)
+- Managing negotiations and counter-offers
 - Running interactive scenarios
 - Performing sensitivity analysis
 - Comparing proposals
@@ -138,6 +140,13 @@ Standards and guides for developers.
 
 Detailed guides for specific features.
 
+### Negotiations
+- [README.md](features/negotiations/README.md) - Overview and navigation
+- [workflow.md](features/negotiations/workflow.md) - Complete workflow guide
+- [api.md](features/negotiations/api.md) - Detailed API reference
+- [components.md](features/negotiations/components.md) - Component documentation
+- [status-guide.md](features/negotiations/status-guide.md) - Status states explained
+
 ### Charts
 - [migration-wave1-report.md](features/charts/migration-wave1-report.md)
 - [migration-wave1-summary.md](features/charts/migration-wave1-summary.md)
@@ -195,4 +204,4 @@ To update documentation:
 ---
 
 **Last Updated:** December 2025
-**Documentation Version:** 2.0
+**Documentation Version:** 3.0

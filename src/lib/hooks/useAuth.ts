@@ -3,6 +3,12 @@
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { Role } from "@/lib/types/roles";
+import {
+  withTimeout,
+  isTimeoutError,
+  AUTH_TIMEOUT_MS,
+  API_TIMEOUT_MS,
+} from "@/lib/utils/timeout";
 
 /**
  * Authenticated User Data
@@ -58,28 +64,41 @@ export function useAuth() {
       try {
         setLoading(true);
 
-        // Get Supabase auth user
+        // Get Supabase auth user with timeout protection
         const {
           data: { user: authUser },
           error: authError,
-        } = await supabase.auth.getUser();
+        } = await withTimeout(
+          supabase.auth.getUser(),
+          AUTH_TIMEOUT_MS,
+          "Authentication check timed out. Please refresh the page.",
+        );
 
         if (authError || !authUser) {
           setUser(null);
           return;
         }
 
-        // Fetch user details from database (includes role)
-        const response = await fetch(`/api/users/${authUser.id}`);
+        // Fetch user details from database (includes role) with timeout
+        const response = await withTimeout(
+          fetch(`/api/users/${authUser.id}`),
+          API_TIMEOUT_MS,
+          "Failed to fetch user details. Please refresh the page.",
+        );
 
         if (!response.ok) {
           if (response.status === 404) {
-            console.warn("User record not found in database. Session might be stale or out of sync.");
+            console.warn(
+              "User record not found in database. Session might be stale or out of sync.",
+            );
             // Optional: Sign out to clear the invalid session state
             // await supabase.auth.signOut();
           } else {
             const errorText = await response.text();
-            console.error(`Failed to fetch user details: ${response.status} ${response.statusText}`, errorText);
+            console.error(
+              `Failed to fetch user details: ${response.status} ${response.statusText}`,
+              errorText,
+            );
           }
           setUser(null);
           return;
@@ -94,7 +113,11 @@ export function useAuth() {
           name: userData.name,
         });
       } catch (error) {
-        console.error("Error fetching user:", error);
+        if (isTimeoutError(error)) {
+          console.warn("Auth timeout:", error.message);
+        } else {
+          console.error("Error fetching user:", error);
+        }
         setUser(null);
       } finally {
         setLoading(false);

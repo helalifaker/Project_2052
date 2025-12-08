@@ -1,13 +1,31 @@
 "use client";
 
 import React from "react";
-import { chartTooltipStyle, chartTypography } from "@/lib/design-tokens/chart-config";
+import {
+  chartTooltipStyle,
+  chartTypography,
+} from "@/lib/design-tokens/chart-config";
 import { formatMillions } from "@/lib/utils/financial";
+
+/**
+ * Tooltip Payload Item (from Recharts)
+ */
+interface TooltipPayloadItem {
+  value: number;
+  name: string;
+  dataKey: string;
+  color: string;
+  payload: Record<string, unknown>;
+}
 
 /**
  * Tooltip Value Formatter Type
  */
-type TooltipFormatter = (value: number, name: string, props: any) => string | [string, string];
+type TooltipFormatter = (
+  value: number,
+  name: string,
+  props: TooltipPayloadItem,
+) => string | [string, string];
 
 /**
  * Custom Tooltip Props
@@ -18,13 +36,7 @@ export interface CustomTooltipProps {
   /** Tooltip active state (provided by Recharts) */
   active?: boolean;
   /** Payload data (provided by Recharts) */
-  payload?: Array<{
-    value: number;
-    name: string;
-    dataKey: string;
-    color: string;
-    payload: any;
-  }>;
+  payload?: TooltipPayloadItem[];
   /** Label (provided by Recharts) */
   label?: string | number;
   /** Optional label formatter */

@@ -3,7 +3,7 @@
  * These types provide basic type safety without requiring the generated Prisma client
  */
 
-import { ProposalStatus } from "./roles";
+import { ProposalStatus, NegotiationStatus } from "./roles";
 
 // Generic JSON value type
 export type InputJsonValue =
@@ -40,6 +40,7 @@ export type LeaseProposalWhereInput = {
   status?: ProposalStatus | { in: ProposalStatus[] };
   createdBy?: string;
   createdAt?: { gte?: Date; lte?: Date };
+  negotiationId?: string | null; // null to find unlinked proposals
 };
 
 // Update input types
@@ -69,6 +70,33 @@ export type LeaseProposalUpdateInput = {
   negotiationRound?: number | null;
   submittedDate?: Date | null;
   responseReceivedDate?: Date | null;
+  // v2.2 Negotiation fields
+  purpose?: string | null;
+  negotiationId?: string | null;
+  offerNumber?: number | null;
+  negotiationNotes?: string | null;
+  boardComments?: string | null;
+};
+
+// Negotiation types
+export type NegotiationWhereInput = {
+  id?: string;
+  developer?: StringFilter;
+  property?: StringFilter;
+  status?: NegotiationStatus | { in: NegotiationStatus[] };
+  createdBy?: string;
+};
+
+export type NegotiationUpdateInput = {
+  status?: string | null;
+  notes?: string | null;
+};
+
+export type NegotiationCreateInput = {
+  developer: string;
+  property: string;
+  notes?: string | null;
+  createdBy: string;
 };
 
 // Error types

@@ -2,19 +2,64 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
+import dynamic from "next/dynamic";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { ProposalOverviewTab } from "@/components/proposals/detail/ProposalOverviewTab";
-import { DynamicSetupTab } from "@/components/proposals/detail/DynamicSetupTab";
-import { FinancialStatementsTab } from "@/components/proposals/detail/FinancialStatementsTab";
-import { ScenariosTab } from "@/components/proposals/detail/ScenariosTab";
-import { SensitivityTab } from "@/components/proposals/detail/SensitivityTab";
 import { useRoleCheck } from "@/lib/hooks/useRoleCheck";
 import { InlineEditableName } from "@/components/proposals/detail/InlineEditableName";
+import { ProposalStatusSelect } from "@/components/proposals/ProposalStatusSelect";
 import { BackButton } from "@/components/navigation/BackButton";
 import { Breadcrumbs } from "@/components/navigation/Breadcrumbs";
 import { PageSkeleton } from "@/components/states/PageSkeleton";
 import { ErrorState } from "@/components/states/ErrorState";
+import { Card } from "@/components/ui/card";
+
+// PERFORMANCE OPTIMIZATION: Lazy-load heavy tab components
+// These tabs contain charts (Recharts) and are only loaded when user clicks them
+// This reduces initial bundle size by ~300-500KB
+
+const TabLoadingSkeleton = () => (
+  <Card className="p-6 animate-fade-in">
+    <div className="space-y-6">
+      <div className="h-6 w-48 bg-muted animate-shimmer rounded" />
+      <div className="h-64 bg-muted animate-shimmer rounded" />
+      <div className="h-32 bg-muted animate-shimmer rounded" />
+    </div>
+  </Card>
+);
+
+const DynamicSetupTab = dynamic(
+  () =>
+    import("@/components/proposals/detail/DynamicSetupTab").then((mod) => ({
+      default: mod.DynamicSetupTab,
+    })),
+  { loading: () => <TabLoadingSkeleton />, ssr: false },
+);
+
+const FinancialStatementsTab = dynamic(
+  () =>
+    import("@/components/proposals/detail/FinancialStatementsTab").then(
+      (mod) => ({ default: mod.FinancialStatementsTab }),
+    ),
+  { loading: () => <TabLoadingSkeleton />, ssr: false },
+);
+
+const ScenariosTab = dynamic(
+  () =>
+    import("@/components/proposals/detail/ScenariosTab").then((mod) => ({
+      default: mod.ScenariosTab,
+    })),
+  { loading: () => <TabLoadingSkeleton />, ssr: false },
+);
+
+const SensitivityTab = dynamic(
+  () =>
+    import("@/components/proposals/detail/SensitivityTab").then((mod) => ({
+      default: mod.SensitivityTab,
+    })),
+  { loading: () => <TabLoadingSkeleton />, ssr: false },
+);
 
 type ProposalData = {
   id: string;
@@ -67,7 +112,8 @@ export default function ProposalDetailPage() {
       setProposal(data);
     } catch (err) {
       console.error("Error fetching proposal:", err);
-      const errorObj = err instanceof Error ? err : new Error("Failed to load proposal");
+      const errorObj =
+        err instanceof Error ? err : new Error("Failed to load proposal");
       setError(errorObj);
 
       // Handle 404 specifically
@@ -203,6 +249,16 @@ export default function ProposalDetailPage() {
             )}
           </div>
         </div>
+        {/* Status Dropdown */}
+        <ProposalStatusSelect
+          proposalId={proposal.id}
+          currentStatus={proposal.status}
+          onStatusChange={(newStatus) => {
+            setProposal((prev) =>
+              prev ? { ...prev, status: newStatus } : null,
+            );
+          }}
+        />
       </div>
 
       {/* 5-Tab Interface */}

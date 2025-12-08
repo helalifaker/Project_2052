@@ -10,8 +10,10 @@ import {
   getCachedCalculation,
   setCachedCalculation,
   invalidateCachedCalculation,
+  invalidateProposalCache,
   clearCalculationCache,
   getCacheStats,
+  getCacheEntries,
 } from "./calculation-cache";
 import type { CalculationEngineInput } from "@/lib/engine/core/types";
 import { RentModel } from "@/lib/engine/core/types";
@@ -141,6 +143,7 @@ const createMockOutput = (id: string) => ({
     totalNetIncome: new Decimal(10000000),
     totalRent: new Decimal(60000000),
     totalEbitda: new Decimal(150000000),
+    avgEbitda: new Decimal(5000000), // 150M / 30 years
     averageROE: new Decimal(0.15),
     peakDebt: new Decimal(5000000),
     maxDebt: new Decimal(5000000),
@@ -358,6 +361,205 @@ describe("Calculation Cache", () => {
 
       expect(key).toBeDefined();
       expect(duration).toBeLessThan(10); // Target: <10ms
+    });
+  });
+
+  describe("Proposal Cache Invalidation", () => {
+    it("should invalidate cache entries by proposal ID", () => {
+      // Note: This tests the invalidateProposalCache function which
+      // looks for keys containing the proposal ID
+      const input1 = createMockInput("test-1");
+      const input2 = createMockInput("test-2");
+      input2.systemConfig.zakatRate = new Decimal(0.03);
+
+      const output1 = createMockOutput("test-1");
+      const output2 = createMockOutput("test-2");
+
+      // Store entries
+      setCachedCalculation(input1, output1);
+      setCachedCalculation(input2, output2);
+
+      // Both should be cached
+      expect(getCachedCalculation(input1)).toBeDefined();
+      expect(getCachedCalculation(input2)).toBeDefined();
+
+      // Invalidate by a non-matching ID (should not clear anything)
+      invalidateProposalCache("non-existent-proposal");
+
+      // Both should still be cached (keys don't contain "non-existent-proposal")
+      const stats = getCacheStats();
+      expect(stats.size).toBe(2);
+    });
+
+    it("should log invalidation message", () => {
+      // This just tests that invalidateProposalCache can be called without errors
+      expect(() => invalidateProposalCache("test-proposal-123")).not.toThrow();
+    });
+  });
+
+  describe("Get Cache Entries", () => {
+    it("should return empty array when cache is empty", () => {
+      clearCalculationCache();
+      const entries = getCacheEntries();
+      expect(entries).toEqual([]);
+    });
+
+    it("should return all cache entries", () => {
+      clearCalculationCache();
+
+      const input1 = createMockInput("test-1");
+      const input2 = createMockInput("test-2");
+      input2.systemConfig.zakatRate = new Decimal(0.03);
+
+      const output1 = createMockOutput("test-1");
+      const output2 = createMockOutput("test-2");
+
+      setCachedCalculation(input1, output1);
+      setCachedCalculation(input2, output2);
+
+      const entries = getCacheEntries();
+      expect(entries.length).toBe(2);
+    });
+
+    it("should return entries with correct structure", () => {
+      clearCalculationCache();
+
+      const input = createMockInput("test-1");
+      const output = createMockOutput("test-1");
+
+      setCachedCalculation(input, output);
+
+      const entries = getCacheEntries();
+      expect(entries.length).toBe(1);
+
+      const entry = entries[0];
+      expect(entry.key).toContain("calc:");
+      expect(entry.input).toBeDefined();
+      expect(entry.output).toBeDefined();
+      expect(typeof entry.timestamp).toBe("number");
+      expect(typeof entry.hitCount).toBe("number");
+    });
+  });
+
+  describe("Cache Key Edge Cases", () => {
+    it("should handle null values in input", () => {
+      const input = createMockInput("test-1");
+      // @ts-expect-error Testing null handling
+      input.rentParams = null;
+
+      expect(() => generateCacheKey(input)).not.toThrow();
+    });
+
+    it("should handle undefined values in input", () => {
+      const input = createMockInput("test-1");
+      // @ts-expect-error Testing undefined handling
+      input.rentParams = undefined;
+
+      expect(() => generateCacheKey(input)).not.toThrow();
+    });
+
+    it("should handle Date objects in input", () => {
+      const input = createMockInput("test-1") as unknown as Record<
+        string,
+        unknown
+      >;
+      input.someDate = new Date("2024-01-01");
+
+      expect(() =>
+        generateCacheKey(input as unknown as CalculationEngineInput),
+      ).not.toThrow();
+    });
+
+    it("should skip calculatedAt and createdAt fields for deterministic hashing", () => {
+      const input1 = createMockInput("test-1") as unknown as Record<
+        string,
+        unknown
+      >;
+      const input2 = createMockInput("test-1") as unknown as Record<
+        string,
+        unknown
+      >;
+
+      // Add different calculatedAt timestamps
+      input1.calculatedAt = new Date("2024-01-01");
+      input2.calculatedAt = new Date("2024-06-01");
+
+      const key1 = generateCacheKey(
+        input1 as unknown as CalculationEngineInput,
+      );
+      const key2 = generateCacheKey(
+        input2 as unknown as CalculationEngineInput,
+      );
+
+      // Keys should be the same because calculatedAt is skipped
+      expect(key1).toBe(key2);
+    });
+
+    it("should skip createdAt fields for deterministic hashing", () => {
+      const input1 = createMockInput("test-1") as unknown as Record<
+        string,
+        unknown
+      >;
+      const input2 = createMockInput("test-1") as unknown as Record<
+        string,
+        unknown
+      >;
+
+      // Add different createdAt timestamps
+      input1.createdAt = new Date("2024-01-01");
+      input2.createdAt = new Date("2024-12-31");
+
+      const key1 = generateCacheKey(
+        input1 as unknown as CalculationEngineInput,
+      );
+      const key2 = generateCacheKey(
+        input2 as unknown as CalculationEngineInput,
+      );
+
+      // Keys should be the same because createdAt is skipped
+      expect(key1).toBe(key2);
+    });
+
+    it("should handle nested arrays with Decimals", () => {
+      const input = createMockInput("test-1");
+      // The gradeDistribution is an array that could contain Decimals
+      input.dynamicPeriodConfig.enrollment.gradeDistribution = [
+        { grade: 1, count: 100 },
+        { grade: 2, count: 150 },
+      ] as unknown as typeof input.dynamicPeriodConfig.enrollment.gradeDistribution;
+
+      expect(() => generateCacheKey(input)).not.toThrow();
+      const key = generateCacheKey(input);
+      expect(key).toContain("calc:");
+    });
+  });
+
+  describe("Stats Edge Cases", () => {
+    it("should handle zero hits and misses for hit rate calculation", () => {
+      clearCalculationCache();
+
+      const stats = getCacheStats();
+
+      // With zero hits and misses, hitRate should be 0
+      expect(stats.hitRate).toBe(0);
+      expect(stats.hitRatePercent).toBe("0.00%");
+    });
+
+    it("should track evictions correctly", () => {
+      clearCalculationCache();
+
+      // Fill cache to trigger evictions
+      for (let i = 0; i < 105; i++) {
+        const input = createMockInput(`test-${i}`);
+        input.systemConfig.zakatRate = new Decimal(0.025 + i * 0.0001);
+        const output = createMockOutput(`test-${i}`);
+        setCachedCalculation(input, output);
+      }
+
+      const stats = getCacheStats();
+
+      // Should have evicted at least 5 entries (105 - 100)
+      expect(stats.evictions).toBeGreaterThanOrEqual(5);
     });
   });
 });

@@ -36,6 +36,13 @@ When working with tests in this project:
    - Verify test data matches expected period calculations
    - Review golden model files for expected outputs
 
+6. **Negotiation Tests (v2.2)**
+   - Test negotiation CRUD operations at `/api/negotiations`
+   - Verify counter-offer creation and linking
+   - Test status transitions (ACTIVE → ACCEPTED/REJECTED/CLOSED)
+   - Validate timeline reordering logic
+   - Ensure `developer + property` uniqueness constraint
+
 ## Common Test Patterns
 
 ```typescript
@@ -55,3 +62,5 @@ describe('Financial Calculation', () => {
 - "Run the financial engine tests"
 - "Debug why this test is failing"
 - "Write tests for the new rent calculation"
+- "Test the negotiation workflow" (v2.2)
+- "Verify counter-offer creation" (v2.2)

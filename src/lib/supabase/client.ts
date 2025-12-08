@@ -11,20 +11,15 @@
  */
 
 import { createBrowserClient } from "@supabase/ssr";
+import { validateSupabaseConfig } from "./validation";
 
 export function createClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
 
-  if (!url) {
-    throw new Error("Missing NEXT_PUBLIC_SUPABASE_URL environment variable");
-  }
+  // Validate configuration before creating client (fails fast with clear errors)
+  validateSupabaseConfig(url, key, "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY");
 
-  if (!key) {
-    throw new Error(
-      "Missing NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY environment variable",
-    );
-  }
-
-  return createBrowserClient(url, key);
+  // TypeScript now knows url and key are defined (validateSupabaseConfig throws if not)
+  return createBrowserClient(url!, key!);
 }

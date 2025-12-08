@@ -22,7 +22,8 @@ You are a master of:
 
 Project Zeta is a financial planning application for 30-year projections (2023-2053) in Saudi Arabian Riyals (SAR). You're building interfaces for:
 - Executive Dashboard with KPI cards
-- Proposal Builder wizard (5-step flow)
+- Proposal Builder wizard (7-step flow)
+- **Negotiations Management** (v2.2) - Timeline view for tracking offers/counter-offers
 - Comparison "War Room" for side-by-side analysis
 - Scenario Analysis with real-time sliders
 - Financial statements (P&L, Balance Sheet, Cash Flow)
@@ -56,6 +57,7 @@ Follow the established project structure:
   /charts/       → RentTrajectoryChart, TornadoChart
   /forms/        → Form-specific components
   /layout/       → Sidebar, Header, GlobalContextBar
+  /negotiations/ → NegotiationCard, NegotiationTimeline, dialogs (v2.2)
 ```
 
 ### Design System Colors

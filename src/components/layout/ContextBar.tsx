@@ -31,7 +31,10 @@ export function ContextBar({
     >
       <div className="flex items-center gap-8">
         {/* Breadcrumbs */}
-        <nav className="flex items-center space-x-1 text-sm text-muted-foreground">
+        <nav
+          aria-label="Breadcrumb"
+          className="flex items-center space-x-1 text-sm text-muted-foreground"
+        >
           {breadcrumbs.map((item, index) => {
             const isLast = index === breadcrumbs.length - 1;
             return (
@@ -53,22 +56,6 @@ export function ContextBar({
             );
           })}
         </nav>
-
-        {/* Global Market Context (Terminal Header) */}
-        <div className="hidden lg:flex items-center gap-4 text-xs font-mono text-muted-foreground border-l border-white/10 pl-4">
-          <div className="flex items-center gap-2">
-            <span className="text-emerald-500">●</span>
-            <span>CPI: 2.1%</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="text-emerald-500">●</span>
-            <span>SAR/USD: 3.75</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="text-amber-500">●</span>
-            <span>Market: Stable</span>
-          </div>
-        </div>
       </div>
 
       {/* Actions */}

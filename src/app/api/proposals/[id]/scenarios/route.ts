@@ -47,6 +47,7 @@ import {
 import type { ScenarioVariables } from "@/lib/engine/scenario-modifier";
 import {
   reconstructCalculationInput as sharedReconstructCalculationInput,
+  CalculationConfigError,
   toNumber,
 } from "@/lib/proposals/reconstruct-calculation-input";
 
@@ -324,6 +325,19 @@ export async function POST(
     });
   } catch (error) {
     console.error("❌ Scenario calculation failed:", error);
+
+    // Handle configuration errors with specific status and details
+    if (error instanceof CalculationConfigError) {
+      return NextResponse.json(
+        {
+          error: "Configuration missing",
+          code: error.code,
+          configType: error.configType,
+          message: error.userMessage,
+        },
+        { status: 400 }, // 400 = client can fix this by configuring the system
+      );
+    }
 
     return NextResponse.json(
       {

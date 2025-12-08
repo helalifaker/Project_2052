@@ -3,7 +3,6 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { authenticateUserWithRole } from "@/middleware/auth";
 import { Role } from "@/lib/types/roles";
-import type { InputJsonValue } from "@/lib/types/prisma-helpers";
 import { JsonNull } from "@/lib/types/prisma-helpers";
 import { DuplicateProposalSchema } from "@/lib/validation/proposal";
 

@@ -4,11 +4,13 @@
 
 ---
 
-**Document Version:** 2.0  
-**Date:** November 22, 2025  
-**Prepared By:** Board Member (Admin)  
-**Status:** APPROVED - Ready for Development  
+**Document Version:** 2.2
+**Date:** December 2025
+**Prepared By:** Board Member (Admin)
+**Status:** APPROVED - Ready for Development
 **Alignment:** 100% consistent with PROJECT_ZETA_FINANCIAL_RULES v4.1
+
+> **Note:** See v2.1 and v2.2 amendments at the end of this document for negotiation workflow and Negotiation entity updates.
 
 ---
 
@@ -1809,3 +1811,304 @@ WHERE
 **— END OF ADDENDUM —**
 
 *This addendum (v2.1) supersedes narrative and workflow descriptions in PRD v2.0. All financial calculation requirements from v2.0 remain 100% valid and unchanged.*
+
+---
+
+# AMENDMENT: v2.2 NEGOTIATION ENTITY
+
+*The following section was added in v2.2 to introduce the independent Negotiation entity pattern.*
+
+## CHANGE SUMMARY
+
+This addendum introduces a dedicated **Negotiation entity** (grouping table) that provides better organization of proposals within negotiation threads.
+
+**What Changed:**
+- ✅ New Negotiation model (independent grouping entity)
+- ✅ Updated LeaseProposal relationship (now belongs to Negotiation)
+- ✅ New NegotiationStatus enum for thread-level status
+- ✅ Simplified API with grouped endpoints
+
+**What Stayed the Same:**
+- ✅ All financial calculations (100% unchanged)
+- ✅ ProposalStatus, ProposalPurpose, ProposalOrigin enums
+- ✅ All proposal fields from v2.1
+- ✅ Performance requirements
+
+---
+
+## NEW NEGOTIATION ENTITY
+
+### Problem Solved
+
+In v2.1, negotiation grouping was implicit (based on developer + property fields). This caused:
+- No dedicated place to store negotiation-level notes
+- Status tracked per proposal, not per negotiation thread
+- Awkward filtering by composite key (developer + property)
+
+### Solution: Dedicated Negotiation Table
+
+```typescript
+interface Negotiation {
+  id: string;                // UUID primary key
+  developer: string;         // Developer/landlord name
+  property: string;          // Property identifier
+  status: NegotiationStatus; // Thread-level status
+  notes?: string;            // Negotiation-level notes
+  createdAt: Date;
+  updatedAt: Date;
+
+  // Relations
+  proposals: LeaseProposal[]; // All proposals in this thread
+}
+
+enum NegotiationStatus {
+  ACTIVE = 'ACTIVE',         // Ongoing negotiation
+  ACCEPTED = 'ACCEPTED',     // Deal agreed
+  REJECTED = 'REJECTED',     // Negotiation failed
+  CLOSED = 'CLOSED',         // Ended without deal
+}
+```
+
+### Updated LeaseProposal Relationship
+
+```typescript
+interface LeaseProposal {
+  // ... all existing fields from v2.1
+
+  // CHANGED: Now explicit foreign key relationship
+  negotiationId: string;     // FK to Negotiation.id
+  negotiation: Negotiation;  // Relation
+}
+```
+
+### Benefits
+
+| Aspect | v2.1 (Implicit) | v2.2 (Explicit) |
+|--------|-----------------|-----------------|
+| Grouping | By developer+property fields | By negotiationId FK |
+| Thread status | Derived from proposals | Dedicated status field |
+| Notes | Per proposal only | Per thread + per proposal |
+| Queries | Filter by composite key | Simple FK join |
+| Timeline | Reconstructed from timestamps | Ordered by offerNumber |
+
+---
+
+## UPDATED DATA MODEL
+
+### Negotiation Model (NEW)
+
+```prisma
+model Negotiation {
+  id        String            @id @default(uuid())
+  developer String            // Developer name
+  property  String            // Property identifier
+  status    NegotiationStatus @default(ACTIVE)
+  notes     String?           // Thread-level notes
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+
+  proposals LeaseProposal[]   // All linked proposals
+
+  @@unique([developer, property])
+  @@map("negotiations")
+}
+```
+
+### LeaseProposal Updates (CHANGED)
+
+```prisma
+model LeaseProposal {
+  // ... existing fields ...
+
+  // ADDED in v2.2: Explicit negotiation relationship
+  negotiationId String?       // FK to Negotiation
+  negotiation   Negotiation?  @relation(fields: [negotiationId], references: [id])
+
+  // These fields remain for proposals NOT in negotiations
+  purpose       ProposalPurpose @default(NEGOTIATION)
+  origin        ProposalOrigin  @default(OUR_OFFER)
+  offerNumber   Int?            // Order within negotiation (1, 2, 3...)
+}
+```
+
+---
+
+## UPDATED API DESIGN
+
+### New Negotiation Endpoints
+
+```
+/api/negotiations/
+├── GET              → List all negotiations with latest proposal
+├── POST             → Create new negotiation (returns Negotiation)
+└── [id]/
+    ├── GET          → Get negotiation with all proposals
+    ├── PATCH        → Update negotiation (status, notes)
+    ├── DELETE       → Delete negotiation (cascades to proposals)
+    ├── proposals/
+    │   └── POST     → Link existing proposal to negotiation
+    ├── counter/
+    │   └── POST     → Create counter-offer (new proposal in thread)
+    └── reorder/
+        └── PATCH    → Reorder offers (update offerNumber)
+```
+
+### Response Structure Changes
+
+**GET /api/negotiations Response:**
+```json
+{
+  "negotiations": [
+    {
+      "id": "uuid-1",
+      "developer": "Developer ABC",
+      "property": "Downtown Campus",
+      "status": "ACTIVE",
+      "notes": "Promising negotiation, board reviewing",
+      "createdAt": "2025-11-01T00:00:00Z",
+      "updatedAt": "2025-12-01T00:00:00Z",
+      "proposals": [
+        {
+          "id": "proposal-1",
+          "name": "Initial Offer",
+          "origin": "OUR_OFFER",
+          "offerNumber": 1,
+          "status": "SUBMITTED"
+        },
+        {
+          "id": "proposal-2",
+          "name": "Counter from Developer",
+          "origin": "THEIR_COUNTER",
+          "offerNumber": 2,
+          "status": "EVALUATING_COUNTER"
+        }
+      ],
+      "proposalCount": 2,
+      "latestOffer": { /* summary of proposal-2 */ }
+    }
+  ],
+  "total": 1
+}
+```
+
+---
+
+## UPDATED USER STORIES
+
+### NEW User Stories (v2.2)
+
+**US-N1: Create Negotiation Thread**
+- As a Planner, I want to create a negotiation thread for a developer + property combination
+- Acceptance Criteria:
+  - Enter developer name and property
+  - Thread created with ACTIVE status
+  - Can immediately create first offer
+  - Thread appears in dashboard
+
+**US-N2: View Negotiation Timeline**
+- As a Planner, I want to see all offers in a negotiation thread as a visual timeline
+- Acceptance Criteria:
+  - Offers ordered by offerNumber
+  - Visual distinction between OUR_OFFER and THEIR_COUNTER
+  - Status badges for each offer
+  - Click to view offer details
+
+**US-N3: Update Negotiation Status**
+- As a Planner, I want to update the overall negotiation status
+- Acceptance Criteria:
+  - Can set status to ACTIVE, ACCEPTED, REJECTED, or CLOSED
+  - Status change reflected in dashboard
+  - Can add notes explaining status change
+
+**US-N4: Reorder Offers**
+- As a Planner, I want to reorder offers if I made a mistake in sequencing
+- Acceptance Criteria:
+  - Drag-and-drop or manual offerNumber editing
+  - Timeline reflows after reorder
+  - Audit trail of reorder
+
+---
+
+## MIGRATION NOTES
+
+### Database Migration
+
+```sql
+-- Create Negotiation table
+CREATE TABLE negotiations (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  developer TEXT NOT NULL,
+  property TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'ACTIVE',
+  notes TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  UNIQUE(developer, property)
+);
+
+-- Add negotiation FK to LeaseProposal
+ALTER TABLE "LeaseProposal"
+  ADD COLUMN negotiation_id UUID REFERENCES negotiations(id);
+
+-- Migrate existing proposals (group by developer+property)
+INSERT INTO negotiations (developer, property, status)
+SELECT DISTINCT developer, property, 'ACTIVE'
+FROM "LeaseProposal"
+WHERE developer IS NOT NULL AND property IS NOT NULL;
+
+UPDATE "LeaseProposal" lp
+SET negotiation_id = n.id
+FROM negotiations n
+WHERE lp.developer = n.developer AND lp.property = n.property;
+```
+
+### Backward Compatibility
+
+- Proposals without negotiationId continue to work (standalone proposals)
+- Existing API endpoints unchanged
+- Dashboard shows both grouped (by Negotiation) and standalone proposals
+
+---
+
+## UI COMPONENT UPDATES
+
+### New Components (v2.2)
+
+| Component | Purpose |
+|-----------|---------|
+| `NegotiationCard` | Card display for negotiation list |
+| `NegotiationTimeline` | Timeline view of offers within thread |
+| `NegotiationStatusBadge` | Status badge (ACTIVE/ACCEPTED/REJECTED/CLOSED) |
+| `CreateNegotiationDialog` | Dialog to create new negotiation thread |
+| `AddCounterDialog` | Dialog to add counter-offer to thread |
+| `LinkProposalDialog` | Dialog to link existing proposal to thread |
+| `ReorderOffersDialog` | Dialog to reorder timeline offers |
+| `ProposalPurposeBadge` | Badge for NEGOTIATION/STRESS_TEST/SIMULATION |
+
+### Updated Navigation
+
+```
+Dashboard
+├── Active Negotiations (grouped by Negotiation entity)
+│   └── NegotiationCard → Timeline view
+├── Standalone Proposals (not in negotiations)
+└── Closed Negotiations (ACCEPTED/REJECTED/CLOSED)
+```
+
+---
+
+## DOCUMENT STATUS
+
+✅ **APPROVED FOR IMPLEMENTATION**
+
+**Review & Approval:**
+- [x] CAO Review: Approved Dec 2025
+- [x] Technical Feasibility: Confirmed
+- [x] Backward Compatibility: Migration strategy defined
+- [x] Implementation: Complete (see database-schema.md)
+
+---
+
+**— END OF v2.2 ADDENDUM —**
+
+*This addendum (v2.2) adds the Negotiation entity pattern. All previous amendments (v2.0, v2.1) remain valid.*

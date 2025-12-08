@@ -10,6 +10,11 @@ import { z } from "zod";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Card } from "@/components/ui/card";
 import type { ProposalFormData } from "./types";
+import {
+  DEFAULT_FIXED_RENT,
+  DEFAULT_REVENUE_SHARE,
+  DEFAULT_PARTNER_INVESTMENT,
+} from "@/lib/constants";
 
 /**
  * Step 5: Rent Model Parameters
@@ -99,24 +104,34 @@ export function Step5RentModel({
     switch (rentModel) {
       case "Fixed":
         return {
-          baseRent: data?.baseRent || 10000000, // 10M default
-          rentGrowthRate: data?.rentGrowthRate ?? 3, // 3% default
-          rentFrequency: data?.rentFrequency ?? 1,
+          baseRent: data?.baseRent || DEFAULT_FIXED_RENT.baseRent,
+          rentGrowthRate: data?.rentGrowthRate ?? DEFAULT_FIXED_RENT.growthRate,
+          rentFrequency: data?.rentFrequency ?? DEFAULT_FIXED_RENT.frequency,
         };
       case "RevShare":
         return {
-          revenueSharePercent: data?.revenueSharePercent || 15, // 15% default
+          revenueSharePercent:
+            data?.revenueSharePercent ||
+            DEFAULT_REVENUE_SHARE.revenueSharePercent,
         };
       case "Partner":
         return {
-          partnerLandSize: data?.partnerLandSize || 10000, // m²
-          partnerLandPricePerSqm: data?.partnerLandPricePerSqm || 5000, // SAR/m²
-          partnerBuaSize: data?.partnerBuaSize || 20000, // m²
+          partnerLandSize:
+            data?.partnerLandSize || DEFAULT_PARTNER_INVESTMENT.landSize,
+          partnerLandPricePerSqm:
+            data?.partnerLandPricePerSqm ||
+            DEFAULT_PARTNER_INVESTMENT.landPricePerSqm,
+          partnerBuaSize:
+            data?.partnerBuaSize || DEFAULT_PARTNER_INVESTMENT.buaSize,
           partnerConstructionCostPerSqm:
-            data?.partnerConstructionCostPerSqm || 2500, // SAR/m²
-          partnerYieldRate: data?.partnerYieldRate ?? 9, // 9% yield
-          partnerGrowthRate: data?.partnerGrowthRate ?? 2, // 2% default growth
-          partnerFrequency: data?.partnerFrequency ?? 1,
+            data?.partnerConstructionCostPerSqm ||
+            DEFAULT_PARTNER_INVESTMENT.constructionCostPerSqm,
+          partnerYieldRate:
+            data?.partnerYieldRate ?? DEFAULT_PARTNER_INVESTMENT.yieldRate,
+          partnerGrowthRate:
+            data?.partnerGrowthRate ?? DEFAULT_PARTNER_INVESTMENT.growthRate,
+          partnerFrequency:
+            data?.partnerFrequency ?? DEFAULT_PARTNER_INVESTMENT.frequency,
         };
       default:
         return {};
@@ -196,9 +211,14 @@ export function Step5RentModel({
                 <h4 className="font-semibold mb-2">5-Year Preview</h4>
                 <div className="space-y-1 text-sm font-mono">
                   {[1, 2, 3, 4, 5].map((year) => {
-                    const baseRent = form.watch("baseRent") || 10000000;
-                    const growth = (form.watch("rentGrowthRate") || 3) / 100;
-                    const freq = form.watch("rentFrequency") || 1;
+                    const baseRent =
+                      form.watch("baseRent") || DEFAULT_FIXED_RENT.baseRent;
+                    const growth =
+                      (form.watch("rentGrowthRate") ||
+                        DEFAULT_FIXED_RENT.growthRate) / 100;
+                    const freq =
+                      form.watch("rentFrequency") ||
+                      DEFAULT_FIXED_RENT.frequency;
                     const periodsElapsed = Math.floor((year - 1) / freq);
                     const rent =
                       baseRent * Math.pow(1 + growth, periodsElapsed);
@@ -254,7 +274,8 @@ export function Step5RentModel({
                 <div className="space-y-1 text-sm font-mono">
                   {[50, 75, 100, 125, 150].map((revenueM) => {
                     const sharePercent =
-                      (form.watch("revenueSharePercent") || 15) / 100;
+                      (form.watch("revenueSharePercent") ||
+                        DEFAULT_REVENUE_SHARE.revenueSharePercent) / 100;
                     const revenue = revenueM * 1000000;
                     const rent = revenue * sharePercent;
 
@@ -366,7 +387,8 @@ export function Step5RentModel({
                     <span className="text-muted-foreground">Land Size:</span>
                     <span className="font-mono font-semibold">
                       {(
-                        form.watch("partnerLandSize") || 10000
+                        form.watch("partnerLandSize") ||
+                        DEFAULT_PARTNER_INVESTMENT.landSize
                       ).toLocaleString()}{" "}
                       m²
                     </span>
@@ -374,21 +396,34 @@ export function Step5RentModel({
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">BUA Size:</span>
                     <span className="font-mono font-semibold">
-                      {(form.watch("partnerBuaSize") || 20000).toLocaleString()}{" "}
+                      {(
+                        form.watch("partnerBuaSize") ||
+                        DEFAULT_PARTNER_INVESTMENT.buaSize
+                      ).toLocaleString()}{" "}
                       m²
                     </span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Yield:</span>
                     <span className="font-mono font-semibold">
-                      {(form.watch("partnerYieldRate") || 9).toFixed(1)}%
+                      {(
+                        form.watch("partnerYieldRate") ||
+                        DEFAULT_PARTNER_INVESTMENT.yieldRate
+                      ).toFixed(1)}
+                      %
                     </span>
                   </div>
                   <div className="flex justify-between pt-2 border-t">
                     <span className="text-muted-foreground">Growth:</span>
                     <span className="font-mono font-semibold text-primary">
-                      {(form.watch("partnerGrowthRate") || 2).toFixed(1)}% every{" "}
-                      {form.watch("partnerFrequency") || 1} yrs
+                      {(
+                        form.watch("partnerGrowthRate") ||
+                        DEFAULT_PARTNER_INVESTMENT.growthRate
+                      ).toFixed(1)}
+                      % every{" "}
+                      {form.watch("partnerFrequency") ||
+                        DEFAULT_PARTNER_INVESTMENT.frequency}{" "}
+                      yrs
                     </span>
                   </div>
                 </div>

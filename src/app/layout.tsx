@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Inter, Cormorant_Garamond } from "next/font/google";
+import { Inter, Cormorant_Garamond, IBM_Plex_Mono } from "next/font/google";
 import "./globals.css";
 import { Providers } from "@/components/providers/Providers";
 import { LoadingBar } from "@/components/ui/loading-bar";
@@ -14,7 +14,14 @@ const inter = Inter({
 const cormorantGaramond = Cormorant_Garamond({
   subsets: ["latin"],
   variable: "--font-cormorant",
-  weight: ["500", "600", "700"],
+  weight: ["300", "400", "500", "600", "700"],
+  display: "swap",
+});
+
+const ibmPlexMono = IBM_Plex_Mono({
+  subsets: ["latin"],
+  variable: "--font-ibm-plex",
+  weight: ["300", "400", "500"],
   display: "swap",
 });
 
@@ -32,7 +39,7 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body
-        className={`${inter.variable} ${cormorantGaramond.variable} font-sans antialiased`}
+        className={`${inter.variable} ${cormorantGaramond.variable} ${ibmPlexMono.variable} font-sans antialiased`}
         suppressHydrationWarning
       >
         <SkipLink href="#main-content">Skip to main content</SkipLink>

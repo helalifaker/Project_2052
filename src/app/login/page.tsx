@@ -16,7 +16,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { createClient } from "@/lib/supabase/client";
+import {
+  withTimeout,
+  isTimeoutError,
+  AUTH_TIMEOUT_MS,
+} from "@/lib/utils/timeout";
 import { Loader2, LogIn, AlertCircle, CheckCircle2 } from "lucide-react";
+import { APP_NAME, APP_TAGLINE, ROUTES } from "@/lib/constants";
 
 function LoginForm() {
   const searchParams = useSearchParams();
@@ -55,12 +61,15 @@ function LoginForm() {
         throw new Error("Please enter both email and password");
       }
 
-      // Attempt to sign in
-      const { data, error: signInError } =
-        await supabase.auth.signInWithPassword({
+      // Attempt to sign in with timeout protection
+      const { data, error: signInError } = await withTimeout(
+        supabase.auth.signInWithPassword({
           email,
           password,
-        });
+        }),
+        AUTH_TIMEOUT_MS,
+        "Sign in timed out. Please check your connection and try again.",
+      );
 
       if (signInError) {
         throw signInError;
@@ -73,11 +82,15 @@ function LoginForm() {
       // Wait a moment for cookies to be set
       await new Promise((resolve) => setTimeout(resolve, 100));
 
-      // Verify session is available
+      // Verify session is available with timeout
       const {
         data: { user: currentUser },
         error: verifyError,
-      } = await supabase.auth.getUser();
+      } = await withTimeout(
+        supabase.auth.getUser(),
+        AUTH_TIMEOUT_MS,
+        "Session verification timed out.",
+      );
 
       if (verifyError || !currentUser) {
         console.warn("Session verification failed:", verifyError);
@@ -86,13 +99,15 @@ function LoginForm() {
 
       // Successful login - redirect to dashboard
       // Use window.location for a full page reload to ensure cookies are sent
-      const redirectTo = searchParams.get("redirectTo") || "/dashboard";
+      const redirectTo = searchParams.get("redirectTo") || ROUTES.dashboard;
       window.location.href = redirectTo;
     } catch (err) {
       console.error("Login error:", err);
 
       // Handle different error types
-      if (err instanceof Error) {
+      if (isTimeoutError(err)) {
+        setError(err.message);
+      } else if (err instanceof Error) {
         if (err.message.includes("Invalid login credentials")) {
           setError("Invalid email or password. Please try again.");
         } else if (err.message.includes("Email not confirmed")) {
@@ -117,8 +132,8 @@ function LoginForm() {
       <div className="w-full max-w-md space-y-6">
         {/* Header */}
         <div className="text-center space-y-2">
-          <h1 className="text-3xl font-bold tracking-tight">Project 2052</h1>
-          <p className="text-muted-foreground">Lease Proposal Platform</p>
+          <h1 className="text-3xl font-bold tracking-tight">{APP_NAME}</h1>
+          <p className="text-muted-foreground">{APP_TAGLINE}</p>
         </div>
 
         {/* Login Card */}

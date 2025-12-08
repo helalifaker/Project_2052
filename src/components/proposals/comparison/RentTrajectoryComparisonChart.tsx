@@ -15,6 +15,7 @@ import {
 import type { Payload } from "recharts/types/component/DefaultTooltipContent";
 import { formatMillions } from "@/lib/utils/financial";
 import { Card } from "@/components/ui/card";
+import { chartColors } from "@/lib/design-tokens/chart-colors";
 
 /**
  * Rent Trajectory Comparison Chart
@@ -54,14 +55,8 @@ interface RentTrajectoryComparisonChartProps {
   className?: string;
 }
 
-// Color palette for proposals (max 5 colors)
-const PROPOSAL_COLORS = [
-  "#3b82f6", // blue-500
-  "#10b981", // green-500
-  "#f59e0b", // amber-500
-  "#8b5cf6", // violet-500
-  "#ef4444", // red-500
-];
+// Color palette for proposals using design tokens (max 6 colors)
+const PROPOSAL_COLORS = chartColors.series;
 
 const toNumber = (value: unknown): number => Number(value ?? 0);
 

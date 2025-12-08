@@ -19,6 +19,9 @@ import { prisma } from "@/lib/prisma";
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
+// Database health check timeout (5 seconds)
+const DB_HEALTH_CHECK_TIMEOUT_MS = 5000;
+
 // SECURITY: Minimal response for production - prevents information disclosure
 interface MinimalHealthResponse {
   status: "ok" | "error";
@@ -64,10 +67,20 @@ export async function GET() {
     let dbResponseTime = 0;
     let dbError: string | undefined;
 
-    // Check 1: Database Connectivity
+    // Check 1: Database Connectivity with timeout protection
     try {
       const dbStartTime = Date.now();
-      await prisma.$queryRaw`SELECT 1 as health_check`;
+
+      // Use Promise.race to enforce timeout - prevents hanging on unresponsive DB
+      const dbCheck = prisma.$queryRaw`SELECT 1 as health_check`;
+      const timeout = new Promise<never>((_, reject) => {
+        setTimeout(
+          () => reject(new Error("Database health check timed out")),
+          DB_HEALTH_CHECK_TIMEOUT_MS,
+        );
+      });
+
+      await Promise.race([dbCheck, timeout]);
       dbResponseTime = Date.now() - dbStartTime;
 
       if (dbResponseTime > 1000) {
@@ -186,8 +199,16 @@ export async function GET() {
  */
 export async function HEAD() {
   try {
-    // Quick database check
-    await prisma.$queryRaw`SELECT 1`;
+    // Quick database check with timeout protection
+    const dbCheck = prisma.$queryRaw`SELECT 1`;
+    const timeout = new Promise<never>((_, reject) => {
+      setTimeout(
+        () => reject(new Error("Database health check timed out")),
+        DB_HEALTH_CHECK_TIMEOUT_MS,
+      );
+    });
+
+    await Promise.race([dbCheck, timeout]);
 
     return new NextResponse(null, {
       status: 200,

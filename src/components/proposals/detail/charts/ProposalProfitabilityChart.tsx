@@ -65,35 +65,64 @@ const CustomTooltip = ({
       <div className="space-y-2 text-sm">
         <div className="flex items-center justify-between gap-8">
           <div className="flex items-center gap-2">
-            <div className="h-3 w-3 rounded-full bg-gradient-to-r from-blue-500 to-violet-500"></div>
+            <div
+              className="h-3 w-3 rounded-full"
+              style={{ backgroundColor: "var(--atelier-chart-proposal-b)" }}
+            ></div>
             <span className="text-muted-foreground">Revenue</span>
           </div>
-          <span className="font-mono font-semibold">{formatMillions(revenue)}</span>
+          <span className="font-mono font-semibold">
+            {formatMillions(revenue)}
+          </span>
         </div>
 
         <div className="flex items-center justify-between gap-8">
           <div className="flex items-center gap-2">
-            <div className="h-3 w-3 rounded-full bg-gradient-to-r from-rose-500 to-rose-600"></div>
+            <div
+              className="h-3 w-3 rounded-full"
+              style={{ backgroundColor: "var(--financial-negative)" }}
+            ></div>
             <span className="text-muted-foreground">Costs</span>
           </div>
-          <span className="font-mono font-semibold">{formatMillions(costs)}</span>
+          <span className="font-mono font-semibold">
+            {formatMillions(costs)}
+          </span>
         </div>
 
         <div className="h-px bg-border my-2"></div>
 
         <div className="flex items-center justify-between gap-8">
           <div className="flex items-center gap-2">
-            <div className="h-3 w-3 rounded-full bg-gradient-to-r from-emerald-500 to-emerald-600"></div>
+            <div
+              className="h-3 w-3 rounded-full"
+              style={{ backgroundColor: "var(--financial-positive)" }}
+            ></div>
             <span className="font-semibold">Net Income</span>
           </div>
-          <span className={`font-mono font-bold ${netIncome >= 0 ? "text-emerald-600" : "text-rose-600"}`}>
+          <span
+            className="font-mono font-bold"
+            style={{
+              color:
+                netIncome >= 0
+                  ? "var(--financial-positive)"
+                  : "var(--financial-negative)",
+            }}
+          >
             {formatMillions(netIncome)}
           </span>
         </div>
 
         <div className="flex items-center justify-between gap-8 text-xs">
           <span className="text-muted-foreground">Profit Margin</span>
-          <span className={`font-mono ${parseFloat(margin) >= 0 ? "text-emerald-600" : "text-rose-600"}`}>
+          <span
+            className="font-mono"
+            style={{
+              color:
+                parseFloat(margin) >= 0
+                  ? "var(--financial-positive)"
+                  : "var(--financial-negative)",
+            }}
+          >
             {margin}%
           </span>
         </div>
@@ -122,7 +151,7 @@ export function ProposalProfitabilityChart({
 
   // Find peak profitability year
   const peakProfitYear = data.reduce((prev, current) =>
-    current.netIncome > prev.netIncome ? current : prev
+    current.netIncome > prev.netIncome ? current : prev,
   ).year;
 
   return (
@@ -132,7 +161,10 @@ export function ProposalProfitabilityChart({
         <div className="flex items-start justify-between">
           <div className="space-y-1">
             <h3 className="text-lg font-bold flex items-center gap-2">
-              <TrendingUp className="h-5 w-5 text-emerald-600" />
+              <TrendingUp
+                className="h-5 w-5"
+                style={{ color: "var(--financial-positive)" }}
+              />
               Profitability Journey
             </h3>
             <p className="text-xs text-muted-foreground">
@@ -143,15 +175,24 @@ export function ProposalProfitabilityChart({
           {/* Legend */}
           <div className="flex items-center gap-3 text-xs">
             <div className="flex items-center gap-1.5">
-              <div className="h-2.5 w-6 rounded-full bg-gradient-to-r from-blue-500 to-violet-500"></div>
+              <div
+                className="h-2.5 w-6 rounded-full"
+                style={{ backgroundColor: "var(--atelier-chart-proposal-b)" }}
+              ></div>
               <span>Revenue</span>
             </div>
             <div className="flex items-center gap-1.5">
-              <div className="h-2.5 w-6 rounded-full bg-gradient-to-r from-rose-500 to-rose-600"></div>
+              <div
+                className="h-2.5 w-6 rounded-full"
+                style={{ backgroundColor: "var(--financial-negative)" }}
+              ></div>
               <span>Costs</span>
             </div>
             <div className="flex items-center gap-1.5">
-              <div className="h-2.5 w-6 rounded-full bg-gradient-to-r from-emerald-500 to-emerald-600"></div>
+              <div
+                className="h-2.5 w-6 rounded-full"
+                style={{ backgroundColor: "var(--financial-positive)" }}
+              ></div>
               <span>Net Income</span>
             </div>
           </div>
@@ -161,22 +202,41 @@ export function ProposalProfitabilityChart({
         <div className="grid grid-cols-2 gap-3 bg-muted/30 rounded-lg p-3">
           {breakevenYear && (
             <div className="flex items-center gap-2">
-              <div className="h-8 w-8 rounded-full bg-emerald-500/10 flex items-center justify-center">
-                <TrendingUp className="h-4 w-4 text-emerald-600" />
+              <div
+                className="h-8 w-8 rounded-full flex items-center justify-center"
+                style={{ backgroundColor: "var(--atelier-ink-positive-soft)" }}
+              >
+                <TrendingUp
+                  className="h-4 w-4"
+                  style={{ color: "var(--financial-positive)" }}
+                />
               </div>
               <div>
-                <div className="text-[10px] text-muted-foreground">Breakeven</div>
+                <div className="text-[10px] text-muted-foreground">
+                  Breakeven
+                </div>
                 <div className="text-sm font-semibold">{breakevenYear}</div>
               </div>
             </div>
           )}
 
           <div className="flex items-center gap-2">
-            <div className="h-8 w-8 rounded-full bg-violet-500/10 flex items-center justify-center">
-              <Milestone className="h-4 w-4 text-violet-600" />
+            <div
+              className="h-8 w-8 rounded-full flex items-center justify-center"
+              style={{
+                backgroundColor:
+                  "color-mix(in srgb, var(--atelier-chart-proposal-a) 15%, transparent)",
+              }}
+            >
+              <Milestone
+                className="h-4 w-4"
+                style={{ color: "var(--atelier-chart-proposal-a)" }}
+              />
             </div>
             <div>
-              <div className="text-[10px] text-muted-foreground">Peak Profit</div>
+              <div className="text-[10px] text-muted-foreground">
+                Peak Profit
+              </div>
               <div className="text-sm font-semibold">{peakProfitYear}</div>
             </div>
           </div>
@@ -185,21 +245,60 @@ export function ProposalProfitabilityChart({
         {/* Chart */}
         <div style={{ height: `${height}px` }}>
           <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={data} margin={{ top: 10, right: 20, left: 10, bottom: 40 }}>
+            <AreaChart
+              data={data}
+              margin={{ top: 10, right: 20, left: 10, bottom: 40 }}
+            >
               <defs>
-                <linearGradient id="revenueGradient" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor={chartColors.neutral} stopOpacity={0.8} />
-                  <stop offset="100%" stopColor={chartColors.neutral} stopOpacity={0.1} />
+                <linearGradient
+                  id="revenueGradient"
+                  x1="0"
+                  y1="0"
+                  x2="0"
+                  y2="1"
+                >
+                  <stop
+                    offset="0%"
+                    stopColor={chartColors.neutral}
+                    stopOpacity={0.8}
+                  />
+                  <stop
+                    offset="100%"
+                    stopColor={chartColors.neutral}
+                    stopOpacity={0.1}
+                  />
                 </linearGradient>
 
                 <linearGradient id="costsGradient" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor={chartColors.negative} stopOpacity={0.6} />
-                  <stop offset="100%" stopColor={chartColors.negative} stopOpacity={0.05} />
+                  <stop
+                    offset="0%"
+                    stopColor={chartColors.negative}
+                    stopOpacity={0.6}
+                  />
+                  <stop
+                    offset="100%"
+                    stopColor={chartColors.negative}
+                    stopOpacity={0.05}
+                  />
                 </linearGradient>
 
-                <linearGradient id="netIncomeGradient" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor={chartColors.positive} stopOpacity={0.7} />
-                  <stop offset="100%" stopColor={chartColors.positive} stopOpacity={0.05} />
+                <linearGradient
+                  id="netIncomeGradient"
+                  x1="0"
+                  y1="0"
+                  x2="0"
+                  y2="1"
+                >
+                  <stop
+                    offset="0%"
+                    stopColor={chartColors.positive}
+                    stopOpacity={0.7}
+                  />
+                  <stop
+                    offset="100%"
+                    stopColor={chartColors.positive}
+                    stopOpacity={0.05}
+                  />
                 </linearGradient>
               </defs>
 
@@ -207,15 +306,15 @@ export function ProposalProfitabilityChart({
 
               <XAxis
                 dataKey="year"
-                stroke="#6b7280"
-                tick={{ fill: "#6b7280", fontSize: 11 }}
-                tickLine={{ stroke: "#6b7280" }}
+                stroke={chartColors.axis}
+                tick={{ fill: chartColors.axis, fontSize: 11 }}
+                tickLine={{ stroke: chartColors.axis }}
               />
 
               <YAxis
-                stroke="#6b7280"
-                tick={{ fill: "#6b7280", fontSize: 11 }}
-                tickLine={{ stroke: "#6b7280" }}
+                stroke={chartColors.axis}
+                tick={{ fill: chartColors.axis, fontSize: 11 }}
+                tickLine={{ stroke: chartColors.axis }}
                 tickFormatter={(value) => `${(value / 1_000_000).toFixed(0)}M`}
               />
 
@@ -224,7 +323,7 @@ export function ProposalProfitabilityChart({
               {/* Phase Indicators */}
               <ReferenceLine
                 x={2024}
-                stroke="#9ca3af"
+                stroke={chartColors.grid}
                 strokeDasharray="5 5"
                 strokeWidth={1}
                 opacity={0.5}
@@ -232,7 +331,7 @@ export function ProposalProfitabilityChart({
                 <Label
                   value="Historical"
                   position="insideTopLeft"
-                  fill="#6b7280"
+                  fill={chartColors.axis}
                   fontSize={10}
                   offset={8}
                 />
@@ -240,7 +339,7 @@ export function ProposalProfitabilityChart({
 
               <ReferenceLine
                 x={2027}
-                stroke="#9ca3af"
+                stroke={chartColors.grid}
                 strokeDasharray="5 5"
                 strokeWidth={1}
                 opacity={0.5}
@@ -248,7 +347,7 @@ export function ProposalProfitabilityChart({
                 <Label
                   value="Transition"
                   position="insideTopRight"
-                  fill="#6b7280"
+                  fill={chartColors.axis}
                   fontSize={10}
                   offset={8}
                 />
@@ -256,14 +355,14 @@ export function ProposalProfitabilityChart({
 
               <ReferenceLine
                 x={2028}
-                stroke="#8b5cf6"
+                stroke={chartColors.proposalA}
                 strokeWidth={2}
                 opacity={0.7}
               >
                 <Label
                   value="Contract Start"
                   position="top"
-                  fill="#8b5cf6"
+                  fill={chartColors.proposalA}
                   fontSize={11}
                   fontWeight="bold"
                   offset={12}
@@ -272,14 +371,14 @@ export function ProposalProfitabilityChart({
 
               <ReferenceLine
                 x={contractEndYear}
-                stroke="#8b5cf6"
+                stroke={chartColors.proposalA}
                 strokeWidth={2}
                 opacity={0.7}
               >
                 <Label
                   value="Contract End"
                   position="top"
-                  fill="#8b5cf6"
+                  fill={chartColors.proposalA}
                   fontSize={11}
                   fontWeight="bold"
                   offset={12}

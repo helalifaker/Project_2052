@@ -1,10 +1,10 @@
 # CODING STANDARDS & BEST PRACTICES
 ## Project_2052 - Financial Planning Application
 
-**Version:** 1.0
-**Date:** November 22, 2025
+**Version:** 2.0
+**Date:** December 2025
 **Status:** APPROVED - Mandatory for All Development
-**Alignment:** Tech Stack (Next.js 16, React 19, TypeScript 5.7, Prisma, Decimal.js)
+**Alignment:** Tech Stack (Next.js 16, React 19.2, TypeScript 5, Prisma 7.1, Decimal.js)
 
 ---
 

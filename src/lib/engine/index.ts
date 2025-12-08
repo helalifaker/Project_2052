@@ -433,6 +433,9 @@ function calculateMetrics(
   const ebitdas = periods.map((p) => p.profitLoss.ebitda);
   const totalEbitda = sum(ebitdas);
 
+  // Calculate average EBITDA per year
+  const avgEbitda = divide(totalEbitda, new Decimal(periods.length));
+
   // Validate totalEbitda is reasonable (scaled based on contract period length)
   // Base ranges: -3B to +15B for 30 years, scaled proportionally for 25 years
   const yearsMultiplier = new Decimal(
@@ -554,6 +557,7 @@ function calculateMetrics(
     totalNetIncome,
     totalRent,
     totalEbitda,
+    avgEbitda,
     averageROE,
     peakDebt,
     maxDebt,

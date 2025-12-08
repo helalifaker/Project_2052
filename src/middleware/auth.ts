@@ -20,45 +20,67 @@ export interface AuthenticatedUser {
 interface CachedUser {
   user: AuthenticatedUser;
   expiresAt: number;
+  lastAccessedAt: number; // For LRU eviction
 }
 
 /**
  * In-memory cache for authenticated user sessions.
- * TTL: 10 minutes - balances performance with role change propagation.
+ * TTL: 5 minutes - shorter for faster role change propagation while still reducing DB load.
+ * Combined with explicit cache invalidation on role changes for immediate effect.
  */
-const SESSION_CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes
+const SESSION_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 const MAX_CACHE_SIZE = 1000; // Prevent unbounded growth
 const userSessionCache = new Map<string, CachedUser>();
 
 /**
- * Get cached user data if not expired
+ * Get cached user data if not expired.
+ * Updates lastAccessedAt for LRU tracking.
  */
 function getCachedUser(userId: string): AuthenticatedUser | null {
   const cached = userSessionCache.get(userId);
   if (!cached) return null;
 
+  const now = Date.now();
+
   // Check if expired
-  if (Date.now() > cached.expiresAt) {
+  if (now > cached.expiresAt) {
     userSessionCache.delete(userId);
     return null;
   }
+
+  // Update last accessed time for LRU tracking
+  cached.lastAccessedAt = now;
 
   return cached.user;
 }
 
 /**
- * Cache user data with TTL
+ * Cache user data with TTL.
+ * Uses LRU eviction when cache is full.
  */
 function cacheUser(user: AuthenticatedUser): void {
-  // Prevent unbounded cache growth - evict oldest if at limit
+  const now = Date.now();
+
+  // Prevent unbounded cache growth - evict LRU entry if at limit
   if (userSessionCache.size >= MAX_CACHE_SIZE) {
-    const oldestKey = userSessionCache.keys().next().value;
-    if (oldestKey) userSessionCache.delete(oldestKey);
+    let lruKey: string | null = null;
+    let lruTime = Infinity;
+
+    // Find least recently used entry
+    for (const [key, cached] of userSessionCache.entries()) {
+      if (cached.lastAccessedAt < lruTime) {
+        lruTime = cached.lastAccessedAt;
+        lruKey = key;
+      }
+    }
+
+    if (lruKey) userSessionCache.delete(lruKey);
   }
 
   userSessionCache.set(user.id, {
     user,
-    expiresAt: Date.now() + SESSION_CACHE_TTL_MS,
+    expiresAt: now + SESSION_CACHE_TTL_MS,
+    lastAccessedAt: now,
   });
 }
 

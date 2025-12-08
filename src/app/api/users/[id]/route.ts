@@ -1,7 +1,11 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { authenticateUser, authenticateUserWithRole } from "@/middleware/auth";
+import {
+  authenticateUser,
+  authenticateUserWithRole,
+  invalidateUserSession,
+} from "@/middleware/auth";
 import { Role } from "@/lib/types/roles";
 import type { UserUpdateInput } from "@/lib/types/prisma-helpers";
 import { PrismaClientKnownRequestError } from "@/lib/types/prisma-helpers";
@@ -226,6 +230,10 @@ export async function PUT(
       },
     });
 
+    // SECURITY: Invalidate cached session when user data changes
+    // This ensures role changes take effect immediately, not after cache TTL (10 min)
+    invalidateUserSession(id);
+
     return NextResponse.json(user);
   } catch (error) {
     if (error instanceof z.ZodError) {
@@ -311,6 +319,10 @@ export async function DELETE(
         { status: 409 },
       );
     }
+
+    // SECURITY: Invalidate cached session BEFORE deleting user
+    // This ensures deleted users lose access immediately, not after cache TTL (10 min)
+    invalidateUserSession(id);
 
     // Delete user
     await prisma.user.delete({

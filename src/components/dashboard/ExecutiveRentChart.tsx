@@ -11,7 +11,7 @@ import {
 } from "recharts";
 import type { Payload } from "recharts/types/component/DefaultTooltipContent";
 import { getProposalColor } from "@/lib/design-tokens/chart-colors";
-import { getAxisProps, chartAnimation } from "@/lib/design-tokens/chart-config";
+import { chartAnimation } from "@/lib/design-tokens/chart-config";
 
 interface RentTrajectoryData {
   proposalId: string;
@@ -147,7 +147,9 @@ export function ExecutiveRentChart({ data }: ExecutiveRentChartProps) {
     return (
       <div className="executive-chart-container">
         <h3 className="executive-chart-title">Rent Trajectory</h3>
-        <p className="executive-chart-subtitle">Annual rent expense over 30 years</p>
+        <p className="executive-chart-subtitle">
+          Annual rent expense over 30 years
+        </p>
         <div
           className="h-[400px] flex items-center justify-center"
           style={{ color: "var(--executive-text-tertiary)" }}
@@ -160,7 +162,7 @@ export function ExecutiveRentChart({ data }: ExecutiveRentChartProps) {
 
   // Transform data for recharts
   const allYears = Array.from(
-    new Set(data.flatMap((p) => p.data.map((d) => d.year)))
+    new Set(data.flatMap((p) => p.data.map((d) => d.year))),
   ).sort((a, b) => a - b);
 
   // Sample every 2 years for cleaner visualization
@@ -190,7 +192,7 @@ export function ExecutiveRentChart({ data }: ExecutiveRentChartProps) {
 
   // Sort proposals so winner is rendered last (on top)
   const sortedData = [...data].sort((a, b) =>
-    a.isWinner ? 1 : b.isWinner ? -1 : 0
+    a.isWinner ? 1 : b.isWinner ? -1 : 0,
   );
 
   return (
@@ -199,7 +201,10 @@ export function ExecutiveRentChart({ data }: ExecutiveRentChartProps) {
       <div className="flex items-start justify-between mb-8">
         <div>
           <h3 className="executive-chart-title">Rent Trajectory</h3>
-          <p className="text-sm" style={{ color: "var(--executive-text-secondary)" }}>
+          <p
+            className="text-sm"
+            style={{ color: "var(--executive-text-secondary)" }}
+          >
             Annual rent expense comparison across proposals
           </p>
         </div>
@@ -219,7 +224,10 @@ export function ExecutiveRentChart({ data }: ExecutiveRentChartProps) {
       {/* Chart */}
       <div className="h-[360px]">
         <ResponsiveContainer width="100%" height="100%">
-          <AreaChart data={chartData} margin={{ top: 20, right: 20, left: 0, bottom: 0 }}>
+          <AreaChart
+            data={chartData}
+            margin={{ top: 20, right: 20, left: 0, bottom: 0 }}
+          >
             {/* Gradient definitions */}
             <defs>
               {sortedData.map((proposal, _index) => {

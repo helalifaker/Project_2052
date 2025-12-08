@@ -16,12 +16,18 @@ import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { createClient } from "@/lib/supabase/client";
 import {
+  withTimeout,
+  isTimeoutError,
+  AUTH_TIMEOUT_MS,
+} from "@/lib/utils/timeout";
+import {
   Loader2,
   Mail,
   AlertCircle,
   CheckCircle2,
   ArrowLeft,
 } from "lucide-react";
+import { APP_NAME, APP_TAGLINE } from "@/lib/constants";
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("");
@@ -54,12 +60,13 @@ export default function ForgotPasswordPage() {
         typeof window !== "undefined" ? window.location.origin : "";
       const redirectTo = `${origin}/reset-password`;
 
-      // Send password reset email
-      const { error: resetError } = await supabase.auth.resetPasswordForEmail(
-        email,
-        {
+      // Send password reset email with timeout protection
+      const { error: resetError } = await withTimeout(
+        supabase.auth.resetPasswordForEmail(email, {
           redirectTo,
-        },
+        }),
+        AUTH_TIMEOUT_MS,
+        "Request timed out. Please check your connection and try again.",
       );
 
       if (resetError) {
@@ -73,7 +80,9 @@ export default function ForgotPasswordPage() {
       console.error("Password reset error:", err);
 
       // Handle different error types
-      if (err instanceof Error) {
+      if (isTimeoutError(err)) {
+        setError(err.message);
+      } else if (err instanceof Error) {
         if (err.message.includes("rate limit")) {
           setError(
             "Too many requests. Please wait a few minutes and try again.",
@@ -98,8 +107,8 @@ export default function ForgotPasswordPage() {
       <div className="w-full max-w-md space-y-6">
         {/* Header */}
         <div className="text-center space-y-2">
-          <h1 className="text-3xl font-bold tracking-tight">Project 2052</h1>
-          <p className="text-muted-foreground">Lease Proposal Platform</p>
+          <h1 className="text-3xl font-bold tracking-tight">{APP_NAME}</h1>
+          <p className="text-muted-foreground">{APP_TAGLINE}</p>
         </div>
 
         {/* Forgot Password Card */}

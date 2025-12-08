@@ -16,6 +16,24 @@ export type ProposalRecord = NonNullable<
   Awaited<ReturnType<typeof prisma.leaseProposal.findUnique>>
 >;
 
+/**
+ * Custom error class for configuration-related errors during calculation input reconstruction.
+ * Provides structured error information for better API responses.
+ */
+export class CalculationConfigError extends Error {
+  public readonly code: string;
+  public readonly configType: string;
+  public readonly userMessage: string;
+
+  constructor(code: string, configType: string, message: string) {
+    super(message);
+    this.name = "CalculationConfigError";
+    this.code = code;
+    this.configType = configType;
+    this.userMessage = message;
+  }
+}
+
 type RentParams =
   | FixedRentParams
   | RevenueShareParams
@@ -154,8 +172,10 @@ async function fetchTransitionPeriods(): Promise<TransitionPeriodInput[]> {
   const config = await prisma.transitionConfig.findFirst();
 
   if (!config) {
-    throw new Error(
-      "TransitionConfig not found. Please configure transition period in Admin > Transition Setup.",
+    throw new CalculationConfigError(
+      "TRANSITION_CONFIG_MISSING",
+      "TransitionConfig",
+      "Transition configuration not found. Please configure 2025-2027 assumptions in Admin > Transition Setup.",
     );
   }
 
@@ -195,22 +215,41 @@ export async function reconstructCalculationInput(
     contractPeriodYears?: number | null;
   },
 ): Promise<CalculationEngineInput> {
+  // RELIABILITY: All database calls are wrapped with specific error messages
+  // These errors provide actionable guidance to users and better debugging context
   const systemConfig = await prisma.systemConfig.findFirst({
     orderBy: { confirmedAt: "desc" },
   });
-  if (!systemConfig) throw new Error("System configuration not found");
+  if (!systemConfig) {
+    throw new CalculationConfigError(
+      "SYSTEM_CONFIG_MISSING",
+      "SystemConfig",
+      "System configuration not found. Please configure system settings in Admin > System Config.",
+    );
+  }
 
   const historicalData = await prisma.historicalData.findMany({
     where: { confirmed: true },
     orderBy: { year: "asc" },
   });
-  if (historicalData.length === 0) throw new Error("Historical data not found");
+  if (historicalData.length === 0) {
+    throw new CalculationConfigError(
+      "HISTORICAL_DATA_MISSING",
+      "HistoricalData",
+      "No confirmed historical data found. Please upload and confirm historical financial data in Admin > Historical Data.",
+    );
+  }
 
   const workingCapitalRatios = await prisma.workingCapitalRatios.findFirst({
     orderBy: { calculatedFrom2024: "desc" },
   });
-  if (!workingCapitalRatios)
-    throw new Error("Working capital ratios not found");
+  if (!workingCapitalRatios) {
+    throw new CalculationConfigError(
+      "WORKING_CAPITAL_MISSING",
+      "WorkingCapitalRatios",
+      "Working capital ratios not found. Please configure working capital ratios in Admin > Working Capital.",
+    );
+  }
 
   // Group historical data by year and statement type
   // Using the ORIGINAL line item names from the database

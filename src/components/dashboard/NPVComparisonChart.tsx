@@ -179,8 +179,8 @@ function NPVComparisonChartInner({ data }: NPVComparisonChartProps) {
           ]}
           xAxisKey="name"
           layout="vertical"
-          yAxisFormatter={(value) =>
-            typeof value === "number" ? `${value.toFixed(1)}M` : "0.0M"
+          xAxisFormatter={(value) =>
+            typeof value === "number" ? `${value.toFixed(0)}M` : String(value)
           }
           tooltipContent={<NPVTooltip />}
           showLegend={false}

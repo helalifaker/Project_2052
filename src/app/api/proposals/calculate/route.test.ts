@@ -116,6 +116,45 @@ vi.mock("@/lib/prisma", () => ({
         updatedAt: new Date(),
       })),
     },
+    // Add $transaction mock - executes callback with prisma client
+    $transaction: vi.fn(async (callback: (tx: unknown) => Promise<unknown>) => {
+      // Create a mock transaction client with the same shape as prisma
+      const txClient = {
+        leaseProposal: {
+          create: vi.fn(async (args: { data: Record<string, unknown> }) => ({
+            id: "test-proposal-id",
+            ...args.data,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          })),
+        },
+        scenario: {
+          create: vi.fn(async (args: { data: Record<string, unknown> }) => ({
+            id: "test-scenario-id",
+            ...args.data,
+          })),
+        },
+        sensitivityAnalysis: {
+          create: vi.fn(async (args: { data: Record<string, unknown> }) => ({
+            id: "test-sensitivity-id",
+            ...args.data,
+          })),
+        },
+        transitionConfig: {
+          findFirst: vi.fn(async () => ({
+            year2025Students: 800,
+            year2025AvgTuition: "28000",
+            year2026Students: 900,
+            year2026AvgTuition: "29000",
+            year2027Students: 1000,
+            year2027AvgTuition: "30000",
+            rentGrowthPercent: "0.03",
+            updatedAt: new Date(),
+          })),
+        },
+      };
+      return callback(txClient);
+    }),
   },
 }));
 
@@ -682,9 +721,10 @@ describe("POST /api/proposals/calculate - API Integration", () => {
     });
 
     it("should handle database errors gracefully", async () => {
-      // Mock prisma to throw an error
+      // Mock prisma.$transaction to throw an error
+      // Since route uses $transaction for atomic writes, we mock it to reject
       const { prisma } = await import("@/lib/prisma");
-      vi.mocked(prisma.leaseProposal.create).mockRejectedValueOnce(
+      vi.mocked(prisma.$transaction).mockRejectedValueOnce(
         new Error("Database connection failed"),
       );
 

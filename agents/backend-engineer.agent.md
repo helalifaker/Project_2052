@@ -54,6 +54,18 @@ GET    /api/scenarios/:id          - Get scenario results
 POST   /api/scenarios/sensitivity  - Run sensitivity analysis
 ```
 
+#### Negotiations (v2.2)
+```
+GET    /api/negotiations           - List all negotiations
+POST   /api/negotiations           - Create new negotiation (developer + property)
+GET    /api/negotiations/:id       - Get negotiation with all proposals
+PATCH  /api/negotiations/:id       - Update negotiation (status, notes)
+DELETE /api/negotiations/:id       - Delete negotiation (cascades to proposals)
+POST   /api/negotiations/:id/proposals - Link existing proposal to negotiation
+POST   /api/negotiations/:id/counter   - Create counter-offer (new proposal in thread)
+PATCH  /api/negotiations/:id/reorder   - Reorder offers (update offerNumber)
+```
+
 #### Reports & Export
 ```
 POST   /api/reports/pdf            - Generate PDF report

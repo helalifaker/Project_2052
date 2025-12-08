@@ -253,6 +253,42 @@ const isStepValid = form.formState.isValid && !validationErrors.length;
 </div>
 ```
 
+## Negotiation Validation (v2.2)
+
+### Negotiation Creation
+```typescript
+const NegotiationSchema = z.object({
+  developer: z.string().min(1, "Developer name is required").max(200),
+  property: z.string().min(1, "Property name is required").max(200),
+  notes: z.string().max(1000).optional(),
+});
+```
+
+### Negotiation Status Updates
+```typescript
+const NegotiationStatusSchema = z.object({
+  status: z.enum(["ACTIVE", "ACCEPTED", "REJECTED", "CLOSED"]),
+  notes: z.string().max(1000).optional(),
+});
+```
+
+### Counter-Offer Creation
+```typescript
+const CounterOfferSchema = z.object({
+  developerName: z.string().min(1),
+  rentModel: z.enum(["FIXED_ESCALATION", "REVENUE_SHARE", "PARTNER_INVESTMENT"]),
+  origin: z.enum(["OUR_OFFER", "THEIR_COUNTER"]),
+  // ... other proposal fields
+});
+```
+
+### Timeline Reorder
+```typescript
+const ReorderSchema = z.object({
+  proposalIds: z.array(z.string().uuid()).min(1),
+});
+```
+
 ## Validation Rules by Field Type
 
 ### Required Text Fields

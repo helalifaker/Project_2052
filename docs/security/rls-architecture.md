@@ -603,9 +603,9 @@ The RLS architecture provides:
 
 ---
 
-**Last Updated:** November 25, 2024
-**Version:** 1.0
+**Last Updated:** December 2025
+**Version:** 2.0 (Added Negotiation table RLS - v2.2)
 **Related Documentation:**
-- [RLS Setup Guide](./RLS_SETUP_GUIDE.md)
-- [RLS Quick Reference](./RLS_QUICK_REFERENCE.md)
-- [RLS Index](./RLS_INDEX.md)
+- [RLS Setup Guide](./rls-setup-guide.md)
+- [RLS Quick Reference](./rls-quick-reference.md)
+- [Negotiation Workflow](../features/negotiations/README.md)

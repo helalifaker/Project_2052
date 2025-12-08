@@ -33,8 +33,16 @@ When reviewing financial code or calculations in this project:
    - Explain the financial impact of any issues found
    - Suggest fixes using proper Decimal.js patterns
 
+6. **Negotiation Context (v2.2)**
+   - When reviewing proposals within a negotiation thread, consider the timeline context
+   - Compare counter-offers for financial consistency
+   - Validate that linked proposals share correct baseline assumptions
+   - Check that status transitions (ACTIVE → ACCEPTED/REJECTED) are properly reflected
+
 ## Examples
 
 - "Review the rent calculation in this proposal"
 - "Check if this projection uses proper decimal precision"
 - "Validate the cash flow calculations"
+- "Compare financial terms across negotiation counter-offers" (v2.2)
+- "Review the financial impact of accepting this counter-offer" (v2.2)

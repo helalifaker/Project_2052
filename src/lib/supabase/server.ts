@@ -15,36 +15,22 @@
 
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { cookies } from "next/headers";
+import { validateSupabaseConfig } from "./validation";
 
 export async function createClient() {
   // Use SUPABASE_URL if available, otherwise fall back to NEXT_PUBLIC_SUPABASE_URL
   const url = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
 
   // SECURITY: For server-side user operations, prefer the secret key.
-  // The secret key allows server-side auth verification while respecting RLS.
-  // Only fall back to anon key if explicitly configured for user-context operations.
   const key = process.env.SUPABASE_SECRET_KEY;
 
-  if (!url) {
-    throw new Error(
-      "Missing SUPABASE_URL or NEXT_PUBLIC_SUPABASE_URL environment variable",
-    );
-  }
-
-  // SECURITY: Require SUPABASE_SECRET_KEY for server operations
-  // This prevents silent fallback to less privileged keys which could cause
-  // unexpected authorization behavior
-  if (!key) {
-    throw new Error(
-      "Missing SUPABASE_SECRET_KEY environment variable. " +
-        "This key is required for server-side authentication operations. " +
-        "Please ensure it is set in your environment configuration.",
-    );
-  }
+  // Validate configuration before creating client (fails fast with clear errors)
+  validateSupabaseConfig(url, key, "SUPABASE_SECRET_KEY");
 
   const cookieStore = await cookies();
 
-  return createServerClient(url, key, {
+  // TypeScript now knows url and key are defined (validateSupabaseConfig throws if not)
+  return createServerClient(url!, key!, {
     cookies: {
       get(name: string) {
         return cookieStore.get(name)?.value;
@@ -84,19 +70,15 @@ export function createAdminClient() {
   const key =
     process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-  if (!url) {
-    throw new Error(
-      "Missing SUPABASE_URL or NEXT_PUBLIC_SUPABASE_URL environment variable",
-    );
-  }
+  // Validate configuration before creating client
+  validateSupabaseConfig(
+    url,
+    key,
+    "SUPABASE_SECRET_KEY or SUPABASE_SERVICE_ROLE_KEY",
+  );
 
-  if (!key) {
-    throw new Error(
-      "Missing SUPABASE_SECRET_KEY (preferred) or SUPABASE_SERVICE_ROLE_KEY (legacy) environment variable.",
-    );
-  }
-
-  return createServerClient(url, key, {
+  // TypeScript now knows url and key are defined
+  return createServerClient(url!, key!, {
     cookies: {
       get() {
         return undefined;

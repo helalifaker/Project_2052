@@ -2,12 +2,22 @@ import * as React from "react";
 
 import { cn } from "@/lib/utils";
 
+/**
+ * Base Card Component
+ * Clean, consistent styling with subtle shadow and hover state
+ */
 function Card({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
       data-slot="card"
       className={cn(
-        "bg-card text-card-foreground flex flex-col gap-6 rounded-xl border py-6 shadow-sm",
+        // Base styles
+        "bg-card text-card-foreground flex flex-col gap-6 rounded-xl border border-border p-6",
+        // Shadow using CSS variable for consistency
+        "[box-shadow:var(--shadow-card)]",
+        // Hover state - subtle lift
+        "transition-[transform,box-shadow] duration-200 ease-out",
+        "hover:[box-shadow:var(--shadow-card-hover)] hover:-translate-y-0.5",
         className,
       )}
       {...props}

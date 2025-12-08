@@ -118,6 +118,17 @@ export function CumulativeCashFlowComparisonChart({
   winnerId,
   className,
 }: CumulativeCashFlowComparisonChartProps) {
+  // Create a mapping of proposal ID to display label
+  // This ensures unique data keys while showing meaningful labels
+  const proposalMeta = useMemo(() => {
+    return proposals.map((p, index) => ({
+      id: p.id,
+      dataKey: p.id, // Use ID as the unique data key
+      label: p.developer || p.name, // Display label for legend/tooltip
+      index,
+    }));
+  }, [proposals]);
+
   // Transform data for Recharts
   const chartData = useMemo(() => {
     if (!proposals || proposals.length === 0) return [];
@@ -132,26 +143,20 @@ export function CumulativeCashFlowComparisonChart({
 
     // Create data points for each year
     return sortedYears.map((year) => {
-      const dataPoint: any = { year };
+      const dataPoint: Record<string, number> = { year };
 
       proposals.forEach((proposal) => {
         const yearData = proposal.financials?.years?.find(
           (y) => y.year === year,
         );
-        const proposalLabel = proposal.developer || proposal.name;
-        // Convert to millions for display
-        dataPoint[proposalLabel] = yearData?.cumulativeCash
+        // Use proposal ID as the unique data key to avoid collisions
+        dataPoint[proposal.id] = yearData?.cumulativeCash
           ? yearData.cumulativeCash / 1_000_000
           : 0;
       });
 
       return dataPoint;
     });
-  }, [proposals]);
-
-  // Get proposal labels
-  const proposalLabels = useMemo(() => {
-    return proposals.map((p) => p.developer || p.name);
   }, [proposals]);
 
   // Handle empty state
@@ -164,12 +169,6 @@ export function CumulativeCashFlowComparisonChart({
       </div>
     );
   }
-
-  // Find winner data
-  const winnerProposal = proposals.find((p) => p.id === winnerId);
-  const winnerLabel = winnerProposal
-    ? winnerProposal.developer || winnerProposal.name
-    : null;
 
   return (
     <div className={className}>
@@ -207,7 +206,9 @@ export function CumulativeCashFlowComparisonChart({
           <Legend
             {...getLegendProps()}
             formatter={(value) => {
-              const isWinner = value === winnerLabel;
+              // Find the proposal meta by matching the display label
+              const meta = proposalMeta.find((m) => m.label === value);
+              const isWinner = meta?.id === winnerId;
               return (
                 <span className={isWinner ? "font-bold" : ""}>
                   {value}
@@ -218,20 +219,20 @@ export function CumulativeCashFlowComparisonChart({
           />
 
           {/* Area series for each proposal */}
-          {proposalLabels.map((label, index) => {
-            const isWinner = label === winnerLabel;
-            const color = getProposalColor(index);
+          {proposalMeta.map((meta) => {
+            const isWinner = meta.id === winnerId;
+            const color = getProposalColor(meta.index);
 
             return (
               <Area
-                key={label}
+                key={meta.id} // Use unique ID as React key
                 type="monotone"
-                dataKey={label}
+                dataKey={meta.dataKey} // Use ID as data key to avoid collisions
                 stroke={color}
                 strokeWidth={isWinner ? 3 : 2}
                 fill={color}
                 fillOpacity={0.1}
-                name={label}
+                name={meta.label} // Display label shown in legend/tooltip
                 animationDuration={chartAnimation.duration}
                 animationEasing={chartAnimation.easing}
                 activeDot={{

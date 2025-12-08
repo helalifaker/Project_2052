@@ -20,16 +20,19 @@ Project 2052 uses three user roles:
 
 ### PLANNER
 - **Create and manage** proposals, scenarios, and sensitivity analyses
+- **Create and manage** negotiations (v2.2) - can create, update status, add counter-offers
 - Can create proposals and related data
 - Can update/delete their own proposals, scenarios, and analyses
 - **Read-only access** to system configuration and other users' data
 - Cannot manage users or delete others' proposals
+- Cannot delete negotiations (ADMIN only)
 
 ### VIEWER
 - **Read-only access** to all proposals and related data
+- **Read-only access** to negotiations and timelines (v2.2)
 - Cannot create, update, or delete any data
 - Cannot access user management features
-- Can view dashboards, proposals, scenarios, and analyses
+- Can view dashboards, proposals, scenarios, negotiations, and analyses
 
 ## Setup Instructions
 
@@ -254,6 +257,6 @@ For issues or questions:
 
 ---
 
-**Last Updated:** November 25, 2024
-**Version:** 1.0
-**Compatible with:** Project 2052 Schema v2.1
+**Last Updated:** December 2025
+**Version:** 2.0
+**Compatible with:** Project 2052 Schema v2.2 (with Negotiations)

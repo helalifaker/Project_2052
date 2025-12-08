@@ -2,6 +2,7 @@
 
 import { useState, useMemo, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import dynamic from "next/dynamic";
 import { Button } from "@/components/ui/button";
 import { useAuthContext } from "@/components/providers/AuthProvider";
 import { Role } from "@/lib/types/roles";
@@ -12,14 +13,11 @@ import {
   TrendingUp,
   TrendingDown,
   DollarSign,
-  PiggyBank,
-  CreditCard,
   Building2,
   Calendar,
   FileText,
   Wallet,
   Calculator,
-  BarChart3,
 } from "lucide-react";
 import { formatMillions } from "@/lib/utils/financial";
 import { toast } from "sonner";
@@ -27,15 +25,9 @@ import Decimal from "decimal.js";
 import { calculateNPV } from "@/lib/utils/financial";
 import { ProposalProfitabilityChart } from "./charts/ProposalProfitabilityChart";
 import { ProposalCashFlowChart } from "./charts/ProposalCashFlowChart";
-import {
-  AreaChart,
-  Area,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-} from "recharts";
+// PERFORMANCE OPTIMIZATION: Using BaseAreaChart instead of direct Recharts imports
+// This consolidates Recharts usage and improves tree-shaking
+import { BaseAreaChart } from "@/components/charts/BaseAreaChart";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -57,9 +49,18 @@ import {
   ExecutiveTrend,
 } from "@/components/ui/executive-card";
 import { Badge } from "@/components/ui/badge";
-import { ProposalPDFReport } from "@/components/proposals/reports/ProposalPDFReport";
 import { generateExecutiveReport } from "@/lib/pdf";
 import { BentoGrid, BentoItem } from "@/components/dashboard/BentoGrid";
+
+// PERFORMANCE OPTIMIZATION: Lazy-load PDF report component (~200KB jsPDF)
+// Only loaded when user clicks Export PDF button
+const ProposalPDFReport = dynamic(
+  () =>
+    import("@/components/proposals/reports/ProposalPDFReport").then((mod) => ({
+      default: mod.ProposalPDFReport,
+    })),
+  { ssr: false },
+);
 
 /**
  * Filter financials to contract period only (2028 to 2028+contractPeriodYears-1)
@@ -488,7 +489,10 @@ export function ProposalOverviewTab({
               <ExecutiveLabel size="ultra-compact">
                 Total Contract Rent
               </ExecutiveLabel>
-              <DollarSign className="h-3 w-3 text-blue-600 absolute top-3 right-3" />
+              <DollarSign
+                className="h-3 w-3 absolute top-3 right-3"
+                style={{ color: "var(--atelier-chart-proposal-b)" }}
+              />
             </ExecutiveCardHeader>
             <ExecutiveCardContent size="ultra-compact">
               <ExecutiveValue size="ultra-compact">
@@ -506,10 +510,16 @@ export function ProposalOverviewTab({
           <ExecutiveCard size="ultra-compact">
             <ExecutiveCardHeader className="pb-1" size="ultra-compact">
               <ExecutiveLabel size="ultra-compact">Rent NPV</ExecutiveLabel>
-              <TrendingDown className="h-3 w-3 text-violet-600 absolute top-3 right-3" />
+              <TrendingDown
+                className="h-3 w-3 absolute top-3 right-3"
+                style={{ color: "var(--atelier-chart-proposal-a)" }}
+              />
             </ExecutiveCardHeader>
             <ExecutiveCardContent size="ultra-compact">
-              <ExecutiveValue className="text-violet-600" size="ultra-compact">
+              <ExecutiveValue
+                size="ultra-compact"
+                style={{ color: "var(--atelier-chart-proposal-a)" }}
+              >
                 {formatMillions(contractKPIs.rentNPV.abs().toNumber())}
               </ExecutiveValue>
               <ExecutiveTrend direction="neutral" size="ultra-compact">
@@ -524,10 +534,16 @@ export function ProposalOverviewTab({
           <ExecutiveCard size="ultra-compact">
             <ExecutiveCardHeader className="pb-1" size="ultra-compact">
               <ExecutiveLabel size="ultra-compact">EBITDA NPV</ExecutiveLabel>
-              <TrendingUp className="h-3 w-3 text-blue-600 absolute top-3 right-3" />
+              <TrendingUp
+                className="h-3 w-3 absolute top-3 right-3"
+                style={{ color: "var(--atelier-chart-proposal-b)" }}
+              />
             </ExecutiveCardHeader>
             <ExecutiveCardContent size="ultra-compact">
-              <ExecutiveValue className="text-blue-600" size="ultra-compact">
+              <ExecutiveValue
+                style={{ color: "var(--atelier-chart-proposal-b)" }}
+                size="ultra-compact"
+              >
                 {formatMillions(
                   parseDecimal(proposal.metrics?.contractEbitdaNPV).toNumber(),
                 )}
@@ -546,10 +562,16 @@ export function ProposalOverviewTab({
               <ExecutiveLabel size="ultra-compact">
                 CapEx Invested
               </ExecutiveLabel>
-              <Building2 className="h-3 w-3 text-amber-600 absolute top-3 right-3" />
+              <Building2
+                className="h-3 w-3 absolute top-3 right-3"
+                style={{ color: "var(--accent-gold)" }}
+              />
             </ExecutiveCardHeader>
             <ExecutiveCardContent size="ultra-compact">
-              <ExecutiveValue className="text-amber-600" size="ultra-compact">
+              <ExecutiveValue
+                style={{ color: "var(--accent-gold)" }}
+                size="ultra-compact"
+              >
                 {formatMillions(contractKPIs.totalContractCapEx.toNumber())}
               </ExecutiveValue>
               <ExecutiveTrend direction="neutral" size="ultra-compact">
@@ -567,16 +589,21 @@ export function ProposalOverviewTab({
                 Final Cash Position
               </ExecutiveLabel>
               <Wallet
-                className={`h-3 w-3 absolute top-3 right-3 ${contractKPIs.finalCash.greaterThanOrEqualTo(0) ? "text-blue-600" : "text-rose-600"}`}
+                className="h-3 w-3 absolute top-3 right-3"
+                style={{
+                  color: contractKPIs.finalCash.greaterThanOrEqualTo(0)
+                    ? "var(--atelier-chart-proposal-b)"
+                    : "var(--financial-negative)",
+                }}
               />
             </ExecutiveCardHeader>
             <ExecutiveCardContent size="ultra-compact">
               <ExecutiveValue
-                className={
-                  contractKPIs.finalCash.greaterThanOrEqualTo(0)
-                    ? "text-blue-600"
-                    : "text-rose-600"
-                }
+                style={{
+                  color: contractKPIs.finalCash.greaterThanOrEqualTo(0)
+                    ? "var(--atelier-chart-proposal-b)"
+                    : "var(--financial-negative)",
+                }}
                 size="ultra-compact"
               >
                 {formatMillions(contractKPIs.finalCash.toNumber())}
@@ -608,17 +635,20 @@ export function ProposalOverviewTab({
               >
                 NAV ⭐
               </ExecutiveLabel>
-              <Calculator className="h-3 w-3 text-emerald-600 absolute top-3 right-3" />
+              <Calculator
+                className="h-3 w-3 absolute top-3 right-3"
+                style={{ color: "var(--financial-positive)" }}
+              />
             </ExecutiveCardHeader>
             <ExecutiveCardContent size="ultra-compact">
               <ExecutiveValue
-                className={
-                  parseDecimal(
+                style={{
+                  color: parseDecimal(
                     proposal.metrics?.contractNAV,
                   ).greaterThanOrEqualTo(0)
-                    ? "text-emerald-600"
-                    : "text-rose-600"
-                }
+                    ? "var(--financial-positive)"
+                    : "var(--financial-negative)",
+                }}
                 size="ultra-compact"
               >
                 {formatMillions(
@@ -682,85 +712,28 @@ export function ProposalOverviewTab({
               size="ultra-compact"
             >
               {rentTrajectoryData.length > 0 ? (
-                <div className="h-full w-full">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart
-                      data={rentTrajectoryData}
-                      margin={{ top: 10, right: 30, left: 0, bottom: 0 }}
-                    >
-                      <defs>
-                        <linearGradient
-                          id="colorRent"
-                          x1="0"
-                          y1="0"
-                          x2="0"
-                          y2="1"
-                        >
-                          <stop
-                            offset="5%"
-                            stopColor="var(--chart-1)"
-                            stopOpacity={0.3}
-                          />
-                          <stop
-                            offset="95%"
-                            stopColor="var(--chart-1)"
-                            stopOpacity={0}
-                          />
-                        </linearGradient>
-                      </defs>
-                      <CartesianGrid
-                        strokeDasharray="3 3"
-                        className="stroke-muted"
-                        vertical={false}
-                      />
-                      <XAxis
-                        dataKey="year"
-                        tick={{ fontSize: 10 }}
-                        tickLine={false}
-                        axisLine={false}
-                        tickFormatter={(value) =>
-                          value % 5 === 0 || value === 2023 || value === 2053
-                            ? value.toString()
-                            : ""
-                        }
-                        className="text-muted-foreground"
-                      />
-                      <YAxis
-                        tickFormatter={(value) => `${value.toFixed(0)}M`}
-                        tick={{ fontSize: 10 }}
-                        tickLine={false}
-                        axisLine={false}
-                        className="text-muted-foreground"
-                      />
-                      <Tooltip
-                        formatter={(value: number) => [
-                          formatTooltipValue(value),
-                          "Rent",
-                        ]}
-                        labelFormatter={(label) => `Year ${label}`}
-                        contentStyle={{
-                          backgroundColor: "hsl(var(--card))",
-                          borderColor: "hsl(var(--border))",
-                          borderRadius: "8px",
-                          boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
-                          fontSize: "12px",
-                        }}
-                        cursor={{
-                          stroke: "var(--muted-foreground)",
-                          strokeWidth: 1,
-                          strokeDasharray: "4 4",
-                        }}
-                      />
-                      <Area
-                        type="monotone"
-                        dataKey="rent"
-                        stroke="var(--chart-1)"
-                        strokeWidth={2}
-                        fill="url(#colorRent)"
-                      />
-                    </AreaChart>
-                  </ResponsiveContainer>
-                </div>
+                <BaseAreaChart
+                  data={rentTrajectoryData}
+                  series={[
+                    {
+                      dataKey: "rent",
+                      name: "Rent",
+                      useGradient: true,
+                      stroke: "var(--chart-1)",
+                    },
+                  ]}
+                  xAxisKey="year"
+                  xAxisFormatter={(value) =>
+                    Number(value) % 5 === 0 || value === 2023 || value === 2053
+                      ? String(value)
+                      : ""
+                  }
+                  yAxisFormatter={(value) => `${Number(value).toFixed(0)}M`}
+                  tooltipFormat="millions"
+                  height={220}
+                  showLegend={false}
+                  ariaLabel="Rent trajectory over 30 years"
+                />
               ) : (
                 <div className="h-full flex items-center justify-center border-2 border-dashed rounded-md text-muted-foreground text-xs">
                   No data available.

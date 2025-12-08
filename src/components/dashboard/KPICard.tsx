@@ -4,6 +4,7 @@ import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { LucideIcon } from "lucide-react";
 import { CountUp } from "@/components/ui/count-up";
+import { chartAnimationDurations } from "@/lib/design-tokens/chart-config";
 
 interface KPICardProps {
   title: string;
@@ -43,32 +44,32 @@ export function KPICard({
         : "neutral"
     : "neutral";
 
-  // Dynamic Styles based on status
+  // Dynamic Styles based on status - Atelier Edition
   const getStatusStyles = () => {
     switch (status) {
       case "positive":
         return {
           headerBg:
-            "linear-gradient(to bottom, rgba(16, 185, 129, 0.1), transparent)",
-          pillBg: "rgba(16, 185, 129, 0.15)",
+            "linear-gradient(to bottom, var(--atelier-ink-positive-soft), transparent)",
+          pillBg: "var(--atelier-ink-positive-soft)",
           pillText: "var(--financial-positive)",
           iconColor: "var(--financial-positive)",
         };
       case "negative":
         return {
           headerBg:
-            "linear-gradient(to bottom, rgba(244, 63, 94, 0.1), transparent)",
-          pillBg: "rgba(244, 63, 94, 0.15)",
+            "linear-gradient(to bottom, var(--atelier-ink-negative-soft), transparent)",
+          pillBg: "var(--atelier-ink-negative-soft)",
           pillText: "var(--financial-negative)",
           iconColor: "var(--financial-negative)",
         };
       default:
         return {
           headerBg:
-            "linear-gradient(to bottom, rgba(255, 255, 255, 0.03), transparent)",
-          pillBg: "rgba(255, 255, 255, 0.1)",
-          pillText: "var(--financial-neutral)",
-          iconColor: "var(--muted-foreground)",
+            "linear-gradient(to bottom, var(--atelier-stone-100), transparent)",
+          pillBg: "var(--atelier-stone-200)",
+          pillText: "var(--text-secondary)",
+          iconColor: "var(--text-tertiary)",
         };
     }
   };
@@ -129,7 +130,7 @@ export function KPICard({
           !isNaN(parseFloat(value.replace(/[^0-9.-]+/g, ""))) ? (
             <CountUp
               end={parseFloat(value.replace(/[^0-9.-]+/g, ""))}
-              duration={2000}
+              duration={chartAnimationDurations.counter}
               prefix={
                 value.includes("$") ? "$" : value.includes("SAR") ? "SAR " : ""
               }

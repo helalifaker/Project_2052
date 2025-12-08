@@ -52,11 +52,12 @@ export function FinancialValue({
 
   // Determine color class - minimalist: red for negatives only
   let colorClass = "";
+  let colorStyle: React.CSSProperties | undefined;
   if (showColor) {
     if (colorMode === "auto") {
       colorClass = getFinancialColorClass(value ?? 0);
     } else if (colorMode === "negative") {
-      colorClass = "text-red-700 dark:text-red-400";
+      colorStyle = { color: "var(--financial-negative)" };
     }
   }
 
@@ -77,6 +78,7 @@ export function FinancialValue({
         sizeClasses[size],
         className,
       )}
+      style={colorStyle}
     >
       {formatted}
     </span>

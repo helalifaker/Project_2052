@@ -1,5 +1,7 @@
 config:
   target: "http://localhost:3000"
+  # Authentication processor for Supabase
+  processor: "./tests/load/artillery-auth.js"
   phases:
     # Quick test: 10 concurrent users for 30 seconds
     - duration: 30
@@ -23,6 +25,8 @@ scenarios:
   # Quick test of key endpoints only
   - name: "Dashboard Metrics"
     weight: 40
+    beforeScenario: "beforeScenario"
+    beforeRequest: "setAuthCookies"
     flow:
       - get:
           url: "/api/dashboard/metrics"
@@ -31,6 +35,8 @@ scenarios:
 
   - name: "List Proposals"
     weight: 40
+    beforeScenario: "beforeScenario"
+    beforeRequest: "setAuthCookies"
     flow:
       - get:
           url: "/api/proposals"

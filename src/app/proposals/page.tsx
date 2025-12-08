@@ -26,6 +26,7 @@ import {
 import { toast } from "sonner";
 import Decimal from "decimal.js";
 import { useRoleCheck } from "@/lib/hooks/useRoleCheck";
+import { ProposalStatus } from "@/lib/types/roles";
 import { Breadcrumbs } from "@/components/navigation/Breadcrumbs";
 import { PageSkeleton } from "@/components/states/PageSkeleton";
 import { EmptyState, EmptyStates } from "@/components/states/EmptyState";
@@ -321,6 +322,12 @@ export default function ProposalsListPage() {
       ? `?${idsParam.map((id) => `ids=${id}`).join("&")}`
       : "";
     router.push(`/proposals/compare${query}`);
+  };
+
+  const handleStatusChange = (id: string, newStatus: ProposalStatus) => {
+    setProposals((prev) =>
+      prev.map((p) => (p.id === id ? { ...p, status: newStatus } : p)),
+    );
   };
 
   // Multi-select handlers
@@ -662,6 +669,7 @@ export default function ProposalsListPage() {
                   onDuplicate={handleDuplicateProposal}
                   onDelete={handleDeleteProposal}
                   onExport={handleExportProposal}
+                  onStatusChange={handleStatusChange}
                   className={
                     isSelecting
                       ? selectedIds.has(proposal.id)

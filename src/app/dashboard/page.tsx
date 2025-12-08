@@ -25,6 +25,11 @@ import { PageSkeleton } from "@/components/states/PageSkeleton";
 import { EmptyState } from "@/components/states/EmptyState";
 import { ErrorState } from "@/components/states/ErrorState";
 import { ChartSkeleton } from "@/components/charts/ChartSkeleton";
+import { ProposalSelector } from "@/components/dashboard/ProposalSelector";
+import {
+  filterBySelectedProposals,
+  recalculateWinner,
+} from "@/lib/utils/dashboard-filter";
 
 type SensitivityData = {
   id: string;
@@ -241,6 +246,10 @@ function DashboardContent() {
     "active",
   );
 
+  // Proposal selection state for chart filtering (max 3 proposals)
+  const [selectedProposalIds, setSelectedProposalIds] = useState<string[]>([]);
+  const maxProposals = 3;
+
   // Client-side calculated state (for scenario adjustments on existing charts)
   const [_calculatedKPIs, setCalculatedKPIs] = useState<{
     avgNPV: number;
@@ -402,6 +411,82 @@ function DashboardContent() {
     });
   }, [dashboardData, rentGrowthFactor, inflationRate]);
 
+  // Available proposals for the selector (extracted from rentTrajectory)
+  const availableProposals = useMemo(() => {
+    if (!dashboardData?.rentTrajectory) return [];
+    return dashboardData.rentTrajectory.map((p) => ({
+      proposalId: p.proposalId,
+      proposalName: p.proposalName,
+      developer: p.developer,
+    }));
+  }, [dashboardData?.rentTrajectory]);
+
+  // Filtered chart data - applies selection and recalculates winners within subset
+  const filteredRentTrajectory = useMemo(() => {
+    const filtered = filterBySelectedProposals(
+      adjustedRentTrajectory,
+      selectedProposalIds,
+      maxProposals,
+    );
+    // For rent, lower is better - winner has lowest total rent
+    return recalculateWinner(
+      filtered,
+      (p) => {
+        const lastYear = p.data[p.data.length - 1];
+        return lastYear ? -lastYear.rent : 0; // Negative because lower rent is better
+      },
+      true,
+    );
+  }, [adjustedRentTrajectory, selectedProposalIds, maxProposals]);
+
+  const filteredNavComparison = useMemo(() => {
+    const filtered = filterBySelectedProposals(
+      dashboardData?.navComparison || [],
+      selectedProposalIds,
+      maxProposals,
+    );
+    return recalculateWinner(filtered, (p) => p.nav, true); // Higher NAV is better
+  }, [dashboardData?.navComparison, selectedProposalIds, maxProposals]);
+
+  const filteredNpvComparison = useMemo(() => {
+    const filtered = filterBySelectedProposals(
+      dashboardData?.npvComparison || [],
+      selectedProposalIds,
+      maxProposals,
+    );
+    return recalculateWinner(filtered, (p) => p.npv, true); // Higher NPV is better
+  }, [dashboardData?.npvComparison, selectedProposalIds, maxProposals]);
+
+  const filteredCashFlow = useMemo(() => {
+    const filtered = filterBySelectedProposals(
+      adjustedCashFlow,
+      selectedProposalIds,
+      maxProposals,
+    );
+    // For cash flow, higher final cumulative is better
+    return recalculateWinner(
+      filtered,
+      (p) => {
+        const lastData = p.data[p.data.length - 1];
+        return lastData ? lastData.cumulative : 0;
+      },
+      true,
+    );
+  }, [adjustedCashFlow, selectedProposalIds, maxProposals]);
+
+  const filteredProfitabilityWaterfall = useMemo(() => {
+    const filtered = filterBySelectedProposals(
+      dashboardData?.profitabilityWaterfall || [],
+      selectedProposalIds,
+      maxProposals,
+    );
+    return recalculateWinner(filtered, (p) => p.netIncome, true); // Higher net income is better
+  }, [
+    dashboardData?.profitabilityWaterfall,
+    selectedProposalIds,
+    maxProposals,
+  ]);
+
   // Retry function for error recovery
   const handleRetry = () => {
     setError(null);
@@ -469,31 +554,37 @@ function DashboardContent() {
           />
 
           {/* Feature Highlights */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-8 max-w-4xl">
-            <div className="text-center p-6 rounded-lg bg-card border border-border">
-              <div className="h-12 w-12 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
-                <TrendingUp className="h-6 w-6 text-primary" />
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-8 max-w-4xl atelier-reveal-stagger">
+            <div className="text-center p-6 rounded-xl bg-[var(--atelier-ivory-paper)] border border-[var(--atelier-stone-200)] atelier-hover-lift">
+              <div className="h-12 w-12 bg-[var(--atelier-craft-gold-soft)] rounded-full flex items-center justify-center mx-auto mb-4">
+                <TrendingUp className="h-6 w-6 text-[var(--atelier-craft-gold)]" />
               </div>
-              <h3 className="font-semibold mb-2">Analytics</h3>
-              <p className="text-sm text-muted-foreground">
+              <h3 className="font-semibold mb-2 text-[var(--atelier-stone-900)]">
+                Analytics
+              </h3>
+              <p className="text-sm text-[var(--atelier-stone-500)]">
                 Compare proposals with interactive charts and metrics
               </p>
             </div>
-            <div className="text-center p-6 rounded-lg bg-card border border-border">
-              <div className="h-12 w-12 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
-                <DollarSign className="h-6 w-6 text-primary" />
+            <div className="text-center p-6 rounded-xl bg-[var(--atelier-ivory-paper)] border border-[var(--atelier-stone-200)] atelier-hover-lift">
+              <div className="h-12 w-12 bg-[var(--atelier-craft-gold-soft)] rounded-full flex items-center justify-center mx-auto mb-4">
+                <DollarSign className="h-6 w-6 text-[var(--atelier-craft-gold)]" />
               </div>
-              <h3 className="font-semibold mb-2">Financial Modeling</h3>
-              <p className="text-sm text-muted-foreground">
+              <h3 className="font-semibold mb-2 text-[var(--atelier-stone-900)]">
+                Financial Modeling
+              </h3>
+              <p className="text-sm text-[var(--atelier-stone-500)]">
                 30-year projections with P&L, Balance Sheet, and Cash Flow
               </p>
             </div>
-            <div className="text-center p-6 rounded-lg bg-card border border-border">
-              <div className="h-12 w-12 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
-                <BarChart3 className="h-6 w-6 text-primary" />
+            <div className="text-center p-6 rounded-xl bg-[var(--atelier-ivory-paper)] border border-[var(--atelier-stone-200)] atelier-hover-lift">
+              <div className="h-12 w-12 bg-[var(--atelier-craft-gold-soft)] rounded-full flex items-center justify-center mx-auto mb-4">
+                <BarChart3 className="h-6 w-6 text-[var(--atelier-craft-gold)]" />
               </div>
-              <h3 className="font-semibold mb-2">Scenario Analysis</h3>
-              <p className="text-sm text-muted-foreground">
+              <h3 className="font-semibold mb-2 text-[var(--atelier-stone-900)]">
+                Scenario Analysis
+              </h3>
+              <p className="text-sm text-[var(--atelier-stone-500)]">
                 Test variables with interactive sliders and sensitivity analysis
               </p>
             </div>
@@ -512,6 +603,13 @@ function DashboardContent() {
       breadcrumbs={[{ label: "Dashboard" }]}
       actions={
         <div className="flex items-center gap-2">
+          <ProposalSelector
+            proposals={availableProposals}
+            selectedIds={selectedProposalIds}
+            maxProposals={maxProposals}
+            onSelectionChange={setSelectedProposalIds}
+          />
+
           <Popover>
             <PopoverTrigger asChild>
               <Button variant="outline" size="sm" className="gap-2">
@@ -561,7 +659,10 @@ function DashboardContent() {
         </div>
       }
     >
-      <BentoGrid dense>
+      {/* Screen reader accessible page title for WCAG 1.3.1 compliance */}
+      <h1 className="sr-only">Financial Dashboard - Proposal Analytics</h1>
+
+      <BentoGrid dense className="atelier-reveal-stagger atelier-paper-texture">
         {/* Row 1: 5 KPI Cards (Comparison Summary) */}
         <BentoItem colSpan={2}>
           <RangeKPICard
@@ -680,7 +781,7 @@ function DashboardContent() {
               className="flex-1 min-h-0"
               size="ultra-compact"
             >
-              <RentTrajectoryChart data={adjustedRentTrajectory} />
+              <RentTrajectoryChart data={filteredRentTrajectory} />
             </ExecutiveCardContent>
           </ExecutiveCard>
         </BentoItem>
@@ -694,7 +795,7 @@ function DashboardContent() {
               className="flex-1 min-h-0"
               size="ultra-compact"
             >
-              <NAVComparisonChart data={dashboardData.navComparison || []} />
+              <NAVComparisonChart data={filteredNavComparison} />
             </ExecutiveCardContent>
           </ExecutiveCard>
         </BentoItem>
@@ -709,7 +810,7 @@ function DashboardContent() {
               className="flex-1 min-h-0"
               size="ultra-compact"
             >
-              <CumulativeCashFlowChart data={adjustedCashFlow} />
+              <CumulativeCashFlowChart data={filteredCashFlow} />
             </ExecutiveCardContent>
           </ExecutiveCard>
         </BentoItem>
@@ -723,7 +824,7 @@ function DashboardContent() {
               className="flex-1 min-h-0"
               size="ultra-compact"
             >
-              <NPVComparisonChart data={dashboardData.npvComparison || []} />
+              <NPVComparisonChart data={filteredNpvComparison} />
             </ExecutiveCardContent>
           </ExecutiveCard>
         </BentoItem>
@@ -738,7 +839,7 @@ function DashboardContent() {
               size="ultra-compact"
             >
               <ProfitabilityWaterfallChart
-                data={dashboardData.profitabilityWaterfall || []}
+                data={filteredProfitabilityWaterfall}
               />
             </ExecutiveCardContent>
           </ExecutiveCard>

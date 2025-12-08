@@ -69,8 +69,9 @@ export function getFinancialColorClass(value: number | Decimal): string {
   const num = value instanceof Decimal ? value.toNumber() : value;
 
   // Red for negatives only, standard foreground for positive and zero
+  // Using CSS variable-based class for Atelier design system
   if (num < 0) {
-    return "text-red-700 dark:text-red-400";
+    return "text-[var(--financial-negative)]";
   }
   return "text-foreground";
 }
@@ -108,13 +109,21 @@ export function formatYearRange(startYear: number, endYear: number): string {
 export function getYearRanges(dynamicEndYear: number = 2057) {
   const dynamicStartYear = 2028;
   const earlyDynamicEnd = dynamicStartYear + 4; // First 5 years
-  const lateDynamicStart = dynamicEndYear - 5;  // Last 5 years
+  const lateDynamicStart = dynamicEndYear - 5; // Last 5 years
 
   return {
     HISTORICAL: { start: 2023, end: 2024, label: "Historical" },
     TRANSITION: { start: 2025, end: 2027, label: "Transition" },
-    EARLY_DYNAMIC: { start: dynamicStartYear, end: earlyDynamicEnd, label: "Early Dynamic" },
-    LATE_DYNAMIC: { start: lateDynamicStart, end: dynamicEndYear, label: "Late Dynamic" },
+    EARLY_DYNAMIC: {
+      start: dynamicStartYear,
+      end: earlyDynamicEnd,
+      label: "Early Dynamic",
+    },
+    LATE_DYNAMIC: {
+      start: lateDynamicStart,
+      end: dynamicEndYear,
+      label: "Late Dynamic",
+    },
     ALL: { start: 2023, end: dynamicEndYear, label: "All Years" },
   } as const;
 }

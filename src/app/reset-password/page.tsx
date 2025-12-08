@@ -17,6 +17,11 @@ import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { createClient } from "@/lib/supabase/client";
 import {
+  withTimeout,
+  isTimeoutError,
+  AUTH_TIMEOUT_MS,
+} from "@/lib/utils/timeout";
+import {
   Loader2,
   Lock,
   AlertCircle,
@@ -24,6 +29,7 @@ import {
   Eye,
   EyeOff,
 } from "lucide-react";
+import { APP_NAME, APP_TAGLINE } from "@/lib/constants";
 
 export default function ResetPasswordPage() {
   const router = useRouter();
@@ -44,7 +50,11 @@ export default function ResetPasswordPage() {
         const supabase = createClient();
         const {
           data: { session },
-        } = await supabase.auth.getSession();
+        } = await withTimeout(
+          supabase.auth.getSession(),
+          AUTH_TIMEOUT_MS,
+          "Session verification timed out. Please refresh and try again.",
+        );
 
         if (!session) {
           setError(
@@ -56,7 +66,11 @@ export default function ResetPasswordPage() {
         }
       } catch (err) {
         console.error("Session check error:", err);
-        setError("Unable to verify reset link. Please try again.");
+        if (isTimeoutError(err)) {
+          setError(err.message);
+        } else {
+          setError("Unable to verify reset link. Please try again.");
+        }
         setIsValidSession(false);
       } finally {
         setIsCheckingSession(false);
@@ -106,10 +120,14 @@ export default function ResetPasswordPage() {
 
       const supabase = createClient();
 
-      // Update password
-      const { error: updateError } = await supabase.auth.updateUser({
-        password: password,
-      });
+      // Update password with timeout protection
+      const { error: updateError } = await withTimeout(
+        supabase.auth.updateUser({
+          password: password,
+        }),
+        AUTH_TIMEOUT_MS,
+        "Password update timed out. Please try again.",
+      );
 
       if (updateError) {
         throw updateError;
@@ -126,7 +144,9 @@ export default function ResetPasswordPage() {
       console.error("Password reset error:", err);
 
       // Handle different error types
-      if (err instanceof Error) {
+      if (isTimeoutError(err)) {
+        setError(err.message);
+      } else if (err instanceof Error) {
         if (err.message.includes("session")) {
           setError(
             "Your session has expired. Please request a new password reset link.",
@@ -171,8 +191,8 @@ export default function ResetPasswordPage() {
       <div className="w-full max-w-md space-y-6">
         {/* Header */}
         <div className="text-center space-y-2">
-          <h1 className="text-3xl font-bold tracking-tight">Project 2052</h1>
-          <p className="text-muted-foreground">Lease Proposal Platform</p>
+          <h1 className="text-3xl font-bold tracking-tight">{APP_NAME}</h1>
+          <p className="text-muted-foreground">{APP_TAGLINE}</p>
         </div>
 
         {/* Reset Password Card */}

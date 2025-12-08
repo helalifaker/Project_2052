@@ -28,6 +28,21 @@ export enum ProposalStatus {
   NEGOTIATION_CLOSED = "NEGOTIATION_CLOSED",
 }
 
+export enum NegotiationStatus {
+  ACTIVE = "ACTIVE",
+  ACCEPTED = "ACCEPTED",
+  REJECTED = "REJECTED",
+  CLOSED = "CLOSED",
+}
+
+export enum ProposalPurpose {
+  NEGOTIATION = "NEGOTIATION",
+  STRESS_TEST = "STRESS_TEST",
+  SIMULATION = "SIMULATION",
+}
+
 export type RoleType = keyof typeof Role;
 export type ProposalOriginType = keyof typeof ProposalOrigin;
 export type ProposalStatusType = keyof typeof ProposalStatus;
+export type NegotiationStatusType = keyof typeof NegotiationStatus;
+export type ProposalPurposeType = keyof typeof ProposalPurpose;

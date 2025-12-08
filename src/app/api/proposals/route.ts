@@ -3,10 +3,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { authenticateUserWithRole } from "@/middleware/auth";
 import { Role } from "@/lib/types/roles";
-import type {
-  LeaseProposalWhereInput,
-  InputJsonValue,
-} from "@/lib/types/prisma-helpers";
+import type { LeaseProposalWhereInput } from "@/lib/types/prisma-helpers";
 import {
   CreateProposalSchema,
   RentModelSchema,
@@ -50,6 +47,7 @@ export async function GET(request: Request) {
     const createdBy = searchParams.get("createdBy");
     const dateFrom = searchParams.get("dateFrom");
     const dateTo = searchParams.get("dateTo");
+    const unlinked = searchParams.get("unlinked") === "true";
 
     // Sorting with validation to prevent injection
     const allowedSortFields = [
@@ -99,6 +97,11 @@ export async function GET(request: Request) {
       }
     }
 
+    // Filter for unlinked proposals (not linked to any negotiation)
+    if (unlinked) {
+      where.negotiationId = null;
+    }
+
     // Get total count for pagination
     const total = await prisma.leaseProposal.count({ where });
 
@@ -120,6 +123,8 @@ export async function GET(request: Request) {
         property: true,
         status: true,
         origin: true,
+        purpose: true, // For LinkProposalDialog filtering
+        negotiationId: true, // For LinkProposalDialog to identify unlinked proposals
         negotiationRound: true,
         createdAt: true,
         updatedAt: true,

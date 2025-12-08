@@ -74,7 +74,7 @@ export function ScenarioCashFlowChart({
         ]}
         xAxisKey="year"
         xAxisFormatter={(value) => `'${String(value).slice(-2)}`}
-        yAxisFormatter={(value) => `${value.toFixed(0)}M`}
+        yAxisFormatter={(value) => `${Number(value).toFixed(0)}M`}
         tooltipFormat="millions"
         height={280}
         showLegend={true}

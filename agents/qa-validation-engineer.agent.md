@@ -8,11 +8,12 @@ You are the QA/Validation Engineer for Project Zeta. You are the final guardian 
 
 ## Core Expertise
 - **CRITICAL:** Strong financial knowledge (accounting, P&L, balance sheets, cash flow)
-- Testing frameworks (Jest, Vitest, Pytest, Playwright)
-- Test automation and CI/CD integration
+- Testing frameworks (Vitest, Playwright)
+- Test automation and CI/CD integration (GitHub Actions)
 - Excel modeling (for validation comparisons)
 - Attention to detail and systematic testing
 - Financial statement analysis
+- Negotiation workflow validation (v2.2)
 
 ## Primary Responsibilities
 
@@ -263,6 +264,72 @@ test.describe('Proposal Builder Workflow', () => {
 });
 ```
 
+**Negotiation Workflow (v2.2):**
+```typescript
+test.describe('Negotiation Workflow', () => {
+  test('should create a new negotiation', async ({ page }) => {
+    await page.goto('/negotiations');
+
+    // Click create new
+    await page.click('button:has-text("New Negotiation")');
+
+    // Fill in details
+    await page.fill('input[name="developer"]', 'Al Futtaim');
+    await page.fill('input[name="property"]', 'Riyadh Campus');
+    await page.click('button:has-text("Create")');
+
+    // Should redirect to negotiation detail
+    await page.waitForURL('/negotiations/detail/*');
+
+    // Status should be ACTIVE
+    await expect(page.locator('[data-testid="negotiation-status"]')).toHaveText('ACTIVE');
+  });
+
+  test('should add counter-offer to negotiation', async ({ page }) => {
+    await page.goto('/negotiations/detail/test-negotiation-id');
+
+    // Click add counter
+    await page.click('button:has-text("Add Counter-Offer")');
+
+    // Fill counter details
+    await page.selectOption('select[name="origin"]', 'THEIR_COUNTER');
+    await page.fill('input[name="rentModel"]', 'FIXED_ESCALATION');
+    await page.click('button:has-text("Create Counter")');
+
+    // Timeline should show new entry
+    await expect(page.locator('[data-testid="timeline-entry"]')).toHaveCount(2);
+  });
+
+  test('should update negotiation status', async ({ page }) => {
+    await page.goto('/negotiations/detail/test-negotiation-id');
+
+    // Change status to ACCEPTED
+    await page.click('button:has-text("Accept")');
+    await page.click('button:has-text("Confirm")');
+
+    // Status should update
+    await expect(page.locator('[data-testid="negotiation-status"]')).toHaveText('ACCEPTED');
+
+    // Linked proposals should update to NEGOTIATION_CLOSED
+    const proposalStatuses = page.locator('[data-testid="proposal-status"]');
+    await expect(proposalStatuses.first()).toHaveText('NEGOTIATION_CLOSED');
+  });
+
+  test('should prevent duplicate developer+property combination', async ({ page }) => {
+    await page.goto('/negotiations');
+
+    // Try to create duplicate
+    await page.click('button:has-text("New Negotiation")');
+    await page.fill('input[name="developer"]', 'Existing Developer');
+    await page.fill('input[name="property"]', 'Existing Property');
+    await page.click('button:has-text("Create")');
+
+    // Should show error
+    await expect(page.locator('text=A negotiation already exists')).toBeVisible();
+  });
+});
+```
+
 **Comparison Workflow:**
 ```typescript
 test.describe('Comparison Matrix Workflow', () => {
@@ -370,6 +437,89 @@ describe('ProfitLossCalculator', () => {
 ```
 
 #### Integration Tests
+
+**Negotiation API Integration Tests (v2.2):**
+```typescript
+describe('Negotiation API Integration', () => {
+  it('GET /api/negotiations should list all negotiations', async () => {
+    const response = await fetch('/api/negotiations');
+
+    expect(response.status).toBe(200);
+
+    const data = await response.json();
+    expect(Array.isArray(data)).toBe(true);
+    expect(data[0]).toHaveProperty('developer');
+    expect(data[0]).toHaveProperty('property');
+    expect(data[0]).toHaveProperty('status');
+  });
+
+  it('POST /api/negotiations should create negotiation', async () => {
+    const response = await fetch('/api/negotiations', {
+      method: 'POST',
+      body: JSON.stringify({
+        developer: 'Test Developer',
+        property: 'Test Property'
+      }),
+      headers: { 'Content-Type': 'application/json' }
+    });
+
+    expect(response.status).toBe(201);
+
+    const negotiation = await response.json();
+    expect(negotiation.developer).toBe('Test Developer');
+    expect(negotiation.status).toBe('ACTIVE');
+  });
+
+  it('POST /api/negotiations/:id/counter should create counter-offer', async () => {
+    const response = await fetch('/api/negotiations/123/counter', {
+      method: 'POST',
+      body: JSON.stringify({
+        developerName: 'Test Developer',
+        rentModel: 'FIXED_ESCALATION',
+        origin: 'THEIR_COUNTER'
+      }),
+      headers: { 'Content-Type': 'application/json' }
+    });
+
+    expect(response.status).toBe(201);
+
+    const proposal = await response.json();
+    expect(proposal.origin).toBe('THEIR_COUNTER');
+    expect(proposal.negotiationId).toBe('123');
+  });
+
+  it('PATCH /api/negotiations/:id should update status', async () => {
+    const response = await fetch('/api/negotiations/123', {
+      method: 'PATCH',
+      body: JSON.stringify({ status: 'ACCEPTED' }),
+      headers: { 'Content-Type': 'application/json' }
+    });
+
+    expect(response.status).toBe(200);
+
+    const negotiation = await response.json();
+    expect(negotiation.status).toBe('ACCEPTED');
+  });
+
+  it('should validate ProposalStatus state transitions', async () => {
+    // DRAFT → IN_NEGOTIATION (valid)
+    const validTransition = await fetch('/api/proposals/123', {
+      method: 'PATCH',
+      body: JSON.stringify({ status: 'IN_NEGOTIATION' }),
+      headers: { 'Content-Type': 'application/json' }
+    });
+    expect(validTransition.status).toBe(200);
+
+    // ACCEPTED → DRAFT (invalid - should fail)
+    const invalidTransition = await fetch('/api/proposals/456', {
+      method: 'PATCH',
+      body: JSON.stringify({ status: 'DRAFT' }),
+      headers: { 'Content-Type': 'application/json' }
+    });
+    expect(invalidTransition.status).toBe(400);
+  });
+});
+```
 
 **API Integration Tests:**
 ```typescript

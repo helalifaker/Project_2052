@@ -177,10 +177,10 @@ export function ComparisonTable({
               />
             </svg>
             <div className="space-y-1 flex-1">
-              <p className="text-sm font-semibold text-amber-200">
+              <p className="text-sm font-semibold text-amber-700 dark:text-amber-200">
                 Mixed Contract Periods Detected
               </p>
-              <p className="text-sm text-amber-100/80">
+              <p className="text-sm text-amber-600 dark:text-amber-100/80">
                 You are comparing proposals with different contract periods (
                 {proposals
                   .map((p) => p.contractPeriodYears || 30)

@@ -13,6 +13,8 @@ const connectionStringForPool = isSupabase
   ? connectionString?.replace(/[?&]sslmode=require/g, "")
   : connectionString;
 
+const isDevelopment = process.env.NODE_ENV !== "production";
+
 const pool = new Pool({
   connectionString: connectionStringForPool,
   // Supabase uses self-signed certs; other providers validate certs by default
@@ -21,11 +23,25 @@ const pool = new Pool({
     : requiresSSL
       ? true
       : undefined,
-  // Additional connection options for better reliability
-  max: 10, // Maximum number of clients in the pool
-  idleTimeoutMillis: 30000, // Close idle clients after 30 seconds
-  connectionTimeoutMillis: 10000, // Return an error after 10 seconds if connection cannot be established
+  // Pool configuration optimized for reliability
+  // Development uses larger pool to handle hot reloading and concurrent requests
+  max: isDevelopment ? 20 : 10,
+  // Longer idle timeout prevents stale connection issues after brief inactivity
+  idleTimeoutMillis: isDevelopment ? 60000 : 30000,
+  // Longer connection timeout prevents premature failures under load
+  connectionTimeoutMillis: isDevelopment ? 15000 : 10000,
 });
+
+// IMPORTANT: Handle connection pool errors to prevent silent failures
+// This catches errors on idle clients which can indicate connection issues
+pool.on("error", (err) => {
+  console.error("[Prisma Pool] Unexpected error on idle client:", err.message);
+  // Log the full error in development for debugging
+  if (isDevelopment) {
+    console.error("[Prisma Pool] Full error:", err);
+  }
+});
+
 const adapter = new PrismaPg(pool);
 
 const globalForPrisma = global as unknown as { prisma: PrismaClient };
@@ -34,12 +50,16 @@ export const prisma =
   globalForPrisma.prisma ||
   new PrismaClient({
     adapter,
-    // Only log errors in production to reduce overhead
-    // In development, log queries for debugging
+    // Log configuration:
+    // - Production: errors only
+    // - Development: errors and warnings (not queries - reduces I/O overhead)
+    // - Set DEBUG_PRISMA=true for full query logging when needed
     log:
       process.env.NODE_ENV === "production"
         ? ["error"]
-        : ["query", "error", "warn"],
+        : process.env.DEBUG_PRISMA === "true"
+          ? ["query", "error", "warn"]
+          : ["error", "warn"],
   });
 
 if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma;

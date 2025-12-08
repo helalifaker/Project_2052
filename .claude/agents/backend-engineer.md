@@ -68,6 +68,15 @@ Build complete REST APIs with these patterns:
 - POST/GET/PUT/DELETE `/api/proposals`
 - POST `/api/proposals/compare` - Compare multiple proposals
 - GET `/api/proposals/:id/calculate` - Trigger 30-year calculation
+- POST `/api/proposals/:id/duplicate` - Duplicate proposal
+- POST `/api/proposals/:id/recalculate` - Recalculate existing proposal
+
+**Negotiations (v2.2):**
+- GET/POST `/api/negotiations` - List/create negotiations
+- GET/PATCH/DELETE `/api/negotiations/:id` - CRUD operations
+- POST `/api/negotiations/:id/proposals` - Link existing proposal to negotiation
+- POST `/api/negotiations/:id/counter` - Create counter-offer (new proposal in thread)
+- PATCH `/api/negotiations/:id/reorder` - Reorder offers in timeline
 
 **Historical Data Management:**
 - POST `/api/historical/import` - Import Excel/CSV
@@ -105,9 +114,9 @@ const CreateProposalSchema = z.object({
 
 ### Authentication & Authorization
 Implement RBAC with three roles:
-- ADMIN: Full access + system config
-- PLANNER: Create/edit proposals
-- VIEWER: Read-only access
+- ADMIN: Full access + system config + delete negotiations
+- PLANNER: Create/edit proposals + manage negotiations
+- VIEWER: Read-only access (view negotiations)
 
 ```typescript
 import { requireAuth } from '@/middleware/rbac';

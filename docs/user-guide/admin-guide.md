@@ -448,8 +448,9 @@ The system has three roles with different permissions:
 - ✓ Manage historical data
 - ✓ Manage CapEx configuration
 - ✓ Create, edit, delete proposals
+- ✓ Create, edit, delete negotiations
 - ✓ Run scenarios and sensitivity analysis
-- ✓ View all proposals
+- ✓ View all proposals and negotiations
 - ✓ Manage users
 - ✓ View audit logs
 
@@ -460,10 +461,12 @@ The system has three roles with different permissions:
 **Can:**
 - ✓ Create new proposals
 - ✓ Edit own proposals
+- ✓ Create and manage negotiations
+- ✓ Add counter-offers to negotiations
 - ✓ Run scenarios and sensitivity analysis
 - ✓ Compare proposals
 - ✓ Export reports (PDF, Excel)
-- ✓ View all proposals
+- ✓ View all proposals and negotiations
 
 **Cannot:**
 - ✗ Configure system settings
@@ -475,11 +478,13 @@ The system has three roles with different permissions:
 #### VIEWER
 **Can:**
 - ✓ View proposals (read-only)
+- ✓ View negotiations and timelines (read-only)
 - ✓ View scenarios and comparisons
 - ✓ Export reports
 
 **Cannot:**
 - ✗ Create or edit proposals
+- ✗ Create or edit negotiations
 - ✗ Run new scenarios
 - ✗ Configure anything
 - ✗ Manage users
@@ -710,6 +715,6 @@ For technical support or questions:
 
 ---
 
-**Document Version:** 1.0
-**Last Updated:** November 2024
+**Document Version:** 2.0
+**Last Updated:** December 2025
 **Maintained By:** Documentation Agent

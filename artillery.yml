@@ -1,5 +1,7 @@
 config:
   target: "http://localhost:3000"
+  # Authentication processor for Supabase
+  processor: "./tests/load/artillery-auth.js"
   phases:
     # Warm-up phase: 5 users/sec for 30 seconds
     - duration: 30
@@ -55,6 +57,8 @@ scenarios:
   # Scenario 1: Dashboard metrics endpoint (fast, cached)
   - name: "Dashboard Metrics"
     weight: 30
+    beforeScenario: "beforeScenario"
+    beforeRequest: "setAuthCookies"
     flow:
       - get:
           url: "/api/dashboard/metrics"
@@ -69,6 +73,8 @@ scenarios:
   # Scenario 2: List proposals (moderate load)
   - name: "List Proposals"
     weight: 25
+    beforeScenario: "beforeScenario"
+    beforeRequest: "setAuthCookies"
     flow:
       - get:
           url: "/api/proposals"
@@ -82,6 +88,8 @@ scenarios:
   # Scenario 3: Get specific proposal (moderate load)
   - name: "Get Proposal"
     weight: 20
+    beforeScenario: "beforeScenario"
+    beforeRequest: "setAuthCookies"
     flow:
       - get:
           url: "/api/proposals"
@@ -98,6 +106,8 @@ scenarios:
   # Scenario 4: Calculate financials (heavy computation)
   - name: "Calculate Financials"
     weight: 15
+    beforeScenario: "beforeScenario"
+    beforeRequest: "setAuthCookies"
     flow:
       - post:
           url: "/api/proposals/calculate"

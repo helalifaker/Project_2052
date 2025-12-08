@@ -21,7 +21,7 @@ import {
   chartResponsive,
   areaChartConfig,
 } from "@/lib/design-tokens/chart-config";
-import { getSeriesColor, chartColors } from "@/lib/design-tokens/chart-colors";
+import { getSeriesColor } from "@/lib/design-tokens/chart-colors";
 import { CustomTooltip } from "./CustomTooltip";
 
 /**
@@ -55,15 +55,15 @@ export interface AreaSeries {
  */
 export interface BaseAreaChartProps {
   /** Chart data array */
-  data: any[];
+  data: Record<string, unknown>[];
   /** Area series configuration */
   series: AreaSeries[];
   /** X-axis data key */
   xAxisKey: string;
   /** Optional X-axis label formatter */
-  xAxisFormatter?: (value: any) => string;
+  xAxisFormatter?: (value: string | number) => string;
   /** Optional Y-axis label formatter */
-  yAxisFormatter?: (value: any) => string;
+  yAxisFormatter?: (value: string | number) => string;
   /** Show legend (default: true for multiple series) */
   showLegend?: boolean;
   /** Show grid lines (default: true) */
@@ -76,6 +76,10 @@ export interface BaseAreaChartProps {
   tooltipFormat?: "millions" | "billions" | "percent" | "number";
   /** Additional className */
   className?: string;
+  /** Accessible label for the chart (WCAG 1.1.1) */
+  ariaLabel?: string;
+  /** Detailed description for screen readers */
+  ariaDescription?: string;
 }
 
 /**
@@ -146,12 +150,30 @@ export const BaseAreaChart = React.memo(function BaseAreaChart({
   tooltipContent,
   tooltipFormat = "millions",
   className,
+  ariaLabel,
+  ariaDescription,
 }: BaseAreaChartProps) {
   // Auto-enable legend for multiple series
-  const displayLegend = showLegend !== undefined ? showLegend : series.length > 1;
+  const displayLegend =
+    showLegend !== undefined ? showLegend : series.length > 1;
+
+  // Generate a unique ID for aria-describedby (always call useId to follow hooks rules)
+  const uniqueId = React.useId();
+  const descriptionId = ariaDescription ? `chart-desc-${uniqueId}` : undefined;
 
   return (
-    <div className={className}>
+    <figure
+      role="img"
+      aria-label={ariaLabel || "Area chart visualization"}
+      aria-describedby={descriptionId}
+      className={className}
+    >
+      {/* Screen reader description */}
+      {ariaDescription && (
+        <figcaption id={descriptionId} className="sr-only">
+          {ariaDescription}
+        </figcaption>
+      )}
       <ResponsiveContainer width="100%" height={height}>
         <AreaChart data={data} margin={chartSpacing.margin}>
           {/* Gradient Definitions */}
@@ -196,9 +218,7 @@ export const BaseAreaChart = React.memo(function BaseAreaChart({
 
           {/* Tooltip */}
           <Tooltip
-            content={
-              tooltipContent || <CustomTooltip format={tooltipFormat} />
-            }
+            content={tooltipContent || <CustomTooltip format={tooltipFormat} />}
             {...getTooltipProps()}
           />
 
@@ -222,7 +242,9 @@ export const BaseAreaChart = React.memo(function BaseAreaChart({
                 strokeWidth={s.strokeWidth || areaChartConfig.strokeWidth}
                 fill={fillColor}
                 fillOpacity={
-                  s.useGradient ? 1 : (s.fillOpacity || areaChartConfig.fillOpacity)
+                  s.useGradient
+                    ? 1
+                    : s.fillOpacity || areaChartConfig.fillOpacity
                 }
                 stackId={s.stackId}
                 animationDuration={chartAnimation.duration}
@@ -232,6 +254,6 @@ export const BaseAreaChart = React.memo(function BaseAreaChart({
           })}
         </AreaChart>
       </ResponsiveContainer>
-    </div>
+    </figure>
   );
 });

@@ -11,7 +11,6 @@ import Decimal from "decimal.js";
 import { prisma } from "@/lib/prisma";
 import { authenticateUserWithRole } from "@/middleware/auth";
 import { Role } from "@/lib/types/roles";
-import type { InputJsonValue } from "@/lib/types/prisma-helpers";
 import {
   calculateWithTimeout,
   CalculationTimeoutError,
@@ -19,6 +18,7 @@ import {
 import type { CalculationEngineOutput } from "@/lib/engine/core/types";
 import {
   reconstructCalculationInput,
+  CalculationConfigError,
   type ProposalRecord,
 } from "@/lib/proposals/reconstruct-calculation-input";
 import {
@@ -167,6 +167,19 @@ export async function POST(
     });
   } catch (error) {
     console.error("❌ Recalculation failed:", error);
+
+    // Handle configuration errors with specific status and details
+    if (error instanceof CalculationConfigError) {
+      return NextResponse.json(
+        {
+          error: "Configuration missing",
+          code: error.code,
+          configType: error.configType,
+          message: error.userMessage,
+        },
+        { status: 400 }, // 400 = client can fix this by configuring the system
+      );
+    }
 
     return NextResponse.json(
       {

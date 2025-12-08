@@ -581,6 +581,7 @@ export interface CalculationEngineOutput {
     totalNetIncome: Decimal;
     totalRent: Decimal; // Sum of all rent expenses across all periods
     totalEbitda: Decimal; // Sum of all EBITDA across all periods
+    avgEbitda: Decimal; // Average EBITDA per year (totalEbitda / periodCount)
     averageROE: Decimal;
     peakDebt: Decimal;
     maxDebt: Decimal; // Alias for peakDebt for UI compatibility

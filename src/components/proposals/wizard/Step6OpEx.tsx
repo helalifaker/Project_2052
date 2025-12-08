@@ -10,6 +10,11 @@ import { z } from "zod";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Card } from "@/components/ui/card";
 import type { ProposalFormData } from "./types";
+import {
+  DEFAULT_STAFF,
+  DEFAULT_OTHER_OPEX_PERCENT,
+  OPEX_PERCENTAGE_RANGE,
+} from "@/lib/constants";
 
 const step6Schema = z.object({
   studentsPerTeacher: z
@@ -46,24 +51,32 @@ export function Step6OpEx({
   onPrevious,
 }: Step6OpExProps) {
   const form = useProposalForm(step6Schema, {
-    studentsPerTeacher: data?.studentsPerTeacher || 14,
-    studentsPerNonTeacher: data?.studentsPerNonTeacher || 50,
-    avgTeacherSalary: data?.avgTeacherSalary || 60000, // $60k average
-    avgAdminSalary: data?.avgAdminSalary || 50000, // $50k average
-    cpiRate: data?.cpiRate ?? 3,
-    cpiFrequency: data?.cpiFrequency ?? 1,
+    studentsPerTeacher:
+      data?.studentsPerTeacher || DEFAULT_STAFF.studentsPerTeacher,
+    studentsPerNonTeacher:
+      data?.studentsPerNonTeacher || DEFAULT_STAFF.studentsPerNonTeacher,
+    avgTeacherSalary: data?.avgTeacherSalary || DEFAULT_STAFF.avgTeacherSalary,
+    avgAdminSalary: data?.avgAdminSalary || DEFAULT_STAFF.avgAdminSalary,
+    cpiRate: data?.cpiRate ?? DEFAULT_STAFF.cpiRate,
+    cpiFrequency: data?.cpiFrequency ?? DEFAULT_STAFF.cpiFrequency,
 
     // Other OpEx
-    otherOpexPercent: data?.otherOpexPercent || 10, // 10% default (GAP 20)
+    otherOpexPercent: data?.otherOpexPercent || DEFAULT_OTHER_OPEX_PERCENT,
   });
 
-  const otherOpexPercent = form.watch("otherOpexPercent") || 10;
+  const otherOpexPercent =
+    form.watch("otherOpexPercent") || DEFAULT_OTHER_OPEX_PERCENT;
 
   const calculateVariableCostPerStudent = () => {
-    const avgTeacherSalary = form.watch("avgTeacherSalary") || 60000;
-    const avgAdminSalary = form.watch("avgAdminSalary") || 50000;
-    const studentsPerTeacher = form.watch("studentsPerTeacher") || 14;
-    const studentsPerNonTeacher = form.watch("studentsPerNonTeacher") || 50;
+    const avgTeacherSalary =
+      form.watch("avgTeacherSalary") || DEFAULT_STAFF.avgTeacherSalary;
+    const avgAdminSalary =
+      form.watch("avgAdminSalary") || DEFAULT_STAFF.avgAdminSalary;
+    const studentsPerTeacher =
+      form.watch("studentsPerTeacher") || DEFAULT_STAFF.studentsPerTeacher;
+    const studentsPerNonTeacher =
+      form.watch("studentsPerNonTeacher") ||
+      DEFAULT_STAFF.studentsPerNonTeacher;
 
     const teacherCostPerStudent = (avgTeacherSalary * 12) / studentsPerTeacher;
     const adminCostPerStudent = (avgAdminSalary * 12) / studentsPerNonTeacher;
@@ -191,8 +204,8 @@ export function Step6OpEx({
               label="Other OpEx as % of Revenue"
               type="number"
               suffix="%"
-              description="Typically 8-12% of revenue (GAP 20: Default 10%)"
-              placeholder="10"
+              description={`Typically ${OPEX_PERCENTAGE_RANGE.min}-${OPEX_PERCENTAGE_RANGE.max}% of revenue (Default ${DEFAULT_OTHER_OPEX_PERCENT}%)`}
+              placeholder={String(DEFAULT_OTHER_OPEX_PERCENT)}
             />
 
             <div className="grid gap-4 md:grid-cols-2">

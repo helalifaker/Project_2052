@@ -12,6 +12,8 @@ When analyzing lease proposals in Project Zeta:
 1. **Understand the Proposal Type**
    - Identify the rent model (FIXED_ESCALATION, REVENUE_SHARE, or PARTNER_INVESTMENT)
    - Note the negotiation status and key parameters
+   - Check proposal purpose (NEGOTIATION, STRESS_TEST, or SIMULATION)
+   - Identify origin (OUR_OFFER or THEIR_COUNTER) for context
 
 2. **Financial Viability Assessment**
    - Review projected cash flows across all three periods
@@ -28,6 +30,7 @@ When analyzing lease proposals in Project Zeta:
    - When comparing scenarios, highlight key differentiators
    - Use sensitivity analysis data when available
    - Present tornado chart insights for variable impact
+   - For negotiation threads (v2.2): Compare offers chronologically to show negotiation progression
 
 5. **Board-Level Summary**
    - Provide executive-level insights
@@ -47,3 +50,5 @@ When analyzing lease proposals in Project Zeta:
 - "Analyze this proposal for financial viability"
 - "Compare these two lease scenarios"
 - "What are the risks with this revenue share proposal?"
+- "Review the negotiation timeline and recommend next steps" (v2.2)
+- "Compare our initial offer with their counter-offer" (v2.2)

@@ -12,6 +12,29 @@ import { Role } from "@/lib/types/roles";
 import { useRouter } from "next/navigation";
 
 /**
+ * Fetch with timeout using AbortController
+ * Prevents indefinite hangs when API endpoints are slow/unresponsive
+ */
+async function fetchWithTimeout(
+  url: string,
+  options: RequestInit = {},
+  timeout = 5000,
+): Promise<Response> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeout);
+
+  try {
+    const response = await fetch(url, {
+      ...options,
+      signal: controller.signal,
+    });
+    return response;
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
+/**
  * Authenticated User Data
  */
 export interface AuthUser {
@@ -59,9 +82,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
    */
   const fetchUserData = useCallback(async (_authUserId?: string) => {
     try {
-      const response = await fetch(`/api/auth/session`, {
-        credentials: "include", // Ensure cookies are sent
-      });
+      // Use fetchWithTimeout to prevent indefinite hangs (5s timeout)
+      const response = await fetchWithTimeout(
+        `/api/auth/session`,
+        { credentials: "include" },
+        5000,
+      );
 
       if (!response.ok) {
         // If 401, user is not authenticated - this is expected
@@ -93,6 +119,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
         name: data.user.name,
       };
     } catch (error) {
+      // Handle timeout (AbortError) gracefully
+      if (error instanceof DOMException && error.name === "AbortError") {
+        console.warn("Auth session request timed out after 5 seconds");
+        return null;
+      }
       // Network errors (Failed to fetch) are common during dev server startup
       // Don't spam console with errors - just silently return null
       if (error instanceof TypeError && error.message === "Failed to fetch") {
@@ -106,6 +137,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   /**
    * Refresh user state from Supabase and database
+   * Includes timeout protection to prevent indefinite hangs
    */
   const refreshUser = useCallback(async () => {
     const supabase = createClient();
@@ -113,12 +145,25 @@ export function AuthProvider({ children }: AuthProviderProps) {
     try {
       setLoading(true);
 
-      const {
-        data: { user: authUser },
-        error,
-      } = await supabase.auth.getUser();
+      // Wrap Supabase call in Promise.race with timeout
+      const authPromise = supabase.auth.getUser();
+      const timeoutPromise = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error("Auth timeout")), 5000),
+      );
 
-      if (error || !authUser) {
+      let authUser;
+      try {
+        const { data, error } = await Promise.race([
+          authPromise,
+          timeoutPromise,
+        ]);
+        if (error || !data?.user) {
+          setUser(null);
+          return;
+        }
+        authUser = data.user;
+      } catch {
+        console.warn("Supabase auth.getUser() timed out after 5 seconds");
         setUser(null);
         return;
       }
@@ -138,12 +183,16 @@ export function AuthProvider({ children }: AuthProviderProps) {
    */
   const signOut = useCallback(async () => {
     try {
-      await fetch("/api/auth/logout", { method: "POST" });
+      // Use fetchWithTimeout for logout to prevent hanging
+      await fetchWithTimeout("/api/auth/logout", { method: "POST" }, 5000);
       setUser(null);
       router.push("/login");
       router.refresh();
     } catch (error) {
+      // Still clear user and redirect even if logout API fails
       console.error("Error signing out:", error);
+      setUser(null);
+      router.push("/login");
     }
   }, [router]);
 
@@ -179,6 +228,25 @@ export function AuthProvider({ children }: AuthProviderProps) {
         setLoading(false);
       } else if (event === "TOKEN_REFRESHED" && session?.user) {
         // Silently refresh user data on token refresh
+        // Also invalidate server-side session cache to ensure fresh role data
+        try {
+          await fetchWithTimeout(
+            "/api/auth/invalidate-session",
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({}), // Empty body = invalidate own session
+              credentials: "include",
+            },
+            3000, // Shorter timeout for non-critical operation
+          );
+        } catch {
+          // Non-critical - server cache will expire naturally
+          console.warn(
+            "Failed to invalidate server session cache on token refresh",
+          );
+        }
+
         const userData = await fetchUserData(session.user.id);
         setUser(userData);
       }

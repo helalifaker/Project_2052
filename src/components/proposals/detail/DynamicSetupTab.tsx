@@ -4,23 +4,24 @@ import { useState, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from "@/components/ui/tabs";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import {
-  Save,
-  RefreshCw,
-  Info,
-  DollarSign,
-  Building,
-} from "lucide-react";
+import { Save, RefreshCw, Info, DollarSign, Building } from "lucide-react";
 import { toast } from "sonner";
 import { CombinedProgramTab } from "./CombinedProgramTab";
 import { useRoleCheck } from "@/lib/hooks/useRoleCheck";
+import {
+  DEFAULT_ENROLLMENT as ENROLLMENT_DEFAULTS,
+  DEFAULT_CURRICULUM as CURRICULUM_DEFAULTS,
+  DEFAULT_STAFF as STAFF_DEFAULTS,
+  DEFAULT_FIXED_RENT,
+  DEFAULT_REVENUE_SHARE,
+  DEFAULT_PARTNER_INVESTMENT,
+  DYNAMIC_START_YEAR,
+  DEFAULT_RAMP_UP_END_YEAR,
+  DEFAULT_IB_START_YEAR,
+  DEFAULT_CONTRACT_PERIOD_YEARS,
+} from "@/lib/constants";
 import {
   ExecutiveCard,
   ExecutiveCardContent,
@@ -90,36 +91,37 @@ interface DynamicSetupTabProps {
 }
 
 const DEFAULT_ENROLLMENT: EnrollmentData = {
-  rampUpEnabled: true,
-  rampUpStartYear: 2028,
-  rampUpEndYear: 2032,
-  steadyStateStudents: 2000,
-  rampUpTargetStudents: 2000,
-  rampPlanPercentages: [0.2, 0.4, 0.6, 0.8, 1],
-  gradeDistribution: [],
+  rampUpEnabled: ENROLLMENT_DEFAULTS.rampUpEnabled,
+  rampUpStartYear: DYNAMIC_START_YEAR,
+  rampUpEndYear: DEFAULT_RAMP_UP_END_YEAR,
+  steadyStateStudents: ENROLLMENT_DEFAULTS.steadyStateStudents,
+  rampUpTargetStudents: ENROLLMENT_DEFAULTS.rampUpTargetStudents,
+  rampPlanPercentages: [...ENROLLMENT_DEFAULTS.rampPlanPercentages],
+  gradeDistribution: [...ENROLLMENT_DEFAULTS.gradeDistribution],
 };
 
 const DEFAULT_CURRICULUM: CurriculumData = {
-  frenchProgramEnabled: true,
-  frenchProgramPercentage: 100,
-  frenchBaseTuition2028: 30000,
-  frenchTuitionGrowthRate: 3,
-  frenchTuitionGrowthFrequency: 1,
-  ibProgramEnabled: false,
-  ibProgramPercentage: 0,
-  ibBaseTuition2028: 45000,
-  ibStartYear: 2028,
-  ibTuitionGrowthRate: 3,
-  ibTuitionGrowthFrequency: 1,
+  frenchProgramEnabled: CURRICULUM_DEFAULTS.frenchProgramEnabled,
+  frenchProgramPercentage: CURRICULUM_DEFAULTS.frenchProgramPercentage,
+  frenchBaseTuition2028: CURRICULUM_DEFAULTS.frenchBaseTuition2028,
+  frenchTuitionGrowthRate: CURRICULUM_DEFAULTS.frenchTuitionGrowthRate,
+  frenchTuitionGrowthFrequency:
+    CURRICULUM_DEFAULTS.frenchTuitionGrowthFrequency,
+  ibProgramEnabled: CURRICULUM_DEFAULTS.ibProgramEnabled,
+  ibProgramPercentage: CURRICULUM_DEFAULTS.ibProgramPercentage,
+  ibBaseTuition2028: CURRICULUM_DEFAULTS.ibBaseTuition2028,
+  ibStartYear: DEFAULT_IB_START_YEAR,
+  ibTuitionGrowthRate: CURRICULUM_DEFAULTS.ibTuitionGrowthRate,
+  ibTuitionGrowthFrequency: CURRICULUM_DEFAULTS.ibTuitionGrowthFrequency,
 };
 
 const DEFAULT_STAFF: StaffData = {
-  studentsPerTeacher: 14,
-  studentsPerNonTeacher: 50,
-  avgTeacherSalary: 60000,
-  avgAdminSalary: 50000,
-  cpiRate: 3,
-  cpiFrequency: 1,
+  studentsPerTeacher: STAFF_DEFAULTS.studentsPerTeacher,
+  studentsPerNonTeacher: STAFF_DEFAULTS.studentsPerNonTeacher,
+  avgTeacherSalary: STAFF_DEFAULTS.avgTeacherSalary,
+  avgAdminSalary: STAFF_DEFAULTS.avgAdminSalary,
+  cpiRate: STAFF_DEFAULTS.cpiRate,
+  cpiFrequency: STAFF_DEFAULTS.cpiFrequency,
 };
 
 /**
@@ -160,9 +162,18 @@ const parseStaffData = (staff: unknown): StaffData => {
   if (!s) return DEFAULT_STAFF;
 
   return {
-    studentsPerTeacher: toNumber(s.studentsPerTeacher, DEFAULT_STAFF.studentsPerTeacher),
-    studentsPerNonTeacher: toNumber(s.studentsPerNonTeacher, DEFAULT_STAFF.studentsPerNonTeacher),
-    avgTeacherSalary: toNumber(s.avgTeacherSalary, DEFAULT_STAFF.avgTeacherSalary),
+    studentsPerTeacher: toNumber(
+      s.studentsPerTeacher,
+      DEFAULT_STAFF.studentsPerTeacher,
+    ),
+    studentsPerNonTeacher: toNumber(
+      s.studentsPerNonTeacher,
+      DEFAULT_STAFF.studentsPerNonTeacher,
+    ),
+    avgTeacherSalary: toNumber(
+      s.avgTeacherSalary,
+      DEFAULT_STAFF.avgTeacherSalary,
+    ),
     avgAdminSalary: toNumber(s.avgAdminSalary, DEFAULT_STAFF.avgAdminSalary),
     cpiRate: toPercent(s.cpiRate, 0.03), // Convert decimal to percentage
     cpiFrequency: toNumber(s.cpiFrequency, DEFAULT_STAFF.cpiFrequency),
@@ -183,22 +194,31 @@ const parseCurriculumData = (curriculum: unknown): CurriculumData => {
     // Handle both wizard (frenchBaseTuition2028) and engine (nationalCurriculumFee) field names
     frenchBaseTuition2028: toNumber(
       c.frenchBaseTuition2028 || c.nationalCurriculumFee,
-      DEFAULT_CURRICULUM.frenchBaseTuition2028
+      DEFAULT_CURRICULUM.frenchBaseTuition2028,
     ),
     frenchTuitionGrowthRate: toPercent(
       c.frenchTuitionGrowthRate || c.nationalTuitionGrowthRate,
-      0.03
+      0.03,
     ),
     frenchTuitionGrowthFrequency: toNumber(
       c.frenchTuitionGrowthFrequency || c.nationalTuitionGrowthFrequency,
-      DEFAULT_CURRICULUM.frenchTuitionGrowthFrequency
+      DEFAULT_CURRICULUM.frenchTuitionGrowthFrequency,
     ),
     ibProgramEnabled: Boolean(c.ibProgramEnabled),
-    ibProgramPercentage: toPercent(c.ibProgramPercentage || c.ibStudentPercentage, 0),
-    ibBaseTuition2028: toNumber(c.ibBaseTuition2028 || c.ibCurriculumFee, DEFAULT_CURRICULUM.ibBaseTuition2028),
+    ibProgramPercentage: toPercent(
+      c.ibProgramPercentage || c.ibStudentPercentage,
+      0,
+    ),
+    ibBaseTuition2028: toNumber(
+      c.ibBaseTuition2028 || c.ibCurriculumFee,
+      DEFAULT_CURRICULUM.ibBaseTuition2028,
+    ),
     ibStartYear: toNumber(c.ibStartYear, DEFAULT_CURRICULUM.ibStartYear),
     ibTuitionGrowthRate: toPercent(c.ibTuitionGrowthRate, 0.03),
-    ibTuitionGrowthFrequency: toNumber(c.ibTuitionGrowthFrequency, DEFAULT_CURRICULUM.ibTuitionGrowthFrequency),
+    ibTuitionGrowthFrequency: toNumber(
+      c.ibTuitionGrowthFrequency,
+      DEFAULT_CURRICULUM.ibTuitionGrowthFrequency,
+    ),
   };
 };
 
@@ -218,9 +238,13 @@ const parseRentParams = (rentParams: unknown): RentParamsData => {
     revenueSharePercent: toPercent(r.revenueSharePercent), // Convert 0.15 → 15
     // Partner investment model
     partnerLandSize: toNumber(r.partnerLandSize || r.landSize), // Handle both formats
-    partnerLandPricePerSqm: toNumber(r.partnerLandPricePerSqm || r.landPricePerSqm),
+    partnerLandPricePerSqm: toNumber(
+      r.partnerLandPricePerSqm || r.landPricePerSqm,
+    ),
     partnerBuaSize: toNumber(r.partnerBuaSize || r.buaSize),
-    partnerConstructionCostPerSqm: toNumber(r.partnerConstructionCostPerSqm || r.constructionCostPerSqm),
+    partnerConstructionCostPerSqm: toNumber(
+      r.partnerConstructionCostPerSqm || r.constructionCostPerSqm,
+    ),
     partnerYieldRate: toPercent(r.partnerYieldRate || r.yieldRate), // Convert 0.09 → 9
     partnerGrowthRate: toPercent(r.partnerGrowthRate || r.growthRate), // Convert 0.02 → 2
     partnerFrequency: toNumber(r.partnerFrequency || r.frequency),
@@ -241,12 +265,23 @@ const parseEnrollmentData = (enrollment: unknown): EnrollmentData => {
 
   return {
     rampUpEnabled: Boolean(e.rampUpEnabled ?? DEFAULT_ENROLLMENT.rampUpEnabled),
-    rampUpStartYear: toNumber(e.rampUpStartYear, DEFAULT_ENROLLMENT.rampUpStartYear),
+    rampUpStartYear: toNumber(
+      e.rampUpStartYear,
+      DEFAULT_ENROLLMENT.rampUpStartYear,
+    ),
     rampUpEndYear: toNumber(e.rampUpEndYear, DEFAULT_ENROLLMENT.rampUpEndYear),
-    steadyStateStudents: toNumber(e.steadyStateStudents, DEFAULT_ENROLLMENT.steadyStateStudents),
-    rampUpTargetStudents: toNumber(e.rampUpTargetStudents, DEFAULT_ENROLLMENT.rampUpTargetStudents),
+    steadyStateStudents: toNumber(
+      e.steadyStateStudents,
+      DEFAULT_ENROLLMENT.steadyStateStudents,
+    ),
+    rampUpTargetStudents: toNumber(
+      e.rampUpTargetStudents,
+      DEFAULT_ENROLLMENT.rampUpTargetStudents,
+    ),
     rampPlanPercentages, // Converted from [0.925, 0.95, 0.975, 1.0, 1.0] to [92.5, 95, 97.5, 100, 100]
-    gradeDistribution: Array.isArray(e.gradeDistribution) ? e.gradeDistribution : [],
+    gradeDistribution: Array.isArray(e.gradeDistribution)
+      ? e.gradeDistribution
+      : [],
   };
 };
 
@@ -258,20 +293,20 @@ export function DynamicSetupTab({ proposal, onUpdate }: DynamicSetupTabProps) {
 
   // Parse and initialize form data
   const [enrollment, setEnrollment] = useState<EnrollmentData>(() =>
-    parseEnrollmentData(proposal.enrollment)
+    parseEnrollmentData(proposal.enrollment),
   );
 
   // Use parsing helpers to convert decimal percentages to display format
   const [curriculum, setCurriculum] = useState<CurriculumData>(() =>
-    parseCurriculumData(proposal.curriculum)
+    parseCurriculumData(proposal.curriculum),
   );
 
   const [rentParams, setRentParams] = useState<RentParamsData>(() =>
-    parseRentParams(proposal.rentParams)
+    parseRentParams(proposal.rentParams),
   );
 
   const [staff, setStaff] = useState<StaffData>(() =>
-    parseStaffData(proposal.staff)
+    parseStaffData(proposal.staff),
   );
 
   const [otherOpexPercent, setOtherOpexPercent] = useState<number>(() => {
@@ -284,26 +319,98 @@ export function DynamicSetupTab({ proposal, onUpdate }: DynamicSetupTabProps) {
     (field: keyof EnrollmentData, value: unknown) => {
       setEnrollment((prev) => ({ ...prev, [field]: value }));
     },
-    []
+    [],
   );
 
   const updateCurriculum = useCallback(
     (field: keyof CurriculumData, value: unknown) => {
       setCurriculum((prev) => ({ ...prev, [field]: value }));
     },
-    []
+    [],
   );
 
   const updateRentParams = useCallback(
     (field: keyof RentParamsData, value: unknown) => {
       setRentParams((prev) => ({ ...prev, [field]: value }));
     },
-    []
+    [],
   );
 
   const updateStaff = useCallback((field: keyof StaffData, value: unknown) => {
     setStaff((prev) => ({ ...prev, [field]: value }));
   }, []);
+
+  /**
+   * Build rent params object for API based on the current rent model
+   * Only includes fields relevant to the selected model and filters out 0/undefined values
+   */
+  const buildRentParamsForApi = () => {
+    const rentModel = proposal.rentModel;
+
+    if (rentModel === "FIXED_ESCALATION") {
+      return {
+        baseRent:
+          rentParams.baseRent && rentParams.baseRent > 0
+            ? rentParams.baseRent
+            : undefined,
+        rentGrowthRate:
+          rentParams.rentGrowthRate && rentParams.rentGrowthRate > 0
+            ? rentParams.rentGrowthRate / 100
+            : undefined,
+        rentFrequency:
+          rentParams.rentFrequency && rentParams.rentFrequency >= 1
+            ? rentParams.rentFrequency
+            : undefined,
+      };
+    }
+
+    if (rentModel === "REVENUE_SHARE") {
+      return {
+        revenueSharePercent:
+          rentParams.revenueSharePercent && rentParams.revenueSharePercent > 0
+            ? rentParams.revenueSharePercent / 100
+            : undefined,
+      };
+    }
+
+    if (rentModel === "PARTNER_INVESTMENT") {
+      return {
+        partnerLandSize:
+          rentParams.partnerLandSize && rentParams.partnerLandSize > 0
+            ? rentParams.partnerLandSize
+            : undefined,
+        partnerLandPricePerSqm:
+          rentParams.partnerLandPricePerSqm &&
+          rentParams.partnerLandPricePerSqm > 0
+            ? rentParams.partnerLandPricePerSqm
+            : undefined,
+        partnerBuaSize:
+          rentParams.partnerBuaSize && rentParams.partnerBuaSize > 0
+            ? rentParams.partnerBuaSize
+            : undefined,
+        partnerConstructionCostPerSqm:
+          rentParams.partnerConstructionCostPerSqm &&
+          rentParams.partnerConstructionCostPerSqm > 0
+            ? rentParams.partnerConstructionCostPerSqm
+            : undefined,
+        partnerYieldRate:
+          rentParams.partnerYieldRate && rentParams.partnerYieldRate > 0
+            ? rentParams.partnerYieldRate / 100
+            : undefined,
+        partnerGrowthRate:
+          rentParams.partnerGrowthRate && rentParams.partnerGrowthRate > 0
+            ? rentParams.partnerGrowthRate / 100
+            : undefined,
+        partnerFrequency:
+          rentParams.partnerFrequency && rentParams.partnerFrequency >= 1
+            ? rentParams.partnerFrequency
+            : undefined,
+      };
+    }
+
+    // Fallback: return empty object for unknown rent models
+    return {};
+  };
 
   const handleSave = async () => {
     try {
@@ -318,13 +425,8 @@ export function DynamicSetupTab({ proposal, onUpdate }: DynamicSetupTabProps) {
         ibTuitionGrowthRate: curriculum.ibTuitionGrowthRate / 100,
       };
 
-      const rentParamsForApi = {
-        ...rentParams,
-        rentGrowthRate: rentParams.rentGrowthRate ? rentParams.rentGrowthRate / 100 : undefined,
-        revenueSharePercent: rentParams.revenueSharePercent ? rentParams.revenueSharePercent / 100 : undefined,
-        partnerYieldRate: rentParams.partnerYieldRate ? rentParams.partnerYieldRate / 100 : undefined,
-        partnerGrowthRate: rentParams.partnerGrowthRate ? rentParams.partnerGrowthRate / 100 : undefined,
-      };
+      // Build rent params based on the rent model (only relevant fields)
+      const rentParamsForApi = buildRentParamsForApi();
 
       const staffForApi = {
         ...staff,
@@ -334,7 +436,7 @@ export function DynamicSetupTab({ proposal, onUpdate }: DynamicSetupTabProps) {
       // Convert enrollment percentages from display format (92.5) to decimal format (0.925) for API
       const enrollmentForApi = {
         ...enrollment,
-        rampPlanPercentages: enrollment.rampPlanPercentages.map(p => p / 100),
+        rampPlanPercentages: enrollment.rampPlanPercentages.map((p) => p / 100),
       };
 
       const response = await fetch(`/api/proposals/${proposal.id}`, {
@@ -350,7 +452,19 @@ export function DynamicSetupTab({ proposal, onUpdate }: DynamicSetupTabProps) {
       });
 
       if (!response.ok) {
-        throw new Error("Failed to save dynamic setup");
+        const errorData = await response.json().catch(() => ({}));
+        const errorMessage = errorData.error || "Failed to save dynamic setup";
+        const errorDetails = errorData.details
+          ? errorData.details
+              .map(
+                (d: { path: string[]; message: string }) =>
+                  `${d.path.join(".")}: ${d.message}`,
+              )
+              .join(", ")
+          : "";
+        throw new Error(
+          errorDetails ? `${errorMessage}: ${errorDetails}` : errorMessage,
+        );
       }
 
       const updatedProposal = await response.json();
@@ -358,7 +472,9 @@ export function DynamicSetupTab({ proposal, onUpdate }: DynamicSetupTabProps) {
       toast.success("Dynamic setup saved");
     } catch (error) {
       console.error("Error saving dynamic setup:", error);
-      toast.error("Failed to save dynamic setup");
+      toast.error(
+        error instanceof Error ? error.message : "Failed to save dynamic setup",
+      );
     } finally {
       setSaving(false);
     }
@@ -377,13 +493,8 @@ export function DynamicSetupTab({ proposal, onUpdate }: DynamicSetupTabProps) {
         ibTuitionGrowthRate: curriculum.ibTuitionGrowthRate / 100,
       };
 
-      const rentParamsForApi = {
-        ...rentParams,
-        rentGrowthRate: rentParams.rentGrowthRate ? rentParams.rentGrowthRate / 100 : undefined,
-        revenueSharePercent: rentParams.revenueSharePercent ? rentParams.revenueSharePercent / 100 : undefined,
-        partnerYieldRate: rentParams.partnerYieldRate ? rentParams.partnerYieldRate / 100 : undefined,
-        partnerGrowthRate: rentParams.partnerGrowthRate ? rentParams.partnerGrowthRate / 100 : undefined,
-      };
+      // Build rent params based on the rent model (only relevant fields)
+      const rentParamsForApi = buildRentParamsForApi();
 
       const staffForApi = {
         ...staff,
@@ -392,7 +503,7 @@ export function DynamicSetupTab({ proposal, onUpdate }: DynamicSetupTabProps) {
 
       const enrollmentForApi = {
         ...enrollment,
-        rampPlanPercentages: enrollment.rampPlanPercentages.map(p => p / 100),
+        rampPlanPercentages: enrollment.rampPlanPercentages.map((p) => p / 100),
       };
 
       // First save any pending changes
@@ -409,7 +520,20 @@ export function DynamicSetupTab({ proposal, onUpdate }: DynamicSetupTabProps) {
       });
 
       if (!saveResponse.ok) {
-        throw new Error("Failed to save changes before recalculation");
+        const errorData = await saveResponse.json().catch(() => ({}));
+        const errorMessage =
+          errorData.error || "Failed to save changes before recalculation";
+        const errorDetails = errorData.details
+          ? errorData.details
+              .map(
+                (d: { path: string[]; message: string }) =>
+                  `${d.path.join(".")}: ${d.message}`,
+              )
+              .join(", ")
+          : "";
+        throw new Error(
+          errorDetails ? `${errorMessage}: ${errorDetails}` : errorMessage,
+        );
       }
 
       // Then recalculate
@@ -418,7 +542,7 @@ export function DynamicSetupTab({ proposal, onUpdate }: DynamicSetupTabProps) {
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-        }
+        },
       );
 
       if (!recalcResponse.ok) {
@@ -432,7 +556,7 @@ export function DynamicSetupTab({ proposal, onUpdate }: DynamicSetupTabProps) {
     } catch (error) {
       console.error("Error recalculating:", error);
       toast.error(
-        error instanceof Error ? error.message : "Failed to recalculate"
+        error instanceof Error ? error.message : "Failed to recalculate",
       );
     } finally {
       setRecalculating(false);
@@ -441,8 +565,9 @@ export function DynamicSetupTab({ proposal, onUpdate }: DynamicSetupTabProps) {
 
   const renderRentForm = () => {
     const rentModel = proposal.rentModel;
-    const contractPeriodYears = (proposal.contractPeriodYears as number) || 30;
-    const contractEndYear = 2028 + contractPeriodYears - 1;
+    const contractPeriodYears =
+      (proposal.contractPeriodYears as number) || DEFAULT_CONTRACT_PERIOD_YEARS;
+    const contractEndYear = DYNAMIC_START_YEAR + contractPeriodYears - 1;
 
     return (
       <ExecutiveCard>
@@ -451,26 +576,49 @@ export function DynamicSetupTab({ proposal, onUpdate }: DynamicSetupTabProps) {
             <div className="flex items-center gap-3">
               <Building className="h-6 w-6 text-primary" />
               <div>
-                <ExecutiveCardTitle className="text-lg">Rent Model Parameters</ExecutiveCardTitle>
+                <ExecutiveCardTitle className="text-lg">
+                  Rent Model Parameters
+                </ExecutiveCardTitle>
                 <p className="text-sm text-muted-foreground">
                   Model: <strong>{rentModel}</strong>
                 </p>
               </div>
             </div>
 
-            {/* Contract Period Badge */}
-            <div className="flex items-center gap-2 px-4 py-2 rounded-lg bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800">
+            {/* Contract Period Badge - Atelier Gold */}
+            <div
+              className="flex items-center gap-2 px-4 py-2 rounded-lg border"
+              style={{
+                backgroundColor: "var(--atelier-craft-gold-soft)",
+                borderColor: "var(--accent-gold)",
+              }}
+            >
               <div className="flex items-center gap-1.5">
-                <div className="h-2 w-2 rounded-full bg-amber-500 animate-pulse" />
-                <span className="text-xs font-medium text-amber-900 dark:text-amber-100">
+                <div
+                  className="h-2 w-2 rounded-full animate-pulse"
+                  style={{ backgroundColor: "var(--accent-gold)" }}
+                />
+                <span
+                  className="text-xs font-medium"
+                  style={{ color: "var(--accent-gold)" }}
+                >
                   Contract Period
                 </span>
               </div>
-              <div className="h-4 w-px bg-amber-300 dark:bg-amber-700" />
-              <div className="text-sm font-bold text-amber-900 dark:text-amber-100">
+              <div
+                className="h-4 w-px"
+                style={{ backgroundColor: "var(--accent-gold)" }}
+              />
+              <div
+                className="text-sm font-bold"
+                style={{ color: "var(--accent-gold)" }}
+              >
                 2028-{contractEndYear}
               </div>
-              <div className="text-xs text-amber-700 dark:text-amber-300">
+              <div
+                className="text-xs"
+                style={{ color: "var(--text-secondary)" }}
+              >
                 ({contractPeriodYears} years)
               </div>
             </div>
@@ -483,8 +631,8 @@ export function DynamicSetupTab({ proposal, onUpdate }: DynamicSetupTabProps) {
               <Alert>
                 <Info className="h-4 w-4" />
                 <AlertDescription>
-                  <strong>Fixed Escalation:</strong> Base rent increases by a fixed
-                  percentage at specified intervals.
+                  <strong>Fixed Escalation:</strong> Base rent increases by a
+                  fixed percentage at specified intervals.
                 </AlertDescription>
               </Alert>
 
@@ -493,11 +641,11 @@ export function DynamicSetupTab({ proposal, onUpdate }: DynamicSetupTabProps) {
                   <Label>Base Rent (SAR)</Label>
                   <Input
                     type="number"
-                    value={rentParams.baseRent || 10000000}
+                    value={rentParams.baseRent || DEFAULT_FIXED_RENT.baseRent}
                     onChange={(e) =>
                       updateRentParams(
                         "baseRent",
-                        parseInt(e.target.value) || 0
+                        parseInt(e.target.value) || 0,
                       )
                     }
                     className="font-mono"
@@ -507,11 +655,13 @@ export function DynamicSetupTab({ proposal, onUpdate }: DynamicSetupTabProps) {
                   <Label>Growth Rate (%)</Label>
                   <Input
                     type="number"
-                    value={rentParams.rentGrowthRate || 3}
+                    value={
+                      rentParams.rentGrowthRate || DEFAULT_FIXED_RENT.growthRate
+                    }
                     onChange={(e) =>
                       updateRentParams(
                         "rentGrowthRate",
-                        parseFloat(e.target.value) || 0
+                        parseFloat(e.target.value) || 0,
                       )
                     }
                     step={0.5}
@@ -522,11 +672,13 @@ export function DynamicSetupTab({ proposal, onUpdate }: DynamicSetupTabProps) {
                   <Label>Frequency (years)</Label>
                   <Input
                     type="number"
-                    value={rentParams.rentFrequency || 1}
+                    value={
+                      rentParams.rentFrequency || DEFAULT_FIXED_RENT.frequency
+                    }
                     onChange={(e) =>
                       updateRentParams(
                         "rentFrequency",
-                        parseInt(e.target.value) || 1
+                        parseInt(e.target.value) || 1,
                       )
                     }
                     min={1}
@@ -543,8 +695,8 @@ export function DynamicSetupTab({ proposal, onUpdate }: DynamicSetupTabProps) {
               <Alert>
                 <Info className="h-4 w-4" />
                 <AlertDescription>
-                  <strong>Revenue Share:</strong> Rent is calculated as a percentage
-                  of total school revenue.
+                  <strong>Revenue Share:</strong> Rent is calculated as a
+                  percentage of total school revenue.
                 </AlertDescription>
               </Alert>
 
@@ -552,11 +704,14 @@ export function DynamicSetupTab({ proposal, onUpdate }: DynamicSetupTabProps) {
                 <Label>Revenue Share (%)</Label>
                 <Input
                   type="number"
-                  value={rentParams.revenueSharePercent || 15}
+                  value={
+                    rentParams.revenueSharePercent ||
+                    DEFAULT_REVENUE_SHARE.revenueSharePercent
+                  }
                   onChange={(e) =>
                     updateRentParams(
                       "revenueSharePercent",
-                      parseFloat(e.target.value) || 0
+                      parseFloat(e.target.value) || 0,
                     )
                   }
                   step={0.5}
@@ -576,8 +731,8 @@ export function DynamicSetupTab({ proposal, onUpdate }: DynamicSetupTabProps) {
               <Alert>
                 <Info className="h-4 w-4" />
                 <AlertDescription>
-                  <strong>Partner Investment:</strong> Rent based on total investment
-                  (land + construction) multiplied by yield rate.
+                  <strong>Partner Investment:</strong> Rent based on total
+                  investment (land + construction) multiplied by yield rate.
                 </AlertDescription>
               </Alert>
 
@@ -586,11 +741,14 @@ export function DynamicSetupTab({ proposal, onUpdate }: DynamicSetupTabProps) {
                   <Label>Land Size (m2)</Label>
                   <Input
                     type="number"
-                    value={rentParams.partnerLandSize || 10000}
+                    value={
+                      rentParams.partnerLandSize ||
+                      DEFAULT_PARTNER_INVESTMENT.landSize
+                    }
                     onChange={(e) =>
                       updateRentParams(
                         "partnerLandSize",
-                        parseInt(e.target.value) || 0
+                        parseInt(e.target.value) || 0,
                       )
                     }
                     className="font-mono"
@@ -600,11 +758,14 @@ export function DynamicSetupTab({ proposal, onUpdate }: DynamicSetupTabProps) {
                   <Label>Land Price (SAR/m2)</Label>
                   <Input
                     type="number"
-                    value={rentParams.partnerLandPricePerSqm || 5000}
+                    value={
+                      rentParams.partnerLandPricePerSqm ||
+                      DEFAULT_PARTNER_INVESTMENT.landPricePerSqm
+                    }
                     onChange={(e) =>
                       updateRentParams(
                         "partnerLandPricePerSqm",
-                        parseInt(e.target.value) || 0
+                        parseInt(e.target.value) || 0,
                       )
                     }
                     className="font-mono"
@@ -614,11 +775,14 @@ export function DynamicSetupTab({ proposal, onUpdate }: DynamicSetupTabProps) {
                   <Label>BUA Size (m2)</Label>
                   <Input
                     type="number"
-                    value={rentParams.partnerBuaSize || 20000}
+                    value={
+                      rentParams.partnerBuaSize ||
+                      DEFAULT_PARTNER_INVESTMENT.buaSize
+                    }
                     onChange={(e) =>
                       updateRentParams(
                         "partnerBuaSize",
-                        parseInt(e.target.value) || 0
+                        parseInt(e.target.value) || 0,
                       )
                     }
                     className="font-mono"
@@ -628,11 +792,14 @@ export function DynamicSetupTab({ proposal, onUpdate }: DynamicSetupTabProps) {
                   <Label>Construction Cost (SAR/m2)</Label>
                   <Input
                     type="number"
-                    value={rentParams.partnerConstructionCostPerSqm || 2500}
+                    value={
+                      rentParams.partnerConstructionCostPerSqm ||
+                      DEFAULT_PARTNER_INVESTMENT.constructionCostPerSqm
+                    }
                     onChange={(e) =>
                       updateRentParams(
                         "partnerConstructionCostPerSqm",
-                        parseInt(e.target.value) || 0
+                        parseInt(e.target.value) || 0,
                       )
                     }
                     className="font-mono"
@@ -642,11 +809,14 @@ export function DynamicSetupTab({ proposal, onUpdate }: DynamicSetupTabProps) {
                   <Label>Yield Rate (%)</Label>
                   <Input
                     type="number"
-                    value={rentParams.partnerYieldRate || 9}
+                    value={
+                      rentParams.partnerYieldRate ||
+                      DEFAULT_PARTNER_INVESTMENT.yieldRate
+                    }
                     onChange={(e) =>
                       updateRentParams(
                         "partnerYieldRate",
-                        parseFloat(e.target.value) || 0
+                        parseFloat(e.target.value) || 0,
                       )
                     }
                     step={0.5}
@@ -657,11 +827,14 @@ export function DynamicSetupTab({ proposal, onUpdate }: DynamicSetupTabProps) {
                   <Label>Growth Rate (%)</Label>
                   <Input
                     type="number"
-                    value={rentParams.partnerGrowthRate || 2}
+                    value={
+                      rentParams.partnerGrowthRate ||
+                      DEFAULT_PARTNER_INVESTMENT.growthRate
+                    }
                     onChange={(e) =>
                       updateRentParams(
                         "partnerGrowthRate",
-                        parseFloat(e.target.value) || 0
+                        parseFloat(e.target.value) || 0,
                       )
                     }
                     step={0.5}
@@ -672,11 +845,14 @@ export function DynamicSetupTab({ proposal, onUpdate }: DynamicSetupTabProps) {
                   <Label>Growth Frequency (years)</Label>
                   <Input
                     type="number"
-                    value={rentParams.partnerFrequency || 1}
+                    value={
+                      rentParams.partnerFrequency ||
+                      DEFAULT_PARTNER_INVESTMENT.frequency
+                    }
                     onChange={(e) =>
                       updateRentParams(
                         "partnerFrequency",
-                        parseInt(e.target.value) || 1
+                        parseInt(e.target.value) || 1,
                       )
                     }
                     min={1}
@@ -721,9 +897,9 @@ export function DynamicSetupTab({ proposal, onUpdate }: DynamicSetupTabProps) {
                       SAR{" "}
                       {(
                         (rentParams.partnerLandSize || 10000) *
-                        (rentParams.partnerLandPricePerSqm || 5000) +
+                          (rentParams.partnerLandPricePerSqm || 5000) +
                         (rentParams.partnerBuaSize || 20000) *
-                        (rentParams.partnerConstructionCostPerSqm || 2500)
+                          (rentParams.partnerConstructionCostPerSqm || 2500)
                       ).toLocaleString()}
                     </span>
                   </div>
@@ -749,7 +925,9 @@ export function DynamicSetupTab({ proposal, onUpdate }: DynamicSetupTabProps) {
         <div className="flex items-center gap-3">
           <DollarSign className="h-6 w-6 text-primary" />
           <div>
-            <ExecutiveCardTitle className="text-lg">Operating Expenses</ExecutiveCardTitle>
+            <ExecutiveCardTitle className="text-lg">
+              Operating Expenses
+            </ExecutiveCardTitle>
             <p className="text-sm text-muted-foreground">
               Configure staff costs and other OpEx
             </p>
@@ -769,7 +947,10 @@ export function DynamicSetupTab({ proposal, onUpdate }: DynamicSetupTabProps) {
                 type="number"
                 value={staff.studentsPerTeacher}
                 onChange={(e) =>
-                  updateStaff("studentsPerTeacher", parseInt(e.target.value) || 1)
+                  updateStaff(
+                    "studentsPerTeacher",
+                    parseInt(e.target.value) || 1,
+                  )
                 }
                 min={1}
                 className="font-mono"
@@ -786,7 +967,7 @@ export function DynamicSetupTab({ proposal, onUpdate }: DynamicSetupTabProps) {
                 onChange={(e) =>
                   updateStaff(
                     "studentsPerNonTeacher",
-                    parseInt(e.target.value) || 1
+                    parseInt(e.target.value) || 1,
                   )
                 }
                 min={1}
@@ -884,7 +1065,7 @@ export function DynamicSetupTab({ proposal, onUpdate }: DynamicSetupTabProps) {
               <span className="font-mono font-semibold">
                 SAR{" "}
                 {Math.round(
-                  (staff.avgTeacherSalary * 12) / staff.studentsPerTeacher
+                  (staff.avgTeacherSalary * 12) / staff.studentsPerTeacher,
                 ).toLocaleString()}
               </span>
             </div>
@@ -893,7 +1074,7 @@ export function DynamicSetupTab({ proposal, onUpdate }: DynamicSetupTabProps) {
               <span className="font-mono font-semibold">
                 SAR{" "}
                 {Math.round(
-                  (staff.avgAdminSalary * 12) / staff.studentsPerNonTeacher
+                  (staff.avgAdminSalary * 12) / staff.studentsPerNonTeacher,
                 ).toLocaleString()}
               </span>
             </div>
@@ -905,7 +1086,7 @@ export function DynamicSetupTab({ proposal, onUpdate }: DynamicSetupTabProps) {
                 SAR{" "}
                 {Math.round(
                   (staff.avgTeacherSalary * 12) / staff.studentsPerTeacher +
-                  (staff.avgAdminSalary * 12) / staff.studentsPerNonTeacher
+                    (staff.avgAdminSalary * 12) / staff.studentsPerNonTeacher,
                 ).toLocaleString()}
               </span>
             </div>
@@ -948,7 +1129,8 @@ export function DynamicSetupTab({ proposal, onUpdate }: DynamicSetupTabProps) {
             <Alert className="max-w-md">
               <Info className="h-4 w-4" />
               <AlertDescription>
-                You have read-only access. Only ADMIN and PLANNER roles can edit proposals.
+                You have read-only access. Only ADMIN and PLANNER roles can edit
+                proposals.
               </AlertDescription>
             </Alert>
           )}

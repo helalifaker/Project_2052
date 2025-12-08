@@ -6,11 +6,12 @@
 3. [Financial Concepts](#financial-concepts)
 4. [Calculations & Formulas](#calculations--formulas)
 5. [Proposals & Workflow](#proposals--workflow)
-6. [Scenarios & Sensitivity](#scenarios--sensitivity)
-7. [Comparisons](#comparisons)
-8. [Exports & Reports](#exports--reports)
-9. [Troubleshooting](#troubleshooting)
-10. [Technical Questions](#technical-questions)
+6. [Negotiations](#negotiations)
+7. [Scenarios & Sensitivity](#scenarios--sensitivity)
+8. [Comparisons](#comparisons)
+9. [Exports & Reports](#exports--reports)
+10. [Troubleshooting](#troubleshooting)
+11. [Technical Questions](#technical-questions)
 
 ---
 
@@ -487,6 +488,109 @@ Ending Cash = Beginning Cash + Net Change
 
 ---
 
+## Negotiations
+
+### What is a Negotiation?
+
+A **Negotiation** is a grouping entity that organizes all proposals related to a specific developer and property combination. Think of it as a "thread" or "folder" containing all offers exchanged with a landlord during a lease negotiation.
+
+**Key concepts:**
+- One negotiation = one developer + one property
+- Contains multiple proposals (offers and counter-offers)
+- Has its own status (ACTIVE, ACCEPTED, REJECTED, CLOSED)
+- Timeline view shows offer sequence
+
+### How do I create a new negotiation?
+
+1. Navigate to Negotiations page
+2. Click "New Negotiation"
+3. Enter developer name and property
+4. Optionally add notes
+5. Create or link the first proposal
+
+The negotiation is created with ACTIVE status.
+
+### What's the difference between Negotiation status and Proposal status?
+
+**Negotiation Status** (thread-level):
+- ACTIVE: Ongoing negotiations
+- ACCEPTED: Deal agreed
+- REJECTED: Negotiation failed
+- CLOSED: Ended (neutral)
+
+**Proposal Status** (per-offer):
+- DRAFT, READY_TO_SUBMIT, SUBMITTED, UNDER_REVIEW, COUNTER_RECEIVED, EVALUATING_COUNTER, ACCEPTED, REJECTED, NEGOTIATION_CLOSED
+
+You need to update both separately. A negotiation might be ACCEPTED even if some proposals within it are REJECTED.
+
+### How do I add a counter-offer to a negotiation?
+
+1. Open the negotiation timeline
+2. Click "Add Counter"
+3. Choose: Create New, Duplicate & Edit, or Link Existing
+4. Set origin: OUR_OFFER (our counter) or THEIR_COUNTER (their counter)
+5. Complete the proposal wizard (if creating new)
+6. The offer appears in the timeline
+
+### What do OUR_OFFER and THEIR_COUNTER mean?
+
+**OUR_OFFER**: A proposal created by our organization to send to the developer
+**THEIR_COUNTER**: A counter-offer received from the developer
+
+The timeline uses color coding:
+- Blue: OUR_OFFER
+- Orange: THEIR_COUNTER
+
+### Can I have multiple negotiations with the same developer?
+
+Yes, but each must be for a **different property**. One negotiation = one unique developer + property combination.
+
+Examples:
+- Developer ABC / Downtown Campus → Negotiation 1
+- Developer ABC / North District → Negotiation 2
+
+### How do I view all offers in a negotiation?
+
+Click on any negotiation card to open the **Timeline View**. This shows:
+- All proposals in chronological order
+- Offer number (1, 2, 3...)
+- Origin (OUR/THEIR)
+- Status of each offer
+- Key metrics (NPV, Total Rent)
+
+### Can I move a proposal to a different negotiation?
+
+Yes. Unlink it from the current negotiation and link it to another. Steps:
+1. Open the current negotiation
+2. Find the proposal
+3. Click "Unlink" or remove from thread
+4. Open the target negotiation
+5. Click "Link Proposal" and select it
+
+### What happens if I delete a negotiation?
+
+Deleting a negotiation will also delete all proposals within it. This is **permanent**.
+
+**Better alternative:** Change the negotiation status to CLOSED instead. This preserves the history for audit purposes.
+
+### How do I reopen a CLOSED negotiation?
+
+Simply change the status back to ACTIVE. All history (offers, notes, statuses) is preserved.
+
+### Can Viewers see negotiations?
+
+Yes, Viewers can:
+- ✓ View all negotiations and timelines
+- ✓ See offer history and metrics
+- ✓ Export reports
+
+Viewers cannot:
+- ✗ Create or edit negotiations
+- ✗ Add counter-offers
+- ✗ Update statuses
+
+---
+
 ## Scenarios & Sensitivity
 
 ### What's the difference between scenarios and sensitivity analysis?
@@ -871,15 +975,15 @@ Message: [Description of error]
 ### What technology is the system built on?
 
 **Tech stack:**
-- **Frontend**: Next.js 15 (App Router), React 19, TypeScript
+- **Frontend**: Next.js 16 (App Router), React 19, TypeScript 5
 - **Backend**: Next.js API Routes (serverless)
 - **Database**: PostgreSQL (via Supabase or self-hosted)
-- **ORM**: Prisma
+- **ORM**: Prisma 7
 - **Calculations**: Decimal.js (high-precision math)
 - **Charts**: Recharts
-- **Styling**: Tailwind CSS + shadcn/ui
+- **Styling**: Tailwind CSS 4 + shadcn/ui
 
-For details, see [Technical Documentation: Architecture](../technical/ARCHITECTURE.md)
+For details, see [Technical Documentation: Architecture](../technical/architecture.md)
 
 ### How is data stored?
 
@@ -971,6 +1075,6 @@ For details, see [Technical Documentation: Architecture](../technical/ARCHITECTU
 
 ---
 
-**Document Version:** 1.0
-**Last Updated:** November 2024
+**Document Version:** 2.0
+**Last Updated:** December 2025
 **Maintained By:** Documentation Agent

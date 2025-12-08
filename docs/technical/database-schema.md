@@ -13,38 +13,55 @@ The system uses **PostgreSQL 14+** as the primary database with **Prisma ORM** f
 ```
 ┌──────────────┐
 │     User     │
-│─────────────────┐
+│──────────────┤
 │ id (PK)      │
 │ email (UNIQUE)│
 │ name         │
-│ role         │──────┐
-│ createdAt    │      │
-└──────────────┘      │
-       │              │
-       │ creates      │
-       │              │
-       ▼              │
-┌──────────────────────────────┐
-│      LeaseProposal           │
-│──────────────────────────────┤
-│ id (PK)                      │
-│ name                         │
-│ rentModel                    │
-│ createdBy (FK → User)        │◄─────┘
-│ transition (JSON)            │
+│ role         │────────────────────────────────────┐
+│ createdAt    │                                    │
+└──────────────┘                                    │
+       │                                            │
+       │ creates                                    │
+       │                                            │
+       ▼                                            │
+┌────────────────────────┐                          │
+│     Negotiation        │                          │
+│────────────────────────┤                          │
+│ id (PK)                │                          │
+│ developer              │                          │
+│ property               │                          │
+│ status (ENUM)          │                          │
+│ notes                  │                          │
+│ createdBy (FK → User)  │◄─────────────────────────┤
+│ createdAt, updatedAt   │                          │
+│ UNIQUE(developer,      │                          │
+│        property)       │                          │
+└──────────┬─────────────┘                          │
+           │                                        │
+           │ has many                               │
+           │                                        │
+           ▼                                        │
+┌──────────────────────────────┐                    │
+│      LeaseProposal           │                    │
+│──────────────────────────────┤                    │
+│ id (PK)                      │                    │
+│ name                         │                    │
+│ rentModel                    │                    │
+│ createdBy (FK → User)        │◄───────────────────┘
+│ negotiationId (FK)           │───► Negotiation
+│ purpose (ENUM)               │
+│ offerNumber                  │
+│ origin (ENUM)                │
+│ status (ENUM)                │
 │ enrollment (JSON)            │
 │ curriculum (JSON)            │
 │ staff (JSON)                 │
 │ rentParams (JSON)            │
-│ otherOpex                    │
+│ otherOpexPercent             │
 │ financials (JSON)            │
 │ metrics (JSON)               │
-│ developer                    │
-│ property                     │
-│ negotiationRound             │
+│ contractPeriodYears          │
 │ parentProposalId (FK self)   │──┐
-│ origin (ENUM)                │  │
-│ status (ENUM)                │  │
 │ createdAt, updatedAt         │  │
 └──────────────┬───────────────┘  │
                │                  │ parent-child
@@ -103,10 +120,25 @@ The system uses **PostgreSQL 14+** as the primary database with **Prisma ORM** f
 │ zakatRate        │
 │ debtInterestRate │
 │ depositIntRate   │
+│ discountRate     │
 │ minCashBalance   │
 │ confirmedAt      │
 │ updatedBy (FK)   │
 └──────────────────┘
+
+┌──────────────────────┐
+│ TransitionConfig     │
+│──────────────────────┤
+│ id (PK)              │
+│ year2025Students     │
+│ year2025AvgTuition   │
+│ year2026Students     │
+│ year2026AvgTuition   │
+│ year2027Students     │
+│ year2027AvgTuition   │
+│ rentGrowthPercent    │
+│ createdAt, updatedAt │
+└──────────────────────┘
 
 ┌──────────────────────┐
 │ HistoricalData       │
@@ -142,6 +174,36 @@ The system uses **PostgreSQL 14+** as the primary database with **Prisma ORM** f
 │ reinvestFrequency    │
 │ reinvestAmount       │
 │ reinvestAmountPercent│
+│ useCategoryReinvest  │
+└──────────────────────┘
+
+┌──────────────────────┐
+│ CapExCategory        │
+│──────────────────────┤
+│ id (PK)              │
+│ type (ENUM)          │
+│ name                 │
+│ usefulLife           │
+│ reinvestFrequency    │
+│ reinvestAmount       │
+│ reinvestStartYear    │
+│ createdAt, updatedAt │
+│ UNIQUE(type)         │
+└──────────────────────┘
+         │
+         │ has many
+         ▼
+┌──────────────────────┐
+│ CapExTransition      │
+│──────────────────────┤
+│ id (PK)              │
+│ proposalId (FK)      │
+│ categoryId (FK)      │
+│ year (2025-2027)     │
+│ amount               │
+│ createdAt, updatedAt │
+│ UNIQUE(proposalId,   │
+│   categoryId, year)  │
 └──────────────────────┘
 ```
 
@@ -167,13 +229,49 @@ The system uses **PostgreSQL 14+** as the primary database with **Prisma ORM** f
 
 **Relationships:**
 - `proposalsCreated`: One-to-many with LeaseProposal
+- `negotiationsCreated`: One-to-many with Negotiation
 - `configUpdates`: One-to-many with SystemConfig
 - `scenariosCreated`: One-to-many with Scenario
 - `sensitivityAnalysesCreated`: One-to-many with SensitivityAnalysis
 
 ---
 
-### 2. LeaseProposal
+### 2. Negotiation
+
+**Purpose:** Parent entity for grouping proposals by developer + property negotiation (v2.2)
+
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| id | String (UUID) | PRIMARY KEY | Unique negotiation identifier |
+| developer | String | NOT NULL | Developer/landlord company name |
+| property | String | NOT NULL | Property/site name |
+| status | Enum (NegotiationStatus) | DEFAULT ACTIVE | Negotiation status |
+| notes | String | NULLABLE | General negotiation notes |
+| createdBy | String (UUID) | FK → User.id | Creator user ID |
+| createdAt | DateTime | DEFAULT now() | Creation timestamp |
+| updatedAt | DateTime | AUTO UPDATE | Last update timestamp |
+
+**Indexes:**
+- Primary key on `id`
+- **Unique constraint** on `(developer, property)` - one negotiation per developer+property
+- Index on `status` for filtering
+- Index on `createdBy` for user's negotiations
+
+**Relationships:**
+- `creator`: Many-to-one with User
+- `proposals`: One-to-many with LeaseProposal
+
+**Enums:**
+
+**NegotiationStatus:**
+- `ACTIVE`: Negotiation in progress
+- `ACCEPTED`: Deal agreed
+- `REJECTED`: Deal declined
+- `CLOSED`: Negotiation ended (archived)
+
+---
+
+### 3. LeaseProposal
 
 **Purpose:** Store lease proposals with inputs and calculated results
 
@@ -185,41 +283,56 @@ The system uses **PostgreSQL 14+** as the primary database with **Prisma ORM** f
 | createdBy | String (UUID) | FK → User.id | Creator user ID |
 | createdAt | DateTime | DEFAULT now() | Creation timestamp |
 | updatedAt | DateTime | AUTO UPDATE | Last update timestamp |
-| transition | JSON | NOT NULL | Transition period inputs (2025-2027) |
 | enrollment | JSON | NOT NULL | Enrollment projections |
 | curriculum | JSON | NOT NULL | Curriculum & tuition |
 | staff | JSON | NOT NULL | Staff cost assumptions |
 | rentParams | JSON | NOT NULL | Rent model parameters |
-| otherOpex | Decimal | NOT NULL | Other operating expenses |
+| otherOpexPercent | Decimal | NOT NULL | Other OpEx as % of revenue (e.g., 0.31 = 31%) |
 | financials | JSON | NULLABLE | Calculated financial statements (30 years) |
 | metrics | JSON | NULLABLE | Calculated metrics (NPV, IRR, etc.) |
 | calculatedAt | DateTime | NULLABLE | When financials were last calculated |
-| developer | String | NULLABLE | Developer/landlord name |
-| property | String | NULLABLE | Property name |
-| negotiationRound | Int | DEFAULT 1 | Negotiation round number |
+| transitionConfigUpdatedAt | DateTime | NULLABLE | Audit trail for TransitionConfig used |
+| contractPeriodYears | Int | DEFAULT 30 | Dynamic period: 25 or 30 years |
+| **Negotiation Context (v2.2)** | | | |
+| negotiationId | String (UUID) | FK → Negotiation.id, NULLABLE | Link to parent negotiation |
+| purpose | Enum | DEFAULT SIMULATION | NEGOTIATION, STRESS_TEST, or SIMULATION |
+| offerNumber | Int | NULLABLE | Sequential: 1, 2, 3... (null for non-negotiation) |
+| developer | String | NULLABLE | DEPRECATED: Use negotiation.developer |
+| property | String | NULLABLE | DEPRECATED: Use negotiation.property |
+| negotiationRound | Int | DEFAULT 1 | DEPRECATED: Use offerNumber |
 | version | String | NULLABLE | Proposal version |
 | origin | Enum | DEFAULT OUR_OFFER | "OUR_OFFER" or "THEIR_COUNTER" |
 | status | Enum | DEFAULT DRAFT | Proposal status (see enum below) |
-| parentProposalId | String (UUID) | FK → LeaseProposal.id | Parent proposal (for counters) |
+| parentProposalId | String (UUID) | FK → LeaseProposal.id | Parent proposal (for versions) |
+| **Timeline Tracking (v2.1)** | | | |
 | submittedDate | DateTime | NULLABLE | When submitted to developer |
 | responseReceivedDate | DateTime | NULLABLE | When response received |
+| **Notes & Context (v2.1)** | | | |
 | negotiationNotes | String | NULLABLE | Internal negotiation notes |
 | boardComments | String | NULLABLE | Board comments |
 
 **Indexes:**
 - Primary key on `id`
-- Index on `(developer, property, negotiationRound)` for negotiation threads
+- Index on `negotiationId` for fetching proposals by negotiation
 - Index on `status` for filtering
+- Index on `createdBy` for user's proposals
 
 **Relationships:**
 - `creator`: Many-to-one with User
+- `negotiation`: Many-to-one with Negotiation (optional)
 - `assets`: One-to-many with CapExAsset
-- `parentProposal`: Self-referential (parent-child negotiation sequence)
+- `transitionCapex`: One-to-many with CapExTransition
+- `parentProposal`: Self-referential (parent-child versioning)
 - `childProposals`: Reverse of parentProposal
 - `scenarios`: One-to-many with Scenario
 - `sensitivityAnalyses`: One-to-many with SensitivityAnalysis
 
 **Enums:**
+
+**ProposalPurpose:**
+- `NEGOTIATION`: Part of a negotiation workflow
+- `STRESS_TEST`: What-if analysis after negotiation finalized
+- `SIMULATION`: Standalone simulation (default)
 
 **ProposalOrigin:**
 - `OUR_OFFER`: Proposal originated from us
@@ -238,7 +351,7 @@ The system uses **PostgreSQL 14+** as the primary database with **Prisma ORM** f
 
 ---
 
-### 3. SystemConfig
+### 4. SystemConfig
 
 **Purpose:** Store global system configuration (Zakat rate, interest rates, minimum cash)
 
@@ -248,6 +361,7 @@ The system uses **PostgreSQL 14+** as the primary database with **Prisma ORM** f
 | zakatRate | Decimal | DEFAULT 0.025 | Zakat rate (e.g., 0.025 = 2.5%) |
 | debtInterestRate | Decimal | DEFAULT 0.05 | Debt interest rate (e.g., 0.05 = 5%) |
 | depositInterestRate | Decimal | DEFAULT 0.02 | Deposit interest rate (e.g., 0.02 = 2%) |
+| discountRate | Decimal | DEFAULT 0.08 | NPV discount rate (WACC/hurdle rate) |
 | minCashBalance | Decimal | DEFAULT 1000000 | Minimum cash balance (SAR) |
 | confirmedAt | DateTime | NULLABLE | When config was confirmed |
 | updatedBy | String (UUID) | FK → User.id | User who updated config |
@@ -264,7 +378,7 @@ The system uses **PostgreSQL 14+** as the primary database with **Prisma ORM** f
 
 ---
 
-### 4. HistoricalData
+### 5. HistoricalData
 
 **Purpose:** Store actual historical financial data (2023-2024)
 
@@ -310,7 +424,7 @@ The system uses **PostgreSQL 14+** as the primary database with **Prisma ORM** f
 
 ---
 
-### 5. WorkingCapitalRatios
+### 6. WorkingCapitalRatios
 
 **Purpose:** Store working capital ratios calculated from 2024 data
 
@@ -334,7 +448,34 @@ The system uses **PostgreSQL 14+** as the primary database with **Prisma ORM** f
 
 ---
 
-### 6. CapExAsset
+### 7. TransitionConfig
+
+**Purpose:** Store transition period assumptions (2025-2027)
+
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| id | String (UUID) | PRIMARY KEY | Config ID |
+| year2025Students | Int | NOT NULL | Student count for 2025 |
+| year2025AvgTuition | Decimal | NOT NULL | Average tuition for 2025 |
+| year2026Students | Int | NOT NULL | Student count for 2026 |
+| year2026AvgTuition | Decimal | NOT NULL | Average tuition for 2026 |
+| year2027Students | Int | NOT NULL | Student count for 2027 |
+| year2027AvgTuition | Decimal | NOT NULL | Average tuition for 2027 |
+| rentGrowthPercent | Decimal | NOT NULL | Rent growth % as decimal (e.g., 0.05 = 5%) |
+| createdAt | DateTime | DEFAULT now() | Creation timestamp |
+| updatedAt | DateTime | AUTO UPDATE | Last update timestamp |
+| updatedBy | String | NULLABLE | User who updated config |
+
+**Indexes:**
+- Primary key on `id`
+
+**Usage:**
+- Used by all proposals during transition period calculations
+- Updated separately from proposals
+
+---
+
+### 8. CapExAsset
 
 **Purpose:** Store capital expenditure assets (both OLD and NEW)
 
@@ -365,7 +506,67 @@ The system uses **PostgreSQL 14+** as the primary database with **Prisma ORM** f
 
 ---
 
-### 7. CapExConfig
+### 9. CapExCategory
+
+**Purpose:** Store CapEx category definitions with reinvestment settings
+
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| id | String (UUID) | PRIMARY KEY | Category ID |
+| type | Enum (CapExCategoryType) | UNIQUE | Category type (fixed) |
+| name | String | NOT NULL | Display name |
+| usefulLife | Int | NOT NULL | Depreciation years for NEW assets |
+| reinvestFrequency | Int | NULLABLE | Years between auto-reinvestments |
+| reinvestAmount | Decimal | NULLABLE | Fixed SAR per reinvestment cycle |
+| reinvestStartYear | Int | NULLABLE | Year when reinvestment begins (e.g., 2029) |
+| createdAt | DateTime | DEFAULT now() | Creation timestamp |
+| updatedAt | DateTime | AUTO UPDATE | Last update timestamp |
+
+**Indexes:**
+- Primary key on `id`
+- Unique index on `type`
+
+**Enums:**
+
+**CapExCategoryType:**
+- `IT_EQUIPMENT`: Computers, servers, software
+- `FURNITURE`: Desks, chairs, storage
+- `EDUCATIONAL_EQUIPMENT`: Lab equipment, teaching aids
+- `BUILDING`: Building improvements, fixtures
+
+**Relationships:**
+- `assets`: One-to-many with CapExAsset
+- `transitionData`: One-to-many with CapExTransition
+
+---
+
+### 10. CapExTransition
+
+**Purpose:** Store per-category CapEx amounts for transition period (2025-2027)
+
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| id | String (UUID) | PRIMARY KEY | Record ID |
+| proposalId | String (UUID) | FK → LeaseProposal.id | Linked proposal |
+| categoryId | String (UUID) | FK → CapExCategory.id | Category reference |
+| year | Int | NOT NULL | Year (2025, 2026, or 2027) |
+| amount | Decimal(18,2) | NOT NULL | Amount in SAR |
+| createdAt | DateTime | DEFAULT now() | Creation timestamp |
+| updatedAt | DateTime | AUTO UPDATE | Last update timestamp |
+
+**Indexes:**
+- Primary key on `id`
+- **Unique constraint** on `(proposalId, categoryId, year)`
+- Index on `proposalId`
+- Index on `categoryId`
+
+**Relationships:**
+- `proposal`: Many-to-one with LeaseProposal
+- `category`: Many-to-one with CapExCategory
+
+---
+
+### 11. CapExConfig
 
 **Purpose:** Configure automatic capital reinvestment
 
@@ -376,6 +577,7 @@ The system uses **PostgreSQL 14+** as the primary database with **Prisma ORM** f
 | reinvestFrequency | Int | NULLABLE | Reinvestment frequency (years) |
 | reinvestAmount | Decimal | NULLABLE | Fixed reinvestment amount (SAR) |
 | reinvestAmountPercent | Decimal | NULLABLE | Reinvestment as % of revenue |
+| useCategoryReinvestment | Boolean | DEFAULT false | Use per-category reinvestment instead of global |
 
 **Indexes:**
 - Primary key on `id`
@@ -386,7 +588,7 @@ The system uses **PostgreSQL 14+** as the primary database with **Prisma ORM** f
 
 ---
 
-### 8. Scenario
+### 12. Scenario
 
 **Purpose:** Store saved scenario analyses (what-if projections)
 
@@ -418,7 +620,7 @@ The system uses **PostgreSQL 14+** as the primary database with **Prisma ORM** f
 
 ---
 
-### 9. SensitivityAnalysis
+### 13. SensitivityAnalysis
 
 **Purpose:** Store saved sensitivity analyses (tornado charts)
 
@@ -607,6 +809,6 @@ psql -h hostname -U username -d dbname < backup.sql
 
 ---
 
-**Document Version:** 1.0
-**Last Updated:** November 2024
+**Document Version:** 2.0
+**Last Updated:** December 2025
 **Maintained By:** Documentation Agent

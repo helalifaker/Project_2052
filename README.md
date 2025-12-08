@@ -7,6 +7,7 @@ A financial planning application for 30-year lease proposal analysis (2023-2053)
 Project Zeta provides board-level decision support for evaluating school facility lease proposals through:
 - Three calculation periods (Historical, Transition, Dynamic)
 - Three rent models (Fixed Escalation, Revenue Share, Partner Investment)
+- Full negotiation workflow management with timeline tracking
 - Interactive scenario analysis with real-time recalculation
 - Complete financial statements (P&L, Balance Sheet, Cash Flow)
 
@@ -39,6 +40,7 @@ Open [http://localhost:3000](http://localhost:3000)
 | [docs/user-guide/](docs/user-guide/) | User guides by role |
 | [docs/technical/](docs/technical/) | Technical reference |
 | [docs/development/](docs/development/) | Development standards |
+| [docs/features/negotiations/](docs/features/negotiations/) | Negotiation workflow guide |
 
 ## Tech Stack
 

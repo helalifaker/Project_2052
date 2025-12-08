@@ -100,9 +100,7 @@ export function ScenariosTab({ proposal }: ScenariosTabProps) {
   useEffect(() => {
     const fetchBaseline = async () => {
       try {
-        const response = await fetch(
-          `/api/proposals/${proposal.id}/scenarios`,
-        );
+        const response = await fetch(`/api/proposals/${proposal.id}/scenarios`);
         if (response.ok) {
           const data = await response.json();
 
@@ -149,46 +147,49 @@ export function ScenariosTab({ proposal }: ScenariosTabProps) {
   // ==========================================================================
 
   const calculateScenario = useCallback(
-    debounce(async (variables: {
-      enrollmentPercent: number;
-      cpiPercent: number;
-      tuitionGrowthPercent: number;
-      rentEscalationPercent: number;
-    }) => {
-      setIsCalculating(true);
+    debounce(
+      async (variables: {
+        enrollmentPercent: number;
+        cpiPercent: number;
+        tuitionGrowthPercent: number;
+        rentEscalationPercent: number;
+      }) => {
+        setIsCalculating(true);
 
-      try {
-        const response = await fetch(
-          `/api/proposals/${proposal.id}/scenarios`,
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(variables),
-          },
-        );
+        try {
+          const response = await fetch(
+            `/api/proposals/${proposal.id}/scenarios`,
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(variables),
+            },
+          );
 
-        const data = await response.json();
+          const data = await response.json();
 
-        if (!response.ok) {
-          throw new Error(data.message || data.error || "Calculation failed");
+          if (!response.ok) {
+            throw new Error(data.message || data.error || "Calculation failed");
+          }
+
+          // Update time series for charts
+          if (data.timeSeriesData) {
+            setTimeSeriesData(data.timeSeriesData);
+          }
+
+          setComparison(data.comparison);
+          setCalculationTime(data.performance?.totalTimeMs ?? null);
+        } catch (error) {
+          console.error("Error calculating scenario:", error);
+          const message =
+            error instanceof Error ? error.message : "Failed to calculate";
+          toast.error(message);
+        } finally {
+          setIsCalculating(false);
         }
-
-        // Update time series for charts
-        if (data.timeSeriesData) {
-          setTimeSeriesData(data.timeSeriesData);
-        }
-
-        setComparison(data.comparison);
-        setCalculationTime(data.performance?.totalTimeMs ?? null);
-      } catch (error) {
-        console.error("Error calculating scenario:", error);
-        const message =
-          error instanceof Error ? error.message : "Failed to calculate";
-        toast.error(message);
-      } finally {
-        setIsCalculating(false);
-      }
-    }, 300),
+      },
+      300,
+    ),
     [proposal.id],
   );
 
@@ -411,8 +412,9 @@ export function ScenariosTab({ proposal }: ScenariosTabProps) {
             <div className="space-y-4">
               <div className="flex justify-between items-center">
                 <Label
-                  className={`text-base ${isRentEscalationDisabled ? "text-muted-foreground" : ""
-                    }`}
+                  className={`text-base ${
+                    isRentEscalationDisabled ? "text-muted-foreground" : ""
+                  }`}
                 >
                   Rent Escalation Rate
                 </Label>
@@ -469,15 +471,26 @@ export function ScenariosTab({ proposal }: ScenariosTabProps) {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b">
-                      <th className="text-left py-2 font-semibold text-muted-foreground uppercase tracking-wider text-xs">Metric</th>
-                      <th className="text-right py-2 font-semibold text-muted-foreground uppercase tracking-wider text-xs">Baseline</th>
-                      <th className="text-right py-2 font-semibold text-muted-foreground uppercase tracking-wider text-xs">Scenario</th>
-                      <th className="text-right py-2 font-semibold text-muted-foreground uppercase tracking-wider text-xs">Change</th>
+                      <th className="text-left py-2 font-semibold text-muted-foreground uppercase tracking-wider text-xs">
+                        Metric
+                      </th>
+                      <th className="text-right py-2 font-semibold text-muted-foreground uppercase tracking-wider text-xs">
+                        Baseline
+                      </th>
+                      <th className="text-right py-2 font-semibold text-muted-foreground uppercase tracking-wider text-xs">
+                        Scenario
+                      </th>
+                      <th className="text-right py-2 font-semibold text-muted-foreground uppercase tracking-wider text-xs">
+                        Change
+                      </th>
                     </tr>
                   </thead>
                   <tbody>
                     {Object.entries(comparison).map(([metric, data]) => (
-                      <tr key={metric} className="border-b hover:bg-muted/50 transition-colors">
+                      <tr
+                        key={metric}
+                        className="border-b hover:bg-muted/50 transition-colors"
+                      >
                         <td className="py-3 font-medium">
                           {formatMetricName(metric)}
                         </td>
@@ -488,12 +501,15 @@ export function ScenariosTab({ proposal }: ScenariosTabProps) {
                           {formatCurrency(data.current)}
                         </td>
                         <td
-                          className={`text-right py-3 font-semibold font-mono ${parseFloat(data.percentChange) > 0
-                              ? "text-green-600"
-                              : parseFloat(data.percentChange) < 0
-                                ? "text-red-600"
-                                : ""
-                            }`}
+                          className="text-right py-3 font-semibold font-mono"
+                          style={{
+                            color:
+                              parseFloat(data.percentChange) > 0
+                                ? "var(--financial-positive)"
+                                : parseFloat(data.percentChange) < 0
+                                  ? "var(--financial-negative)"
+                                  : undefined,
+                          }}
                         >
                           {formatPercent(data.percentChange)}
                         </td>
@@ -511,10 +527,20 @@ export function ScenariosTab({ proposal }: ScenariosTabProps) {
             {/* Interpretation Helper */}
             <div className="mt-6 pt-4 border-t">
               <p className="text-xs text-muted-foreground">
-                <span className="text-green-600 font-medium">Green</span> =
-                favorable change |{" "}
-                <span className="text-red-600 font-medium">Red</span> = unfavorable
-                change
+                <span
+                  style={{ color: "var(--financial-positive)" }}
+                  className="font-medium"
+                >
+                  Green
+                </span>{" "}
+                = favorable change |{" "}
+                <span
+                  style={{ color: "var(--financial-negative)" }}
+                  className="font-medium"
+                >
+                  Red
+                </span>{" "}
+                = unfavorable change
               </p>
             </div>
           </ExecutiveCardContent>

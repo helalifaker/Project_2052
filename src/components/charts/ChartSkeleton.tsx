@@ -12,10 +12,10 @@
  * - Dark mode support via CSS variables
  */
 
-import { chartResponsive } from '@/lib/design-tokens/chart-config';
-import { spacing, componentRadius } from '@/lib/design-tokens/spacing';
+import { chartResponsive } from "@/lib/design-tokens/chart-config";
+import { componentRadius } from "@/lib/design-tokens/spacing";
 
-type ChartType = 'line' | 'bar' | 'area';
+type ChartType = "line" | "bar" | "area";
 
 interface ChartSkeletonProps {
   /**
@@ -39,7 +39,7 @@ interface ChartSkeletonProps {
 /**
  * Skeleton Component - Shimmer-animated placeholder
  */
-function Skeleton({ className = '' }: { className?: string }) {
+function Skeleton({ className = "" }: { className?: string }) {
   return (
     <div
       className={`animate-shimmer bg-gradient-to-r from-muted via-muted to-muted/70 ${className}`}
@@ -139,11 +139,23 @@ function BarChartSkeleton() {
       <div className="h-full flex items-flex-end justify-between gap-2 pb-2">
         {[...Array(6)].map((_, i) => {
           // Varying heights for visual interest
-          const heights = ['h-1/3', 'h-1/2', 'h-2/3', 'h-3/4', 'h-1/2', 'h-1/3'];
+          const heights = [
+            "h-1/3",
+            "h-1/2",
+            "h-2/3",
+            "h-3/4",
+            "h-1/2",
+            "h-1/3",
+          ];
           return (
-            <div key={`bar-${i}`} className="flex-1 flex flex-col items-center justify-end">
+            <div
+              key={`bar-${i}`}
+              className="flex-1 flex flex-col items-center justify-end"
+            >
               {/* Single bar */}
-              <Skeleton className={`w-full ${heights[i]} rounded-t opacity-70`} />
+              <Skeleton
+                className={`w-full ${heights[i]} rounded-t opacity-70`}
+              />
               {/* Spacing below bar */}
               <div className="h-2" />
             </div>
@@ -171,9 +183,23 @@ function AreaChartSkeleton() {
       >
         {/* Defs for gradient */}
         <defs>
-          <linearGradient id="skeleton-gradient" x1="0%" y1="0%" x2="0%" y2="100%">
-            <stop offset="0%" stopColor="hsl(var(--color-muted))" stopOpacity="0.3" />
-            <stop offset="100%" stopColor="hsl(var(--color-muted))" stopOpacity="0.05" />
+          <linearGradient
+            id="skeleton-gradient"
+            x1="0%"
+            y1="0%"
+            x2="0%"
+            y2="100%"
+          >
+            <stop
+              offset="0%"
+              stopColor="hsl(var(--color-muted))"
+              stopOpacity="0.3"
+            />
+            <stop
+              offset="100%"
+              stopColor="hsl(var(--color-muted))"
+              stopOpacity="0.05"
+            />
           </linearGradient>
         </defs>
 
@@ -219,9 +245,9 @@ function AreaChartSkeleton() {
  * ```
  */
 export function ChartSkeleton({
-  type = 'line',
+  type = "line",
   height = chartResponsive.defaultHeight,
-  className = '',
+  className = "",
 }: ChartSkeletonProps) {
   const componentClass = `
     relative bg-card border border-border rounded-${componentRadius.card}
@@ -229,18 +255,15 @@ export function ChartSkeleton({
   `.trim();
 
   return (
-    <div
-      className={componentClass}
-      style={{ height: `${height}px` }}
-    >
+    <div className={componentClass} style={{ height: `${height}px` }}>
       {/* Background shimmer */}
       <div className="absolute inset-0 bg-gradient-to-br from-muted/5 to-transparent pointer-events-none" />
 
       {/* Chart-specific skeleton */}
       <div className="relative w-full h-full">
-        {type === 'line' && <LineChartSkeleton />}
-        {type === 'bar' && <BarChartSkeleton />}
-        {type === 'area' && <AreaChartSkeleton />}
+        {type === "line" && <LineChartSkeleton />}
+        {type === "bar" && <BarChartSkeleton />}
+        {type === "area" && <AreaChartSkeleton />}
       </div>
     </div>
   );

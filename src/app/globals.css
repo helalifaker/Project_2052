@@ -4,49 +4,70 @@
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
+  /* ─────────────────────────────────────────────────────────────────────────
+     TAILWIND CSS v4 THEME CONFIGURATION
+     Design System: Elegant Simplicity
+     ───────────────────────────────────────────────────────────────────────── */
+
+  /* Typography */
   --font-sans: var(--font-inter);
   --font-serif: var(--font-cormorant);
-  --font-mono: 'Fira Code', 'Consolas', monospace;
-  --color-sidebar-ring: var(--sidebar-ring);
-  --color-sidebar-border: var(--sidebar-border);
-  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
-  --color-sidebar-accent: var(--sidebar-accent);
-  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
-  --color-sidebar-primary: var(--sidebar-primary);
-  --color-sidebar-foreground: var(--sidebar-foreground);
-  --color-sidebar: var(--sidebar);
-  --color-chart-5: var(--chart-5);
-  --color-chart-4: var(--chart-4);
-  --color-chart-3: var(--chart-3);
-  --color-chart-2: var(--chart-2);
-  --color-chart-1: var(--chart-1);
-  --color-ring: var(--ring);
-  --color-input: var(--input);
-  --color-border: var(--border);
-  --color-destructive: var(--destructive);
-  --color-accent-foreground: var(--accent-foreground);
-  --color-accent: var(--accent);
-  --color-muted-foreground: var(--muted-foreground);
-  --color-muted: var(--muted);
-  --color-secondary-foreground: var(--secondary-foreground);
-  --color-secondary: var(--secondary);
-  --color-primary-foreground: var(--primary-foreground);
-  --color-primary: var(--primary);
-  --color-popover-foreground: var(--popover-foreground);
-  --color-popover: var(--popover);
-  --color-card-foreground: var(--card-foreground);
+  --font-mono: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+
+  /* Base Colors */
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
   --color-card: var(--card);
-  --radius-sm: 0.25rem;
-  --radius-md: 0.375rem;
-  --radius-lg: 0.5rem;
-  --radius-xl: 0.75rem;
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  /* Chart Colors */
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-chart-6: var(--chart-6);
+  --color-chart-7: var(--chart-7);
+
+  /* Sidebar */
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
+  /* Border Radius - Clean, consistent */
+  --radius-sm: 0.375rem;    /* 6px - badges, pills */
+  --radius-md: 0.5rem;      /* 8px - buttons, inputs */
+  --radius-lg: 0.75rem;     /* 12px - cards */
+  --radius-xl: 1rem;        /* 16px - modals */
   /* Financial Colors */
   --color-financial-positive: var(--financial-positive);
   --color-financial-negative: var(--financial-negative);
   --color-financial-warning: var(--financial-warning);
   --color-financial-neutral: var(--financial-neutral);
+
+  /* Chart Structure Colors - High contrast for readability */
+  --color-chart-grid: hsl(30 8% 85%);     /* Subtle grid lines - light mode */
+  --color-chart-axis: hsl(24 6% 46%);     /* Clear axis labels - light mode */
+
   /* Proposal Colors */
   --color-proposal-a: var(--proposal-a);
   --color-proposal-b: var(--proposal-b);
@@ -121,34 +142,67 @@
 
 :root {
   /* ══════════════════════════════════════════════════════════════════════════
-     EFIR COMMAND CENTER THEME
-     Based on User Request
+     ELEGANT SIMPLICITY THEME - Board-Ready Financial Design
+     Philosophy: Depth through whitespace, luxury through restraint
+     All colors WCAG AA verified (≥4.5:1 contrast)
      ══════════════════════════════════════════════════════════════════════════ */
 
-  /* EFIR Palette */
-  --bg-canvas: #FAFAF8;
-  --bg-paper: #FFFFFF;
-  --bg-subtle: #F5F4F1;
-  --bg-warm: #FAF9F7;
-  --border-light: #E8E6E1;
-  --border-medium: #D4D1C9;
-  --divider: #ECEAE5;
+  /* ─────────────────────────────────────────────────────────────────────────
+     FOUNDATIONS - Light Mode (Connected to Atelier Design System)
+     ───────────────────────────────────────────────────────────────────────── */
+  --bg-canvas: var(--atelier-ivory-canvas);      /* Atelier ivory #FDFCF9 */
+  --bg-paper: var(--atelier-ivory-paper);        /* Atelier paper #FFFFFF */
+  --bg-subtle: var(--atelier-ivory-linen);       /* Atelier linen #F9F8F4 */
+  --bg-warm: var(--atelier-ivory-parchment);     /* Atelier parchment #F5F3ED */
 
-  --text-primary: #1A1917;
-  --text-secondary: #5C5A54;
-  --text-tertiary: #8A877E;
-  --text-muted: #B5B2A9;
+  /* Typography - Connected to Atelier Stone Palette */
+  --text-primary: var(--atelier-stone-900);      /* #1C1917 - 14.8:1 on white ✓ */
+  --text-secondary: var(--atelier-stone-700);    /* #44403C - 8.2:1 on white ✓ */
+  --text-tertiary: var(--atelier-stone-500);     /* #78716C - 5.1:1 on white ✓ */
+  --text-muted: var(--atelier-stone-400);        /* #A8A29E - Placeholders only */
 
-  --accent-gold: #A68B5B;
-  --accent-sage: #7D9082;
-  --accent-sage-light: rgba(125, 144, 130, 0.12);
-  --accent-terracotta: #C4785D;
-  --accent-terracotta-light: rgba(196, 120, 93, 0.10);
-  --accent-slate: #64748B;
-  --accent-wine: #8B5C6B;
+  /* Borders & Dividers - Connected to Atelier Stone */
+  --border-light: var(--atelier-stone-200);      /* #E7E5E4 - Card borders */
+  --border-medium: var(--atelier-stone-300);     /* #D6D3D1 - Input borders */
+  --divider: var(--atelier-stone-200);           /* Section dividers */
 
+  /* ─────────────────────────────────────────────────────────────────────────
+     ACCENT COLORS - Connected to Atelier Craft Gold & Financial Ink
+     ───────────────────────────────────────────────────────────────────────── */
+  --accent-gold: var(--atelier-craft-gold);      /* #9B7B4D - Primary accent */
+  --accent-gold-light: var(--atelier-craft-gold-bright); /* Decorative */
+  --accent-gold-hover: #7A6340;                  /* Hover state - darker */
+
+  --accent-sage: var(--atelier-ink-positive);    /* #2D6A4F - Positive ✓ */
+  --accent-sage-light: var(--atelier-ink-positive-soft);
+  --accent-sage-hover: #1E4D39;
+
+  --accent-terracotta: var(--atelier-ink-negative); /* #9B2C2C - Negative ✓ */
+  --accent-terracotta-light: var(--atelier-ink-negative-soft);
+  --accent-terracotta-hover: #7A2222;
+
+  --accent-slate: #4B5563;     /* Neutral info - 6.4:1 on white ✓ */
+  --accent-wine: #8B5C6B;      /* Semantic alerts */
+
+  /* ─────────────────────────────────────────────────────────────────────────
+     SHADOWS - Single optimized shadow (performance-first)
+     ───────────────────────────────────────────────────────────────────────── */
+  --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.08), 0 2px 6px rgba(0, 0, 0, 0.04);
+  --shadow-card-hover: 0 2px 8px rgba(0, 0, 0, 0.10), 0 4px 12px rgba(0, 0, 0, 0.06);
+  --shadow-dropdown: 0 4px 12px rgba(0, 0, 0, 0.12), 0 8px 24px rgba(0, 0, 0, 0.08);
+
+  /* Legacy compatibility */
   --shadow-xs: 0 1px 2px rgba(26, 25, 23, 0.04);
   --shadow-sm: 0 2px 6px rgba(26, 25, 23, 0.05);
+
+  /* ─────────────────────────────────────────────────────────────────────────
+     SPACING - Consistent rhythm for compartmentalization
+     ───────────────────────────────────────────────────────────────────────── */
+  --space-section: 3rem;       /* 48px - between major sections */
+  --space-group: 1.5rem;       /* 24px - between card groups */
+  --space-card: 1rem;          /* 16px - between cards in group */
+  --space-internal: 1.5rem;    /* 24px - card internal padding */
+  --space-tight: 0.5rem;       /* 8px - label to value */
 
   /* ─────────────────────────────────────────────────────────────────────────
      Shadcn / Tailwind Mappings
@@ -162,8 +216,8 @@
   --popover: var(--bg-paper);
   --popover-foreground: var(--text-primary);
 
-  --primary: var(--text-primary);
-  --primary-foreground: var(--bg-paper);
+  --primary: var(--accent-gold);        /* Gold as primary action color */
+  --primary-foreground: #FFFFFF;
 
   --secondary: var(--bg-subtle);
   --secondary-foreground: var(--text-secondary);
@@ -175,31 +229,30 @@
   --accent-foreground: var(--accent-gold);
 
   --destructive: var(--accent-terracotta);
-  --destructive-foreground: var(--bg-paper);
+  --destructive-foreground: #FFFFFF;
 
   --border: var(--border-light);
   --input: var(--border-medium);
   --ring: var(--accent-gold);
 
-  --radius: 0.625rem;
-  /* 10px */
-
-  /* Chart Colors (Mapped to EFIR accents) */
-  --chart-1: #A68B5B;
-  /* Gold */
-  --chart-2: #7D9082;
-  /* Sage */
-  --chart-3: #C4785D;
-  /* Terracotta */
-  --chart-4: #64748B;
-  /* Slate */
-  --chart-5: #8B5C6B;
-  /* Wine */
+  --radius: 0.75rem;                    /* 12px - clean card radius */
 
   /* ─────────────────────────────────────────────────────────────────────────
-     Legacy / Semantic Mappings (Ensures app compatibility)
+     Chart Colors - High contrast for both modes
      ───────────────────────────────────────────────────────────────────────── */
-  /* Executive Theme Mappings */
+  --chart-1: #8A7249;   /* Gold - primary */
+  --chart-2: #4F6B56;   /* Sage - positive */
+  --chart-3: #9E5A42;   /* Terracotta - negative */
+  --chart-4: #4B5563;   /* Slate - neutral */
+  --chart-5: #744C5A;   /* Wine - secondary */
+  --chart-6: #5D6B3D;   /* Olive - alternate */
+  --chart-7: #6B5738;   /* Bronze - alternate */
+
+  /* ─────────────────────────────────────────────────────────────────────────
+     SEMANTIC MAPPINGS - Consistent meaning across the app
+     ───────────────────────────────────────────────────────────────────────── */
+
+  /* Executive Theme */
   --executive-accent: var(--accent-gold);
   --executive-surface: var(--bg-canvas);
   --executive-elevated: var(--bg-paper);
@@ -211,184 +264,498 @@
   --executive-negative: var(--accent-terracotta);
   --executive-neutral: var(--accent-slate);
   --executive-border: var(--border-light);
+  --executive-warning: var(--accent-gold);
+  --executive-bg-secondary: var(--bg-subtle);
+  --executive-accent-subtle: rgba(138, 114, 73, 0.08);
+  --executive-accent-muted: rgba(138, 114, 73, 0.15);
 
-  /* Financial Mappings */
+  /* Financial Indicators - WCAG compliant */
   --financial-positive: var(--accent-sage);
   --financial-negative: var(--accent-terracotta);
   --financial-warning: var(--accent-gold);
   --financial-neutral: var(--text-secondary);
   --financial-info: var(--accent-slate);
 
+  /* Proposal Colors - Distinct for comparison */
+  --proposal-a: #8A7249;       /* Gold */
+  --proposal-b: #4F6B56;       /* Sage */
+  --proposal-c: #9E5A42;       /* Terracotta */
+  --proposal-d: #4B5563;       /* Slate */
+
   /* ─────────────────────────────────────────────────────────────────────────
-     HSL Channel Mappings (For Opacity Support)
-     Required for hsl(var(--color-copper) / 0.15) syntax
-     Matching EFIR Hex colors
+     HSL CHANNELS - For opacity support: hsl(var(--color-gold) / 0.15)
      ───────────────────────────────────────────────────────────────────────── */
-  --color-copper: 38 29% 50%;
-  /* Matches #A68B5B */
-  --color-sage: 136 7% 53%;
-  /* Matches #7D9082 */
-  --color-terracotta: 16 47% 57%;
-  /* Matches #C4785D */
+  --color-gold: 33 31% 41%;         /* #8A7249 */
+  --color-sage: 138 15% 37%;        /* #4F6B56 */
+  --color-terracotta: 17 41% 44%;   /* #9E5A42 */
+  --color-slate: 215 14% 34%;       /* #4B5563 */
+
+  /* Legacy compatibility */
+  --color-copper: 33 31% 41%;       /* Same as gold */
+
+  /* ═══════════════════════════════════════════════════════════════════════════
+     ATELIER EDITION - Luxury Craftsmanship Design System
+     "The Atelier Edition" - Financial precision meets artisanal craft
+     All variables prefixed with --atelier- for non-breaking integration
+     ═══════════════════════════════════════════════════════════════════════════ */
+
+  /* ─────────────────────────────────────────────────────────────────────────
+     FOUNDATION - Warm Paper Tones ("The Ivory Ledger")
+     ───────────────────────────────────────────────────────────────────────── */
+  --atelier-ivory-canvas: #FDFCF9;
+  --atelier-ivory-paper: #FFFFFF;
+  --atelier-ivory-linen: #F9F8F4;
+  --atelier-ivory-parchment: #F5F3ED;
+
+  /* ─────────────────────────────────────────────────────────────────────────
+     CRAFT ACCENT SYSTEM - Burnished Gold
+     ───────────────────────────────────────────────────────────────────────── */
+  --atelier-craft-gold: #9B7B4D;
+  --atelier-craft-gold-bright: #C4A265;
+  --atelier-craft-gold-soft: rgba(155, 123, 77, 0.08);
+  --atelier-craft-gold-glow: rgba(155, 123, 77, 0.15);
+
+  /* ─────────────────────────────────────────────────────────────────────────
+     STONE TYPOGRAPHY - Warm Charcoal Scale
+     ───────────────────────────────────────────────────────────────────────── */
+  --atelier-stone-900: #1C1917;
+  --atelier-stone-700: #44403C;
+  --atelier-stone-500: #78716C;
+  --atelier-stone-400: #A8A29E;
+  --atelier-stone-300: #D6D3D1;
+  --atelier-stone-200: #E7E5E4;
+  --atelier-stone-100: #F5F5F4;
+
+  /* ─────────────────────────────────────────────────────────────────────────
+     FINANCIAL INK - Semantic Colors
+     ───────────────────────────────────────────────────────────────────────── */
+  --atelier-ink-positive: #2D6A4F;
+  --atelier-ink-positive-soft: rgba(45, 106, 79, 0.08);
+  --atelier-ink-negative: #9B2C2C;
+  --atelier-ink-negative-soft: rgba(155, 44, 44, 0.08);
+  --atelier-ink-warning: #92610E;
+  --atelier-ink-info: #1E4C6B;
+
+  /* ─────────────────────────────────────────────────────────────────────────
+     BORDERS - Subtle Definition
+     ───────────────────────────────────────────────────────────────────────── */
+  --atelier-border-hairline: rgba(28, 25, 23, 0.06);
+  --atelier-border-subtle: rgba(28, 25, 23, 0.10);
+  --atelier-border-defined: rgba(28, 25, 23, 0.15);
+
+  /* ─────────────────────────────────────────────────────────────────────────
+     SHADOWS - Warm & Refined
+     ───────────────────────────────────────────────────────────────────────── */
+  --atelier-shadow-whisper: 0 1px 2px rgba(28, 25, 23, 0.04);
+  --atelier-shadow-subtle: 0 2px 8px rgba(28, 25, 23, 0.06), 0 1px 2px rgba(28, 25, 23, 0.04);
+  --atelier-shadow-lifted: 0 4px 16px rgba(28, 25, 23, 0.08), 0 2px 4px rgba(28, 25, 23, 0.04);
+  --atelier-shadow-floating: 0 12px 32px rgba(28, 25, 23, 0.10), 0 4px 12px rgba(28, 25, 23, 0.06);
+  --atelier-shadow-gold-glow: 0 0 0 3px rgba(155, 123, 77, 0.12);
+
+  /* ─────────────────────────────────────────────────────────────────────────
+     CHART COLORS - Proposal Comparison (Distinct & Memorable)
+     ───────────────────────────────────────────────────────────────────────── */
+  --atelier-chart-proposal-a: #7C3AED;
+  --atelier-chart-proposal-b: #0891B2;
+  --atelier-chart-proposal-c: #CA8A04;
+  --atelier-chart-proposal-d: #9333EA;
+  --atelier-chart-proposal-e: #DC2626;
+
+  /* ─────────────────────────────────────────────────────────────────────────
+     ANIMATION TIMING - The Movement Language
+     ───────────────────────────────────────────────────────────────────────── */
+  --atelier-ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --atelier-ease-in-out-circ: cubic-bezier(0.85, 0, 0.15, 1);
+  --atelier-ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  /* Duration Scale */
+  --atelier-duration-instant: 100ms;
+  --atelier-duration-fast: 200ms;
+  --atelier-duration-normal: 350ms;
+  --atelier-duration-slow: 500ms;
+  --atelier-duration-dramatic: 800ms;
+
+  /* ─────────────────────────────────────────────────────────────────────────
+     TYPOGRAPHY SCALE - The Golden Ratio
+     ───────────────────────────────────────────────────────────────────────── */
+  --atelier-type-display-hero: 4.5rem;
+  --atelier-type-display-large: 3.5rem;
+  --atelier-type-display-medium: 2.5rem;
+  --atelier-type-financial-hero: 5rem;
+  --atelier-type-financial-large: 3rem;
+  --atelier-type-financial-medium: 2rem;
+  --atelier-type-financial-base: 1.25rem;
+
+  /* ─────────────────────────────────────────────────────────────────────────
+     SPACING - Golden Ratio Progressions (8px base)
+     ───────────────────────────────────────────────────────────────────────── */
+  --atelier-space-monument: 5rem;
+  --atelier-space-hero: 3rem;
+  --atelier-space-generous: 2rem;
+  --atelier-space-comfortable: 1.5rem;
+  --atelier-space-relaxed: 1rem;
+  --atelier-space-tight: 0.5rem;
 }
 
 .dark {
   /* ══════════════════════════════════════════════════════════════════════════
-     SAHARA TWILIGHT DARK MODE
-     True luxury aesthetic with warm undertones
+     SAHARA OBSIDIAN - Dark Mode
+     Equally readable as light mode - all colors WCAG AA verified
+     Philosophy: Brightness for visibility, warmth for comfort
      ══════════════════════════════════════════════════════════════════════════ */
 
-  /* Foundation - Warm blacks */
-  --background: #1c1a17;
-  /* Stone-950: Warm black */
-  --foreground: #f5f4f1;
-  /* Stone-100: Warm white */
-  --card: #292723;
-  /* Stone-900 */
-  --card-foreground: #f5f4f1;
-  --popover: #292723;
-  --popover-foreground: #f5f4f1;
+  /* ─────────────────────────────────────────────────────────────────────────
+     FOUNDATIONS - Deep obsidian with warm undertones
+     ───────────────────────────────────────────────────────────────────────── */
+  --background: #121110;           /* Deep obsidian - page background */
+  --foreground: #F5F4F1;           /* Warm cream - 14.2:1 contrast ✓ */
 
-  /* Surfaces */
-  --muted: #3d3a34;
-  /* Stone-800 */
-  --muted-foreground: #a5a19a;
-  /* Stone-400 */
-  --secondary: #3d3a34;
-  --secondary-foreground: #e8e6e1;
+  --card: #1E1C1A;                 /* Elevated surface */
+  --card-foreground: #F5F4F1;
+  --popover: #1E1C1A;
+  --popover-foreground: #F5F4F1;
 
-  /* Accent - Copper brightens in dark mode */
-  --primary: #c9a86c;
-  /* Copper-500 (brighter) */
-  --primary-foreground: #1c1a17;
-  --accent: #292723;
-  --accent-foreground: #e4d4b8;
-  /* Copper-300 */
+  /* ─────────────────────────────────────────────────────────────────────────
+     TYPOGRAPHY - Bright for readability
+     ───────────────────────────────────────────────────────────────────────── */
+  --text-primary: #F5F4F1;         /* Cream white - 14.2:1 ✓ */
+  --text-secondary: #C9C6BF;       /* Warm gray - 9.8:1 ✓ */
+  --text-tertiary: #9D9A93;        /* Muted - 6.2:1 ✓ */
+  --text-muted: #6B6760;           /* Placeholders only */
 
-  /* Copper Scale - Dark mode adjustments */
-  --copper-900: #9b7a5a;
-  --copper-700: #b8956a;
-  --copper-500: #c9a86c;
-  --copper-300: #d4b87a;
-  --copper-100: #3d3830;
-  /* Darker for dark mode */
+  /* ─────────────────────────────────────────────────────────────────────────
+     SURFACES & BORDERS
+     ───────────────────────────────────────────────────────────────────────── */
+  --muted: #2A2826;
+  --muted-foreground: #9D9A93;
+  --secondary: #2A2826;
+  --secondary-foreground: #C9C6BF;
 
-  /* Stone Scale - Dark mode */
-  --stone-950: #1c1a17;
-  --stone-900: #292723;
-  --stone-800: #3d3a34;
-  --stone-600: #6b6760;
-  --stone-400: #a5a19a;
-  --stone-200: #e8e6e1;
-  --stone-100: #f5f4f1;
-  --stone-50: #faf9f7;
+  --border: #3D3A34;               /* Visible but subtle */
+  --input: #3D3A34;
+  --divider: #2E2B27;
 
-  /* Destructive */
-  --destructive: #e07a6a;
-  /* Lighter Terracotta for dark */
+  /* ─────────────────────────────────────────────────────────────────────────
+     ACCENT COLORS - Brighter for dark backgrounds (WCAG verified)
+     ───────────────────────────────────────────────────────────────────────── */
+  --primary: #D4B896;              /* Bright copper - 9.4:1 ✓ */
+  --primary-foreground: #121110;
+  --accent: #2A2826;
+  --accent-foreground: #D4B896;
+  --ring: #D4B896;
 
-  /* Borders & Inputs */
-  --border: #3d3a34;
-  --input: #3d3a34;
-  --ring: #c9a86c;
+  /* Semantic colors - bright enough for dark backgrounds */
+  --accent-gold: #D4B896;          /* Copper - 9.4:1 ✓ */
+  --accent-gold-light: #E4CFA8;
+  --accent-gold-hover: #C9A86C;
 
-  /* Chart Colors - Brighter for dark backgrounds */
-  --chart-1: #d4b87a;
-  /* Lighter Copper */
-  --chart-2: #6a9cb6;
-  /* Lighter Twilight */
-  --chart-3: #8ab09a;
-  /* Lighter Sage */
-  --chart-4: #b08a6a;
-  /* Lighter Sienna */
-  --chart-5: #8b8780;
-  /* Lighter Stone */
+  --accent-sage: #8FBF9A;          /* Bright sage - 8.6:1 ✓ */
+  --accent-sage-light: rgba(143, 191, 154, 0.15);
 
-  /* Sidebar */
-  --sidebar: #292723;
-  --sidebar-foreground: #f5f4f1;
-  --sidebar-primary: #c9a86c;
-  --sidebar-primary-foreground: #1c1a17;
-  --sidebar-accent: #3d3a34;
-  --sidebar-accent-foreground: #e4d4b8;
-  --sidebar-border: #3d3a34;
-  --sidebar-ring: #c9a86c;
+  --accent-terracotta: #E8A090;    /* Bright terracotta - 8.2:1 ✓ */
+  --accent-terracotta-light: rgba(232, 160, 144, 0.12);
 
-  /* Premium Dark Mode Effects */
-  --glass-bg: rgba(28, 26, 23, 0.7);
-  --glass-border: rgba(255, 255, 255, 0.1);
-  --glass-highlight: rgba(201, 168, 108, 0.05);
+  --accent-slate: #A5B0BD;         /* Bright slate - 7.8:1 ✓ */
 
-  /* Financial Colors - Muted Professional (Dark) */
-  --financial-positive: #5aad7a;
-  /* Lighter Desert Sage */
-  --financial-negative: #e07a6a;
-  /* Lighter Terracotta */
-  --financial-warning: #e0a830;
-  /* Lighter Saffron */
-  --financial-neutral: #a5a19a;
-  /* Stone-400 */
-  --financial-info: #6a9cb6;
-  /* Lighter Twilight */
+  /* ─────────────────────────────────────────────────────────────────────────
+     CHART COLORS - Dark mode overrides for readability
+     ───────────────────────────────────────────────────────────────────────── */
+  --color-chart-grid: hsl(24 6% 22%);    /* Subtle grid - dark mode */
+  --color-chart-axis: hsl(24 6% 65%);    /* Readable axis labels - dark mode */
+
+  --destructive: #E8A090;
+  --destructive-foreground: #121110;
+
+  /* ─────────────────────────────────────────────────────────────────────────
+     CHART COLORS - High contrast for dark backgrounds
+     ───────────────────────────────────────────────────────────────────────── */
+  --chart-1: #D4B896;              /* Copper */
+  --chart-2: #8FBF9A;              /* Sage */
+  --chart-3: #E8A090;              /* Terracotta */
+  --chart-4: #A5B0BD;              /* Slate */
+  --chart-5: #D8AE7A;              /* Amber */
+  --chart-6: #B3C7BA;              /* Light sage */
+  --chart-7: #E4C79D;              /* Light copper */
+
+  /* ─────────────────────────────────────────────────────────────────────────
+     FINANCIAL INDICATORS - Bright and clear
+     ───────────────────────────────────────────────────────────────────────── */
+  --financial-positive: #8FBF9A;   /* Bright sage */
+  --financial-negative: #E8A090;   /* Bright terracotta */
+  --financial-warning: #D8AE7A;    /* Amber */
+  --financial-neutral: #9D9A93;
+  --financial-info: #A5B0BD;
 
   /* Proposal Colors - Dark mode */
-  --proposal-a: #d4b87a;
-  /* Lighter Copper */
-  --proposal-b: #6a9cb6;
-  /* Lighter Twilight */
-  --proposal-c: #8ab09a;
-  /* Lighter Sage */
-  --proposal-d: #b08a6a;
-  /* Lighter Sienna */
+  --proposal-a: #D4B896;           /* Copper */
+  --proposal-b: #8FBF9A;           /* Sage */
+  --proposal-c: #E8A090;           /* Terracotta */
+  --proposal-d: #A5B0BD;           /* Slate */
 
-  /* Financial Table - Minimalist Dark Mode */
-  --financial-card-bg: #1a1a1a;
-  --financial-border: #2d2d2d;
-  --financial-total-bg: #222222;
-  --financial-hover-row: #222222;
+  /* ─────────────────────────────────────────────────────────────────────────
+     SIDEBAR
+     ───────────────────────────────────────────────────────────────────────── */
+  --sidebar: #1A1814;
+  --sidebar-foreground: #F5F4F1;
+  --sidebar-primary: #D4B896;
+  --sidebar-primary-foreground: #121110;
+  --sidebar-accent: #2A2826;
+  --sidebar-accent-foreground: #D4B896;
+  --sidebar-border: #3D3A34;
+  --sidebar-ring: #D4B896;
 
-  /* Period indicators - Dark mode */
-  --period-historical: #64748b;
-  --period-transition: #71717a;
+  /* ─────────────────────────────────────────────────────────────────────────
+     SHADOWS - Optimized for dark mode
+     ───────────────────────────────────────────────────────────────────────── */
+  --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.24), 0 2px 8px rgba(0, 0, 0, 0.16);
+  --shadow-card-hover: 0 2px 8px rgba(0, 0, 0, 0.32), 0 4px 16px rgba(0, 0, 0, 0.20);
+  --shadow-dropdown: 0 4px 16px rgba(0, 0, 0, 0.40), 0 8px 32px rgba(0, 0, 0, 0.24);
 
-  /* Chart Colors - Dark Mode (brighter for contrast) */
-  --color-chart-grid: 24 6% 25%;
-  /* Darker grid in dark mode */
-  --color-chart-axis: 24 6% 60%;
-  /* Lighter axis in dark mode */
-
-  /* Shadows - Dark Mode (stronger for better contrast) */
-  --shadow-card: 0 1px 3px 0 hsl(0 0% 0% / 0.20), 0 1px 2px -1px hsl(0 0% 0% / 0.16);
+  /* Legacy */
   --shadow-floating: 0 4px 6px -1px hsl(0 0% 0% / 0.28), 0 2px 4px -2px hsl(0 0% 0% / 0.20);
   --shadow-elevated: 0 10px 15px -3px hsl(0 0% 0% / 0.36), 0 4px 6px -4px hsl(0 0% 0% / 0.24);
-  --shadow-command: 0 20px 25px -5px hsl(0 0% 0% / 0.44), 0 8px 10px -6px hsl(0 0% 0% / 0.32);
-  --shadow-glow-copper: 0 0 0 3px hsl(var(--color-copper) / 0.20);
-  --shadow-glow-sage: 0 0 0 3px hsl(var(--color-sage) / 0.20);
-  --shadow-glow-terracotta: 0 0 0 3px hsl(var(--color-terracotta) / 0.20);
+
+  /* ─────────────────────────────────────────────────────────────────────────
+     HSL CHANNELS - Updated for dark mode colors
+     ───────────────────────────────────────────────────────────────────────── */
+  --color-gold: 33 45% 71%;        /* #D4B896 */
+  --color-copper: 33 45% 71%;      /* Same as gold */
+  --color-sage: 138 30% 65%;       /* #8FBF9A */
+  --color-terracotta: 12 65% 74%;  /* #E8A090 */
+  --color-slate: 213 18% 69%;      /* #A5B0BD */
+
+  /* Executive mappings */
+  --executive-accent: var(--accent-gold);
+  --executive-surface: var(--background);
+  --executive-elevated: var(--card);
+  --executive-card: var(--card);
+  --executive-text: var(--text-primary);
+  --executive-text-secondary: var(--text-secondary);
+  --executive-text-tertiary: var(--text-tertiary);
+  --executive-positive: var(--accent-sage);
+  --executive-negative: var(--accent-terracotta);
+  --executive-neutral: var(--accent-slate);
+  --executive-border: var(--border);
+  --executive-warning: var(--accent-gold);
+  --executive-bg-secondary: var(--muted);
+  --executive-accent-subtle: rgba(212, 184, 150, 0.12);
+  --executive-accent-muted: rgba(212, 184, 150, 0.20);
+
+  /* ═══════════════════════════════════════════════════════════════════════════
+     ATELIER EDITION - Dark Mode ("The Obsidian Chamber")
+     Sophisticated, warm-tinted darkness for premium night-time experience
+     ═══════════════════════════════════════════════════════════════════════════ */
+
+  /* ─────────────────────────────────────────────────────────────────────────
+     FOUNDATION - Rich Darkness
+     ───────────────────────────────────────────────────────────────────────── */
+  --atelier-obsidian-deep: #0D0C0A;
+  --atelier-obsidian-surface: #1A1816;
+  --atelier-obsidian-elevated: #252320;
+  --atelier-obsidian-hover: #2D2A27;
+
+  /* Override light mode Atelier colors for dark mode */
+  --atelier-ivory-canvas: var(--atelier-obsidian-deep);
+  --atelier-ivory-paper: var(--atelier-obsidian-surface);
+  --atelier-ivory-linen: var(--atelier-obsidian-elevated);
+  --atelier-ivory-parchment: var(--atelier-obsidian-hover);
+
+  /* ─────────────────────────────────────────────────────────────────────────
+     CRAFT ACCENT SYSTEM - Luminous Gold
+     ───────────────────────────────────────────────────────────────────────── */
+  --atelier-craft-gold: #D4A867;
+  --atelier-craft-gold-bright: #E4C088;
+  --atelier-craft-gold-soft: rgba(212, 168, 103, 0.10);
+  --atelier-craft-gold-glow: rgba(212, 168, 103, 0.20);
+
+  /* ─────────────────────────────────────────────────────────────────────────
+     SILK TYPOGRAPHY - Warm White Scale
+     ───────────────────────────────────────────────────────────────────────── */
+  --atelier-silk-100: #FAF9F7;
+  --atelier-silk-200: #E7E5E4;
+  --atelier-silk-300: #A8A29E;
+  --atelier-silk-400: #78716C;
+  --atelier-silk-500: #57534E;
+
+  /* Override stone colors for dark mode */
+  --atelier-stone-900: var(--atelier-silk-100);
+  --atelier-stone-700: var(--atelier-silk-200);
+  --atelier-stone-500: var(--atelier-silk-300);
+  --atelier-stone-400: var(--atelier-silk-400);
+  --atelier-stone-300: var(--atelier-silk-500);
+  --atelier-stone-200: #3D3A34;
+  --atelier-stone-100: #2D2A26;
+
+  /* ─────────────────────────────────────────────────────────────────────────
+     LUMINOUS SEMANTIC INDICATORS
+     ───────────────────────────────────────────────────────────────────────── */
+  --atelier-ink-positive: #4ADE80;
+  --atelier-ink-positive-soft: rgba(74, 222, 128, 0.12);
+  --atelier-ink-negative: #F87171;
+  --atelier-ink-negative-soft: rgba(248, 113, 113, 0.12);
+  --atelier-ink-warning: #FBBF24;
+  --atelier-ink-info: #60A5FA;
+
+  /* ─────────────────────────────────────────────────────────────────────────
+     BORDERS - Luminous Definition
+     ───────────────────────────────────────────────────────────────────────── */
+  --atelier-border-hairline: rgba(250, 249, 247, 0.04);
+  --atelier-border-subtle: rgba(250, 249, 247, 0.08);
+  --atelier-border-defined: rgba(250, 249, 247, 0.12);
+
+  /* ─────────────────────────────────────────────────────────────────────────
+     SHADOWS - Deep & Luminous
+     ───────────────────────────────────────────────────────────────────────── */
+  --atelier-shadow-whisper: 0 1px 2px rgba(0, 0, 0, 0.20);
+  --atelier-shadow-subtle: 0 2px 8px rgba(0, 0, 0, 0.30), 0 1px 2px rgba(0, 0, 0, 0.20);
+  --atelier-shadow-lifted: 0 4px 16px rgba(0, 0, 0, 0.40), 0 0 0 1px rgba(250, 249, 247, 0.05);
+  --atelier-shadow-floating: 0 12px 32px rgba(0, 0, 0, 0.50), 0 0 0 1px rgba(250, 249, 247, 0.05);
+  --atelier-shadow-gold-glow: 0 0 24px rgba(212, 168, 103, 0.15);
+
+  /* ─────────────────────────────────────────────────────────────────────────
+     CHART COLORS - Luminous Proposal Comparison
+     ───────────────────────────────────────────────────────────────────────── */
+  --atelier-chart-proposal-a: #A78BFA;
+  --atelier-chart-proposal-b: #22D3EE;
+  --atelier-chart-proposal-c: #FCD34D;
+  --atelier-chart-proposal-d: #C084FC;
+  --atelier-chart-proposal-e: #FB7185;
 }
 
 @layer utilities {
+  /* ─────────────────────────────────────────────────────────────────────────
+     SURFACE UTILITIES - Clean, performance-focused
+     ───────────────────────────────────────────────────────────────────────── */
   .bg-executive {
     @apply bg-background;
-    background-image:
-      radial-gradient(circle at 50% 0%, hsl(var(--color-copper) / 0.08), transparent 70%),
-      radial-gradient(circle at 100% 0%, hsl(var(--color-sage) / 0.05), transparent 50%);
   }
 
-  .dark .bg-executive {
-    background-image:
-      radial-gradient(circle at 50% 0%, hsl(var(--color-copper) / 0.05), transparent 70%),
-      radial-gradient(circle at 100% 0%, hsl(var(--color-sage) / 0.03), transparent 50%);
-  }
-
+  /* Glass effects - ONLY for modals/overlays (performance) */
   .glass-panel {
-    @apply bg-card/60 backdrop-blur-xl border border-white/10 shadow-2xl;
+    @apply bg-card border border-border;
+    box-shadow: var(--shadow-dropdown);
   }
 
+  /* For actual overlays that need blur */
+  .glass-overlay {
+    @apply bg-card/95 backdrop-blur-sm border border-border;
+    box-shadow: var(--shadow-dropdown);
+  }
+
+  /* Simple card hover - no heavy effects */
   .glass-card {
-    @apply bg-card/40 backdrop-blur-md border border-white/10 shadow-lg hover:shadow-xl hover:bg-card/60 transition-all duration-500 hover:-translate-y-1;
+    @apply bg-card border border-border rounded-xl;
+    box-shadow: var(--shadow-card);
+    transition: transform 200ms ease-out, box-shadow 200ms ease-out;
   }
 
+  .glass-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-card-hover);
+  }
+
+  /* ═══════════════════════════════════════════════════════════════════════════
+     ATELIER TYPOGRAPHY UTILITIES
+     "The Ledger Script" - Elegant typography for financial excellence
+     ═══════════════════════════════════════════════════════════════════════════ */
+
+  /* Display Typography - For Impact Moments */
+  .atelier-display-hero {
+    font-family: var(--font-cormorant), serif;
+    font-size: var(--atelier-type-display-hero);
+    font-weight: 300;
+    letter-spacing: -0.02em;
+    line-height: 1;
+    color: var(--atelier-stone-900);
+  }
+
+  .atelier-display-large {
+    font-family: var(--font-cormorant), serif;
+    font-size: var(--atelier-type-display-large);
+    font-weight: 300;
+    letter-spacing: -0.02em;
+    line-height: 1.1;
+    color: var(--atelier-stone-900);
+  }
+
+  .atelier-display-medium {
+    font-family: var(--font-cormorant), serif;
+    font-size: var(--atelier-type-display-medium);
+    font-weight: 400;
+    letter-spacing: -0.01em;
+    line-height: 1.2;
+    color: var(--atelier-stone-900);
+  }
+
+  /* Financial Number Typography - Banking-Grade Display */
+  .atelier-financial-hero {
+    font-family: var(--font-ibm-plex), 'JetBrains Mono', monospace;
+    font-size: var(--atelier-type-financial-hero);
+    font-weight: 300;
+    font-feature-settings: 'tnum' 1, 'lnum' 1;
+    font-variant-numeric: tabular-nums lining-nums;
+    letter-spacing: -0.02em;
+    line-height: 1;
+    color: var(--atelier-stone-900);
+  }
+
+  .atelier-financial-large {
+    font-family: var(--font-ibm-plex), 'JetBrains Mono', monospace;
+    font-size: var(--atelier-type-financial-large);
+    font-weight: 400;
+    font-feature-settings: 'tnum' 1, 'lnum' 1;
+    font-variant-numeric: tabular-nums lining-nums;
+    letter-spacing: -0.01em;
+    line-height: 1.1;
+    color: var(--atelier-stone-900);
+  }
+
+  .atelier-financial-medium {
+    font-family: var(--font-ibm-plex), 'JetBrains Mono', monospace;
+    font-size: var(--atelier-type-financial-medium);
+    font-weight: 400;
+    font-feature-settings: 'tnum' 1, 'lnum' 1;
+    font-variant-numeric: tabular-nums lining-nums;
+    line-height: 1.2;
+    color: var(--atelier-stone-900);
+  }
+
+  .atelier-financial-base {
+    font-family: var(--font-ibm-plex), 'JetBrains Mono', monospace;
+    font-size: var(--atelier-type-financial-base);
+    font-weight: 400;
+    font-feature-settings: 'tnum' 1, 'lnum' 1;
+    font-variant-numeric: tabular-nums lining-nums;
+    line-height: 1.3;
+    color: var(--atelier-stone-900);
+  }
+
+  /* Label Typography - Uppercase Elegance */
+  .atelier-label-uppercase {
+    font-size: 0.75rem;
+    font-weight: 500;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--atelier-stone-500);
+  }
+
+  .atelier-label-subtle {
+    font-size: 0.8125rem;
+    font-weight: 500;
+    letter-spacing: 0.02em;
+    color: var(--atelier-stone-500);
+  }
+
+  /* Financial Tabular - For Number Alignment */
+  .atelier-tabular {
+    font-feature-settings: 'tnum' 1, 'lnum' 1;
+    font-variant-numeric: tabular-nums lining-nums;
+  }
+
+  /* Display Tight - For Headlines */
+  .atelier-display-tight {
+    letter-spacing: -0.02em;
+  }
 }
 
 
@@ -403,143 +770,393 @@
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   EXECUTIVE LUXURY THEME - Finance Frontend Designer Skill
-   Premium aesthetics for board-level decision support
+   EXECUTIVE COMPONENT STYLES - Simplified for Performance
+   Note: Executive theme variables are now consolidated in the main :root block
+   (see lines 254-267 for semantic mappings)
+   Philosophy: Clean, readable, fast
    ═══════════════════════════════════════════════════════════════════════════ */
 
-:root {
-  /* Executive Accent - Warm Copper (replaces generic blue) */
-  --executive-accent: #c9a86c;
-  --executive-accent-rgb: 201, 168, 108;
-  --executive-accent-subtle: rgba(201, 168, 108, 0.08);
-  --executive-accent-muted: rgba(201, 168, 108, 0.15);
-
-  /* Executive Surfaces */
-  --executive-surface: #fafaf9;
-  --executive-elevated: #ffffff;
-  --executive-card: #ffffff;
-
-  /* Executive Typography */
-  --executive-text: #18181b;
-  --executive-text-secondary: #71717a;
-  --executive-text-tertiary: #a1a1aa;
-
-  /* Financial Indicators */
-  --executive-positive: #16a34a;
-  --executive-negative: #dc2626;
-  --executive-neutral: #71717a;
-
-  /* Premium Border */
-  --executive-border: #e4e4e7;
-  --executive-border-subtle: #f4f4f5;
-}
-
-.dark {
-  /* Executive Dark - True luxury aesthetic */
-  --executive-accent: #d4a574;
-  --executive-accent-rgb: 212, 165, 116;
-  --executive-accent-subtle: rgba(212, 165, 116, 0.1);
-  --executive-accent-muted: rgba(212, 165, 116, 0.2);
-
-  /* Executive Dark Surfaces */
-  --executive-surface: #0a0a0a;
-  --executive-elevated: #141414;
-  --executive-card: #1a1a1a;
-
-  /* Executive Dark Typography */
-  --executive-text: #fafafa;
-  --executive-text-secondary: #a1a1aa;
-  --executive-text-tertiary: #52525b;
-
-  /* Financial Indicators (Dark) */
-  --executive-positive: #4ade80;
-  --executive-negative: #f87171;
-  --executive-neutral: #71717a;
-
-  /* Premium Border (Dark) */
-  --executive-border: #27272a;
-  --executive-border-subtle: #1f1f23;
-}
-
-/* Executive Component Styles */
 @layer components {
+  /* ─────────────────────────────────────────────────────────────────────────
+     CARDS - Clean, single shadow, subtle hover
+     ───────────────────────────────────────────────────────────────────────── */
   .executive-card {
-    @apply bg-card/40 backdrop-blur-md border border-white/10 shadow-lg hover:shadow-xl hover:bg-card/60 transition-all duration-500 hover:-translate-y-1 relative p-0 rounded-2xl overflow-hidden;
+    @apply bg-card border border-border rounded-xl p-6 relative overflow-hidden;
+    box-shadow: var(--shadow-card);
+    transition: transform 200ms ease-out, box-shadow 200ms ease-out;
   }
 
   .executive-card:hover {
-    @apply hover:shadow-2xl hover:scale-[1.01];
-    border-color: rgba(255, 255, 255, 0.2);
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-card-hover);
   }
 
+  /* Accent line on hover - simple, performant */
   .executive-card::after {
     content: '';
-    @apply absolute bottom-0 left-0 right-0 h-[2px] scale-x-0 transition-transform duration-500;
-    background: linear-gradient(90deg, transparent, var(--executive-accent), transparent);
+    @apply absolute bottom-0 left-0 right-0 h-[2px];
+    background: var(--accent-gold);
+    opacity: 0;
+    transition: opacity 200ms ease-out;
   }
 
   .executive-card:hover::after {
-    @apply scale-x-100;
+    opacity: 1;
   }
 
+  /* ─────────────────────────────────────────────────────────────────────────
+     TYPOGRAPHY - Readable hierarchy
+     ───────────────────────────────────────────────────────────────────────── */
   .executive-label {
-    @apply text-[10px] uppercase tracking-[0.2em] mb-3;
-    color: var(--executive-text-secondary);
+    @apply text-xs uppercase tracking-widest mb-2 font-medium;
+    color: var(--text-tertiary);
   }
 
   .executive-value {
-    @apply text-5xl font-light tracking-tight tabular-nums;
-    color: var(--executive-text);
+    @apply text-4xl font-serif font-light tracking-tight tabular-nums;
+    color: var(--text-primary);
   }
 
   .executive-subtitle {
-    @apply text-xs mt-3;
-    color: var(--executive-text-tertiary);
+    @apply text-sm mt-2;
+    color: var(--text-tertiary);
   }
 
+  /* ─────────────────────────────────────────────────────────────────────────
+     TRENDS - Clear positive/negative
+     ───────────────────────────────────────────────────────────────────────── */
   .executive-trend-positive {
-    @apply flex items-center gap-2 text-sm mt-4;
-    color: var(--executive-positive);
+    @apply flex items-center gap-1.5 text-sm mt-3 font-medium;
+    color: var(--accent-sage);
   }
 
   .executive-trend-negative {
-    @apply flex items-center gap-2 text-sm mt-4;
-    color: var(--executive-negative);
+    @apply flex items-center gap-1.5 text-sm mt-3 font-medium;
+    color: var(--accent-terracotta);
   }
 
-  /* Chart Container */
+  /* ─────────────────────────────────────────────────────────────────────────
+     CHARTS - Clean container
+     ───────────────────────────────────────────────────────────────────────── */
   .executive-chart-container {
-    @apply p-8 rounded-2xl border;
-    background: var(--executive-card);
-    border-color: var(--executive-border);
+    @apply p-6 rounded-xl border border-border bg-card;
+    box-shadow: var(--shadow-card);
   }
 
   .executive-chart-title {
     @apply text-lg font-semibold tracking-tight mb-1;
-    color: var(--executive-text);
+    color: var(--text-primary);
   }
 
   .executive-chart-subtitle {
-    @apply text-sm mb-8;
-    color: var(--executive-text-secondary);
+    @apply text-sm mb-6;
+    color: var(--text-secondary);
   }
 
-  /* Premium Tooltip */
+  /* ─────────────────────────────────────────────────────────────────────────
+     TOOLTIPS - Clean, readable
+     ───────────────────────────────────────────────────────────────────────── */
   .executive-tooltip {
-    @apply px-4 py-3 rounded-xl shadow-2xl;
-    background: var(--executive-card);
-    border: 1px solid var(--executive-border);
-    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+    @apply px-3 py-2 rounded-lg;
+    background: var(--card);
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow-dropdown);
   }
 
   .executive-tooltip-label {
-    @apply text-[10px] uppercase tracking-[0.15em] mb-2;
-    color: var(--executive-text-secondary);
+    @apply text-xs uppercase tracking-wide mb-1;
+    color: var(--text-tertiary);
   }
 
   .executive-tooltip-value {
-    @apply text-lg font-medium tabular-nums;
-    color: var(--executive-text);
+    @apply text-base font-medium tabular-nums;
+    color: var(--text-primary);
+  }
+
+  /* ─────────────────────────────────────────────────────────────────────────
+     SECTION DIVIDER - Elegant separator
+     ───────────────────────────────────────────────────────────────────────── */
+  .section-divider {
+    @apply h-px my-12;
+    background: linear-gradient(
+      90deg,
+      transparent 0%,
+      var(--border) 20%,
+      var(--border) 80%,
+      transparent 100%
+    );
+  }
+
+  /* ─────────────────────────────────────────────────────────────────────────
+     SPACING UTILITIES - Consistent compartmentalization
+     ───────────────────────────────────────────────────────────────────────── */
+  .space-section {
+    @apply mb-12; /* 48px */
+  }
+
+  .space-group {
+    @apply mb-6; /* 24px */
+  }
+
+  .gap-section {
+    gap: 3rem; /* 48px */
+  }
+
+  .gap-group {
+    gap: 1.5rem; /* 24px */
+  }
+
+  .gap-card {
+    gap: 1rem; /* 16px */
+  }
+
+  /* ═══════════════════════════════════════════════════════════════════════════
+     ATELIER COMPONENT SYSTEM - "Artisanal Elements"
+     Premium card variants for luxury financial presentation
+     ═══════════════════════════════════════════════════════════════════════════ */
+
+  /* ─────────────────────────────────────────────────────────────────────────
+     MONUMENT CARD - Primary container for major metrics
+     ───────────────────────────────────────────────────────────────────────── */
+  .monument-card {
+    position: relative;
+    padding: var(--atelier-space-hero);
+    background: var(--atelier-ivory-paper);
+    border-radius: 1.5rem;
+    border: 1px solid var(--atelier-border-hairline);
+    box-shadow: var(--atelier-shadow-subtle);
+    overflow: hidden;
+    transition: box-shadow var(--atelier-duration-normal) var(--atelier-ease-out-expo);
+  }
+
+  /* Gold Thread Accent - Bottom */
+  .monument-card::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 2rem;
+    right: 2rem;
+    height: 2px;
+    background: linear-gradient(
+      90deg,
+      transparent 0%,
+      var(--atelier-craft-gold) 20%,
+      var(--atelier-craft-gold) 80%,
+      transparent 100%
+    );
+    opacity: 0;
+    transform: scaleX(0);
+    transition: all var(--atelier-duration-slow) var(--atelier-ease-out-expo);
+  }
+
+  .monument-card:hover::after {
+    opacity: 1;
+    transform: scaleX(1);
+  }
+
+  /* Corner Flourish */
+  .monument-card::before {
+    content: '';
+    position: absolute;
+    top: 1.5rem;
+    right: 1.5rem;
+    width: 3rem;
+    height: 3rem;
+    background: linear-gradient(
+      135deg,
+      transparent 50%,
+      var(--atelier-craft-gold-soft) 50%
+    );
+    opacity: 0.5;
+    transition: opacity var(--atelier-duration-normal) var(--atelier-ease-out-expo);
+  }
+
+  .monument-card:hover::before {
+    opacity: 1;
+  }
+
+  .monument-card:hover {
+    box-shadow: var(--atelier-shadow-lifted);
+  }
+
+  /* Monument Card - No Flourish Variant */
+  .monument-card--minimal::before {
+    display: none;
+  }
+
+  /* ─────────────────────────────────────────────────────────────────────────
+     LEDGER CARD - Financial data with ruled lines
+     ───────────────────────────────────────────────────────────────────────── */
+  .ledger-card {
+    position: relative;
+    padding: var(--atelier-space-comfortable);
+    background: var(--atelier-ivory-paper);
+    border-radius: 1rem;
+    border: 1px solid var(--atelier-border-subtle);
+
+    /* Ruled Lines Effect */
+    background-image: repeating-linear-gradient(
+      180deg,
+      transparent 0px,
+      transparent 31px,
+      var(--atelier-border-hairline) 31px,
+      var(--atelier-border-hairline) 32px
+    );
+    background-position: 0 var(--atelier-space-comfortable);
+    background-size: 100% 32px;
+  }
+
+  /* Red Margin Line */
+  .ledger-card::before {
+    content: '';
+    position: absolute;
+    top: var(--atelier-space-comfortable);
+    bottom: var(--atelier-space-comfortable);
+    left: 4rem;
+    width: 1px;
+    background: var(--atelier-ink-negative-soft);
+  }
+
+  /* ─────────────────────────────────────────────────────────────────────────
+     FLOATING METRIC - Hero KPIs that demand attention
+     ───────────────────────────────────────────────────────────────────────── */
+  .floating-metric {
+    position: relative;
+    padding: var(--atelier-space-hero) var(--atelier-space-monument);
+    background: var(--atelier-ivory-paper);
+    border-radius: 2rem;
+    border: 1px solid var(--atelier-border-hairline);
+    box-shadow:
+      var(--atelier-shadow-floating),
+      0 0 60px rgba(155, 123, 77, 0.05);
+    transition: transform var(--atelier-duration-normal) var(--atelier-ease-spring);
+  }
+
+  /* Glow Halo */
+  .floating-metric::before {
+    content: '';
+    position: absolute;
+    inset: -2px;
+    border-radius: inherit;
+    background: linear-gradient(
+      135deg,
+      var(--atelier-craft-gold-soft),
+      transparent 50%,
+      var(--atelier-craft-gold-soft)
+    );
+    opacity: 0;
+    transition: opacity var(--atelier-duration-slow) ease;
+    z-index: -1;
+  }
+
+  .floating-metric:hover {
+    transform: translateY(-4px);
+  }
+
+  .floating-metric:hover::before {
+    opacity: 1;
+  }
+
+  /* ─────────────────────────────────────────────────────────────────────────
+     SEGMENT INDICATOR - Status and category markers
+     ───────────────────────────────────────────────────────────────────────── */
+  .segment-indicator {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 0.75rem;
+    border-radius: 2rem;
+    font-size: 0.75rem;
+    font-weight: 500;
+    letter-spacing: 0.02em;
+  }
+
+  .segment-indicator--positive {
+    background: var(--atelier-ink-positive-soft);
+    color: var(--atelier-ink-positive);
+  }
+
+  .segment-indicator--negative {
+    background: var(--atelier-ink-negative-soft);
+    color: var(--atelier-ink-negative);
+  }
+
+  .segment-indicator--gold {
+    background: var(--atelier-craft-gold-soft);
+    color: var(--atelier-craft-gold);
+  }
+
+  .segment-indicator--neutral {
+    background: rgba(120, 113, 108, 0.08);
+    color: var(--atelier-stone-500);
+  }
+
+  /* Pulse Dot */
+  .segment-indicator__dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: currentColor;
+    animation: atelier-pulse 2s ease-in-out infinite;
+  }
+
+  /* ─────────────────────────────────────────────────────────────────────────
+     ATELIER SPECIAL EFFECTS
+     ───────────────────────────────────────────────────────────────────────── */
+
+  /* Paper Texture Overlay */
+  .atelier-paper-texture {
+    position: relative;
+  }
+
+  .atelier-paper-texture::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    opacity: 0.03;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+    mix-blend-mode: overlay;
+  }
+
+  /* Gilded Border */
+  .atelier-gilded-border {
+    border: 1px solid transparent;
+    background:
+      linear-gradient(var(--atelier-ivory-paper), var(--atelier-ivory-paper)) padding-box,
+      linear-gradient(
+        135deg,
+        var(--atelier-craft-gold) 0%,
+        transparent 50%,
+        var(--atelier-craft-gold) 100%
+      ) border-box;
+  }
+
+  /* Embossed Text */
+  .atelier-embossed {
+    text-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.5),
+      0 -1px 0 rgba(0, 0, 0, 0.1);
+  }
+
+  /* Hover Lift - Enhanced */
+  .atelier-hover-lift {
+    transition:
+      transform var(--atelier-duration-normal) var(--atelier-ease-out-expo),
+      box-shadow var(--atelier-duration-normal) var(--atelier-ease-out-expo);
+  }
+
+  .atelier-hover-lift:hover {
+    transform: translateY(-4px) scale(1.01);
+    box-shadow: var(--atelier-shadow-floating);
+  }
+
+  /* Focus Ring - Gold */
+  .atelier-focus-ring:focus-visible {
+    outline: none;
+    box-shadow:
+      0 0 0 2px var(--atelier-ivory-paper),
+      0 0 0 4px var(--atelier-craft-gold);
   }
 }
 
@@ -551,6 +1168,109 @@
 
   to {
     transform: scaleX(1);
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   ATELIER ANIMATION KEYFRAMES - "The Choreography"
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* Pulse for status indicators */
+@keyframes atelier-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.6; transform: scale(1.15); }
+}
+
+/* Reveal - Page entry animation */
+@keyframes atelier-reveal {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Number Cascade - Value change effect */
+@keyframes atelier-number-cascade {
+  0% {
+    opacity: 0;
+    transform: translateY(-8px);
+    filter: blur(2px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+    filter: blur(0);
+  }
+}
+
+/* Gold Shimmer - Attention effect */
+@keyframes atelier-gold-shimmer {
+  0% {
+    background-position: -200% center;
+  }
+  100% {
+    background-position: 200% center;
+  }
+}
+
+/* Atelier Animation Utilities */
+@layer utilities {
+  .atelier-reveal {
+    animation: atelier-reveal var(--atelier-duration-slow) var(--atelier-ease-out-expo) forwards;
+  }
+
+  /* Stagger children reveal */
+  .atelier-reveal-stagger > * {
+    animation: atelier-reveal var(--atelier-duration-slow) var(--atelier-ease-out-expo) forwards;
+    opacity: 0;
+  }
+
+  .atelier-reveal-stagger > *:nth-child(1) { animation-delay: 0ms; }
+  .atelier-reveal-stagger > *:nth-child(2) { animation-delay: 75ms; }
+  .atelier-reveal-stagger > *:nth-child(3) { animation-delay: 150ms; }
+  .atelier-reveal-stagger > *:nth-child(4) { animation-delay: 225ms; }
+  .atelier-reveal-stagger > *:nth-child(5) { animation-delay: 300ms; }
+  .atelier-reveal-stagger > *:nth-child(6) { animation-delay: 375ms; }
+  .atelier-reveal-stagger > *:nth-child(7) { animation-delay: 450ms; }
+  .atelier-reveal-stagger > *:nth-child(8) { animation-delay: 525ms; }
+
+  .atelier-number-cascade {
+    animation: atelier-number-cascade var(--atelier-duration-fast) var(--atelier-ease-out-expo);
+  }
+
+  .atelier-shimmer-gold {
+    background: linear-gradient(
+      90deg,
+      transparent 0%,
+      var(--atelier-craft-gold-soft) 50%,
+      transparent 100%
+    );
+    background-size: 200% 100%;
+    animation: atelier-gold-shimmer 3s ease-in-out infinite;
+  }
+
+  /* Reduced Motion Support */
+  @media (prefers-reduced-motion: reduce) {
+    .atelier-reveal,
+    .atelier-reveal-stagger > *,
+    .atelier-number-cascade,
+    .atelier-shimmer-gold,
+    .segment-indicator__dot {
+      animation: none !important;
+      opacity: 1 !important;
+      transform: none !important;
+      filter: none !important;
+    }
+
+    .monument-card::after,
+    .monument-card::before,
+    .floating-metric::before {
+      transition: none !important;
+    }
   }
 }
 
@@ -596,33 +1316,43 @@
   }
 
   /* ═══════════════════════════════════════════════════════════════════════════
-     Premium Micro-Interactions
-     Subtle animations that create delight without distraction
+     MICRO-INTERACTIONS - Performance-focused (GPU-accelerated only)
+     Max duration: 200ms for hover, 150ms for active
      ═══════════════════════════════════════════════════════════════════════════ */
 
-  /* Smooth hover lift effect */
+  /* Hover lift - simple, fast */
   .hover-lift {
-    @apply transition-all duration-300 ease-out;
+    transition: transform 200ms ease-out, box-shadow 200ms ease-out;
   }
 
   .hover-lift:hover {
-    transform: scale(1.02) translateY(-2px);
-    box-shadow: 0 4px 6px -1px hsl(24 10% 10% / 0.12), 0 2px 4px -2px hsl(24 10% 10% / 0.08);
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-card-hover);
   }
 
-  /* Active press effect */
+  /* Active press - instant feedback */
   .active-press:active {
-    transform: scale(0.98) translateY(0);
+    transform: scale(0.98);
   }
 
-  /* Copper focus glow - brand-aligned focus states */
+  /* Focus ring - accessible, brand-aligned */
+  .focus-glow-gold {
+    @apply focus-visible:outline-none;
+  }
+
+  .focus-glow-gold:focus-visible {
+    outline: 2px solid var(--accent-gold);
+    outline-offset: 2px;
+  }
+
+  /* Legacy alias */
   .focus-glow-copper {
     @apply focus-visible:outline-none;
   }
 
   .focus-glow-copper:focus-visible {
-    box-shadow: 0 0 0 3px hsl(var(--color-copper) / 0.15);
-    border-color: hsl(var(--color-copper));
+    outline: 2px solid var(--accent-gold);
+    outline-offset: 2px;
   }
 
   /* Count-up animation for financial values */

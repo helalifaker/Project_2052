@@ -5,7 +5,6 @@ import {
   Card,
   CardContent,
   CardDescription,
-  CardHeader,
   CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -30,6 +29,7 @@ import { Save, Info, Loader2 } from "lucide-react";
 import { z } from "zod";
 import { toast } from "sonner";
 import Decimal from "decimal.js";
+import { DEFAULT_FINANCIAL_RATES } from "@/lib/constants";
 
 // Validation schema for system configuration
 const configSchema = z.object({
@@ -57,11 +57,11 @@ function SystemConfigPageContent() {
 
   // Initialize form with pre-filled values (GAPs 14, 16, 18)
   const form = useProposalForm(configSchema, {
-    zakatRate: 2.5, // GAP 18: Default Zakat Rate
-    debtInterestRate: 5.0, // Default Debt Interest Rate
-    depositInterestRate: 2.0, // GAP 16: Default Deposit Interest Rate
-    discountRate: 8.0, // Default NPV Discount Rate (WACC/hurdle rate)
-    minCashBalance: 1.0, // GAP 14: Default Minimum Cash Balance (in Millions SAR)
+    zakatRate: DEFAULT_FINANCIAL_RATES.zakatRate, // GAP 18: Default Zakat Rate
+    debtInterestRate: DEFAULT_FINANCIAL_RATES.debtInterestRate, // Default Debt Interest Rate
+    depositInterestRate: DEFAULT_FINANCIAL_RATES.depositInterestRate, // GAP 16: Default Deposit Interest Rate
+    discountRate: DEFAULT_FINANCIAL_RATES.npvDiscountRate, // Default NPV Discount Rate (WACC/hurdle rate)
+    minCashBalance: DEFAULT_FINANCIAL_RATES.minCashBalanceMillions, // GAP 14: Default Minimum Cash Balance (in Millions SAR)
   });
 
   useEffect(() => {

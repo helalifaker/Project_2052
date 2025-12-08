@@ -95,34 +95,47 @@ export async function POST(request: Request) {
       );
     }
 
-    // Upsert all items (create or update)
-    const results = await Promise.all(
-      validatedData.map(async (item) => {
-        // Convert amount to Prisma.Decimal
-        const amountDecimal = item.amount;
+    // Upsert all items in batches to prevent connection pool exhaustion
+    // Using transaction ensures atomicity and batching prevents overwhelming the pool
+    const BATCH_SIZE = 10;
+    const results: Awaited<ReturnType<typeof prisma.historicalData.upsert>>[] =
+      [];
 
-        return prisma.historicalData.upsert({
-          where: {
-            year_statementType_lineItem: {
-              year: item.year,
-              statementType: item.statementType,
-              lineItem: item.lineItem,
-            },
-          },
-          update: {
-            amount: amountDecimal,
-            confirmed: item.confirmed ?? false,
-          },
-          create: {
-            year: item.year,
-            statementType: item.statementType,
-            lineItem: item.lineItem,
-            amount: amountDecimal,
-            confirmed: item.confirmed ?? false,
-          },
-        });
-      }),
-    );
+    // Process in batches within a transaction for both atomicity and connection safety
+    await prisma.$transaction(async (tx) => {
+      for (let i = 0; i < validatedData.length; i += BATCH_SIZE) {
+        const batch = validatedData.slice(i, i + BATCH_SIZE);
+
+        const batchResults = await Promise.all(
+          batch.map(async (item) => {
+            const amountDecimal = item.amount;
+
+            return tx.historicalData.upsert({
+              where: {
+                year_statementType_lineItem: {
+                  year: item.year,
+                  statementType: item.statementType,
+                  lineItem: item.lineItem,
+                },
+              },
+              update: {
+                amount: amountDecimal,
+                confirmed: item.confirmed ?? false,
+              },
+              create: {
+                year: item.year,
+                statementType: item.statementType,
+                lineItem: item.lineItem,
+                amount: amountDecimal,
+                confirmed: item.confirmed ?? false,
+              },
+            });
+          }),
+        );
+
+        results.push(...batchResults);
+      }
+    });
 
     return NextResponse.json(
       {

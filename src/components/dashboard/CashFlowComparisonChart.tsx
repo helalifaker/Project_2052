@@ -80,7 +80,7 @@ const CashFlowTooltip = ({
                   {proposal.proposalName}
                 </span>
                 {proposal.isWinner && (
-                  <span className="text-amber-500">⭐</span>
+                  <span style={{ color: "var(--accent-gold)" }}>⭐</span>
                 )}
               </div>
               <div className="flex items-center gap-2">
@@ -175,7 +175,14 @@ export function CashFlowComparisonChart({
     <div className="space-y-4">
       {/* Warning if negative cash detected */}
       {negativeCashCount > 0 && (
-        <div className="text-xs text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/30 rounded-lg p-3 border border-amber-200 dark:border-amber-900">
+        <div
+          className="text-xs rounded-lg p-3 border"
+          style={{
+            color: "var(--financial-warning)",
+            backgroundColor: "var(--atelier-ink-warning-soft)",
+            borderColor: "var(--financial-warning)",
+          }}
+        >
           <p className="flex items-center gap-2">
             <span className="text-base">⚠️</span>
             <span>
@@ -232,7 +239,7 @@ export function CashFlowComparisonChart({
             />
             <Legend
               wrapperStyle={{ paddingTop: "10px" }}
-              formatter={(value, entry: any) => {
+              formatter={(value, _entry: unknown) => {
                 const proposalIndex = value.replace("proposal", "");
                 const proposal = limitedData[parseInt(proposalIndex)];
                 if (!proposal) return value;
@@ -241,7 +248,7 @@ export function CashFlowComparisonChart({
                   <span className="text-xs">
                     {proposal.proposalName}{" "}
                     {proposal.isWinner && (
-                      <span className="text-amber-500">⭐</span>
+                      <span style={{ color: "var(--accent-gold)" }}>⭐</span>
                     )}
                     <span className="text-muted-foreground ml-2">
                       ({formatMillions(proposal.finalCash)})
@@ -301,7 +308,10 @@ export function CashFlowComparisonChart({
           <p className="text-sm font-semibold truncate">
             {limitedData.find((d) => d.isWinner)?.proposalName || "N/A"}
           </p>
-          <p className="text-xs text-emerald-600 dark:text-emerald-400 mt-1 tabular-nums font-medium">
+          <p
+            className="text-xs mt-1 tabular-nums font-medium"
+            style={{ color: "var(--financial-positive)" }}
+          >
             {limitedData.find((d) => d.isWinner)
               ? formatMillions(limitedData.find((d) => d.isWinner)!.finalCash)
               : "—"}

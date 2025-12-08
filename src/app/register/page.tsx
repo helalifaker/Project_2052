@@ -5,6 +5,12 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import {
+  withTimeout,
+  isTimeoutError,
+  AUTH_TIMEOUT_MS,
+  API_TIMEOUT_MS,
+} from "@/lib/utils/timeout";
+import {
   Card,
   CardContent,
   CardDescription,
@@ -24,6 +30,11 @@ import {
   EyeOff,
   ArrowRight,
 } from "lucide-react";
+import {
+  APP_NAME,
+  NAME_VALIDATION,
+  PASSWORD_VALIDATION,
+} from "@/lib/constants";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -45,11 +56,11 @@ export default function RegisterPage() {
 
     // Name validation
     if (!formData.name.trim()) {
-      newErrors.name = "Name is required";
-    } else if (formData.name.trim().length < 2) {
-      newErrors.name = "Name must be at least 2 characters";
-    } else if (formData.name.trim().length > 100) {
-      newErrors.name = "Name must be less than 100 characters";
+      newErrors.name = NAME_VALIDATION.messages.required;
+    } else if (formData.name.trim().length < NAME_VALIDATION.minLength) {
+      newErrors.name = NAME_VALIDATION.messages.tooShort;
+    } else if (formData.name.trim().length > NAME_VALIDATION.maxLength) {
+      newErrors.name = NAME_VALIDATION.messages.tooLong;
     }
 
     // Email validation
@@ -61,9 +72,9 @@ export default function RegisterPage() {
 
     // Password validation
     if (!formData.password) {
-      newErrors.password = "Password is required";
-    } else if (formData.password.length < 8) {
-      newErrors.password = "Password must be at least 8 characters";
+      newErrors.password = PASSWORD_VALIDATION.messages.required;
+    } else if (formData.password.length < PASSWORD_VALIDATION.minLength) {
+      newErrors.password = PASSWORD_VALIDATION.messages.tooShort;
     } else if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(formData.password)) {
       newErrors.password =
         "Password must include uppercase, lowercase, and number";
@@ -73,7 +84,7 @@ export default function RegisterPage() {
     if (!formData.confirmPassword) {
       newErrors.confirmPassword = "Please confirm your password";
     } else if (formData.password !== formData.confirmPassword) {
-      newErrors.confirmPassword = "Passwords do not match";
+      newErrors.confirmPassword = PASSWORD_VALIDATION.messages.mismatch;
     }
 
     setErrors(newErrors);
@@ -95,16 +106,20 @@ export default function RegisterPage() {
     try {
       const supabase = createClient();
 
-      // Step 1: Sign up with Supabase Auth
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email: formData.email.trim(),
-        password: formData.password,
-        options: {
-          data: {
-            name: formData.name.trim(),
+      // Step 1: Sign up with Supabase Auth (with timeout protection)
+      const { data: authData, error: authError } = await withTimeout(
+        supabase.auth.signUp({
+          email: formData.email.trim(),
+          password: formData.password,
+          options: {
+            data: {
+              name: formData.name.trim(),
+            },
           },
-        },
-      });
+        }),
+        AUTH_TIMEOUT_MS,
+        "Registration timed out. Please check your connection and try again.",
+      );
 
       if (authError) {
         console.error("Supabase signup error:", authError);
@@ -133,19 +148,23 @@ export default function RegisterPage() {
         return;
       }
 
-      // Step 2: Create user in database via API
+      // Step 2: Create user in database via API (with timeout protection)
       try {
-        const response = await fetch("/api/auth/signup", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            email: formData.email.trim(),
-            name: formData.name.trim(),
-            supabaseUserId: authData.user.id,
+        const response = await withTimeout(
+          fetch("/api/auth/signup", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              email: formData.email.trim(),
+              name: formData.name.trim(),
+              supabaseUserId: authData.user.id,
+            }),
           }),
-        });
+          API_TIMEOUT_MS,
+          "Database registration timed out. Your account was created but may need support assistance.",
+        );
 
         const result = await response.json();
 
@@ -194,7 +213,11 @@ export default function RegisterPage() {
       }
     } catch (error) {
       console.error("Unexpected signup error:", error);
-      setGeneralError("An unexpected error occurred. Please try again.");
+      if (isTimeoutError(error)) {
+        setGeneralError(error.message);
+      } else {
+        setGeneralError("An unexpected error occurred. Please try again.");
+      }
       setLoading(false);
     }
   };
@@ -218,7 +241,7 @@ export default function RegisterPage() {
         <div className="text-center space-y-2">
           <h1 className="text-3xl font-bold tracking-tight">Create Account</h1>
           <p className="text-muted-foreground">
-            Join Project 2052 to start managing lease proposals
+            Join {APP_NAME} to start managing lease proposals
           </p>
         </div>
 

@@ -1,13 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
-import {
-  ResponsiveContainer,
-  LineChart,
-  Line,
-  ReferenceLine,
-} from "recharts";
-import { cn } from "@/lib/utils";
+import { ResponsiveContainer, LineChart, Line, ReferenceLine } from "recharts";
 import type { TransformedDataPoint } from "./GrowthVelocityTooltip";
 
 interface ProfitabilityInsightsPanelProps {
@@ -92,8 +86,10 @@ function calculateInsights(data: TransformedDataPoint[]): InsightData {
   return {
     revenueCagr,
     netProfitCagr,
-    revenueTrend: revenueCagr > 10 ? "strong" : revenueCagr > 5 ? "moderate" : "weak",
-    netProfitTrend: netProfitCagr > 15 ? "strong" : netProfitCagr > 8 ? "moderate" : "weak",
+    revenueTrend:
+      revenueCagr > 10 ? "strong" : revenueCagr > 5 ? "moderate" : "weak",
+    netProfitTrend:
+      netProfitCagr > 15 ? "strong" : netProfitCagr > 8 ? "moderate" : "weak",
     startMargin: firstPoint.profitMargin,
     endMargin: lastPoint.profitMargin,
     avgMargin,
@@ -125,13 +121,10 @@ const MetricCard = ({
   };
 
   return (
-    <div className="bg-white rounded-xl p-3 border border-stone-200">
-      <div className="text-xs text-stone-500 mb-1">{label}</div>
+    <div className="bg-background rounded-xl p-3 border border-border">
+      <div className="text-xs text-muted-foreground mb-1">{label}</div>
       <div className="flex items-baseline justify-between">
-        <span
-          className="text-2xl font-bold tabular-nums"
-          style={{ color }}
-        >
+        <span className="text-2xl font-bold tabular-nums" style={{ color }}>
           {value.toFixed(1)}%
         </span>
         <span className="text-lg">{trendIcons[trend]}</span>
@@ -152,10 +145,10 @@ const InsightBullet = ({
   <li className="flex items-start gap-2">
     <span className="text-base flex-shrink-0">{icon}</span>
     <span
-      className={cn(
-        "flex-1 leading-relaxed",
-        positive ? "text-stone-700" : "text-amber-700",
-      )}
+      className="flex-1 leading-relaxed"
+      style={{
+        color: positive ? "var(--text-secondary)" : "var(--financial-warning)",
+      }}
     >
       {text}
     </span>
@@ -168,10 +161,10 @@ export function ProfitabilityInsightsPanel({
   const insights = useMemo(() => calculateInsights(data), [data]);
 
   return (
-    <div className="space-y-6 p-6 bg-gradient-to-br from-stone-50 to-stone-100 rounded-2xl border border-stone-200">
+    <div className="space-y-6 p-6 bg-gradient-to-br from-muted/30 to-muted/50 rounded-2xl border border-border">
       {/* Key Metrics */}
       <section>
-        <h3 className="text-xs font-semibold text-stone-500 uppercase tracking-wider mb-3">
+        <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
           Growth Performance
         </h3>
         <div className="grid grid-cols-1 gap-3">
@@ -179,23 +172,28 @@ export function ProfitabilityInsightsPanel({
             label="Revenue CAGR"
             value={insights.revenueCagr}
             trend={insights.revenueTrend}
-            color="#c9a86c"
+            color="var(--accent-gold)"
           />
           <MetricCard
             label="Net Profit CAGR"
             value={insights.netProfitCagr}
             trend={insights.netProfitTrend}
-            color="#2d7a4f"
+            color="var(--financial-positive)"
           />
 
           {/* Winner Indicator */}
           <div
-            className={cn(
-              "p-3 rounded-xl text-sm font-semibold flex items-center gap-2",
-              insights.netProfitCagr > insights.revenueCagr
-                ? "bg-emerald-100 text-emerald-800"
-                : "bg-amber-100 text-amber-800",
-            )}
+            className="p-3 rounded-xl text-sm font-semibold flex items-center gap-2"
+            style={{
+              backgroundColor:
+                insights.netProfitCagr > insights.revenueCagr
+                  ? "var(--atelier-ink-positive-soft)"
+                  : "var(--atelier-ink-warning-soft)",
+              color:
+                insights.netProfitCagr > insights.revenueCagr
+                  ? "var(--financial-positive)"
+                  : "var(--financial-warning)",
+            }}
           >
             <span className="text-lg">
               {insights.netProfitCagr > insights.revenueCagr ? "🏆" : "⚠️"}
@@ -218,23 +216,23 @@ export function ProfitabilityInsightsPanel({
 
       {/* Profit Margin Evolution */}
       <section>
-        <h3 className="text-xs font-semibold text-stone-500 uppercase tracking-wider mb-3">
+        <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
           Margin Evolution
         </h3>
-        <div className="bg-white rounded-xl p-4 border border-stone-200">
+        <div className="bg-background rounded-xl p-4 border border-border">
           {/* Mini Sparkline */}
           <ResponsiveContainer width="100%" height={60}>
             <LineChart data={data}>
               <Line
                 type="monotone"
                 dataKey="profitMargin"
-                stroke="#4a7c96"
+                stroke="var(--atelier-chart-proposal-b)"
                 strokeWidth={2}
                 dot={false}
               />
               <ReferenceLine
                 y={insights.avgMargin}
-                stroke="#6b6760"
+                stroke="var(--atelier-stone-500)"
                 strokeDasharray="3 3"
                 strokeWidth={1}
               />
@@ -244,20 +242,26 @@ export function ProfitabilityInsightsPanel({
           {/* Margin Stats */}
           <dl className="mt-3 grid grid-cols-3 gap-2 text-center">
             <div>
-              <dt className="text-xs text-stone-500">Start</dt>
-              <dd className="text-sm font-bold text-stone-900 tabular-nums">
+              <dt className="text-xs text-muted-foreground">Start</dt>
+              <dd className="text-sm font-bold text-foreground tabular-nums">
                 {insights.startMargin.toFixed(1)}%
               </dd>
             </div>
             <div>
-              <dt className="text-xs text-stone-500">Latest</dt>
-              <dd className="text-sm font-bold text-[#4a7c96] tabular-nums">
+              <dt className="text-xs text-muted-foreground">Latest</dt>
+              <dd
+                className="text-sm font-bold tabular-nums"
+                style={{ color: "var(--atelier-chart-proposal-b)" }}
+              >
                 {insights.endMargin.toFixed(1)}%
               </dd>
             </div>
             <div>
-              <dt className="text-xs text-stone-500">Peak</dt>
-              <dd className="text-sm font-bold text-[#2d7a4f] tabular-nums">
+              <dt className="text-xs text-muted-foreground">Peak</dt>
+              <dd
+                className="text-sm font-bold tabular-nums"
+                style={{ color: "var(--financial-positive)" }}
+              >
                 {insights.peakMargin.toFixed(1)}%
               </dd>
             </div>
@@ -265,12 +269,17 @@ export function ProfitabilityInsightsPanel({
 
           {/* Change Indicator */}
           <div
-            className={cn(
-              "mt-3 text-center text-xs font-semibold py-1.5 rounded-lg",
-              insights.endMargin > insights.startMargin
-                ? "bg-emerald-50 text-emerald-700"
-                : "bg-red-50 text-red-700",
-            )}
+            className="mt-3 text-center text-xs font-semibold py-1.5 rounded-lg"
+            style={{
+              backgroundColor:
+                insights.endMargin > insights.startMargin
+                  ? "var(--atelier-ink-positive-soft)"
+                  : "var(--atelier-ink-negative-soft)",
+              color:
+                insights.endMargin > insights.startMargin
+                  ? "var(--financial-positive)"
+                  : "var(--financial-negative)",
+            }}
           >
             {insights.endMargin > insights.startMargin
               ? `+${(insights.endMargin - insights.startMargin).toFixed(1)}pp improvement`
@@ -281,10 +290,10 @@ export function ProfitabilityInsightsPanel({
 
       {/* Growth Analysis Insights */}
       <section>
-        <h3 className="text-xs font-semibold text-stone-500 uppercase tracking-wider mb-3">
+        <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
           Key Findings
         </h3>
-        <ul className="space-y-2 text-sm text-stone-700">
+        <ul className="space-y-2 text-sm text-secondary-foreground">
           <InsightBullet
             icon="📈"
             text={`Profit outpaced revenue in ${insights.profitWinYears} of ${data.length} years (${insights.profitWinRate}%)`}

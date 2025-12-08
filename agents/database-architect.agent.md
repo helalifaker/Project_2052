@@ -221,7 +221,35 @@ CREATE TABLE users (
 CREATE INDEX idx_users_email ON users(email);
 ```
 
-**9. Audit Log (optional but recommended)**
+**9. Negotiations (v2.2)**
+```sql
+-- Negotiation entity for grouping related proposals
+CREATE TABLE negotiations (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  developer VARCHAR(200) NOT NULL,
+  property VARCHAR(200) NOT NULL,
+  status VARCHAR(20) DEFAULT 'ACTIVE',  -- 'ACTIVE', 'ACCEPTED', 'REJECTED', 'CLOSED'
+  notes TEXT,
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW(),
+
+  UNIQUE(developer, property),
+  CHECK (status IN ('ACTIVE', 'ACCEPTED', 'REJECTED', 'CLOSED'))
+);
+
+CREATE INDEX idx_negotiations_status ON negotiations(status);
+CREATE INDEX idx_negotiations_developer ON negotiations(developer);
+
+-- Add negotiation tracking to proposals
+ALTER TABLE proposals ADD COLUMN negotiation_id UUID REFERENCES negotiations(id) ON DELETE SET NULL;
+ALTER TABLE proposals ADD COLUMN purpose VARCHAR(20) DEFAULT 'NEGOTIATION';  -- 'NEGOTIATION', 'STRESS_TEST', 'SIMULATION'
+ALTER TABLE proposals ADD COLUMN origin VARCHAR(20) DEFAULT 'OUR_OFFER';  -- 'OUR_OFFER', 'THEIR_COUNTER'
+ALTER TABLE proposals ADD COLUMN offer_number INTEGER;  -- Position in negotiation timeline
+
+CREATE INDEX idx_proposals_negotiation ON proposals(negotiation_id);
+```
+
+**10. Audit Log (optional but recommended)**
 ```sql
 CREATE TABLE audit_log (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -271,21 +299,29 @@ model Proposal {
   id             String   @id @default(uuid())
   developerName  String   @map("developer_name")
   rentModel      String   @map("rent_model")  // 'FIXED', 'REVSHARE', 'PARTNER_REIMBURSE'
-  status         String   @default("DRAFT")
+  status         ProposalStatus @default(DRAFT)
   createdBy      String?  @map("created_by")
   createdAt      DateTime @default(now()) @map("created_at")
   updatedAt      DateTime @updatedAt @map("updated_at")
 
+  // v2.2: Negotiation tracking fields
+  negotiationId  String?        @map("negotiation_id")
+  purpose        ProposalPurpose @default(NEGOTIATION)
+  origin         ProposalOrigin  @default(OUR_OFFER)
+  offerNumber    Int?           @map("offer_number")  // Position in timeline
+
   // Relations
-  user              User?              @relation(fields: [createdBy], references: [id])
-  transitionPeriod  TransitionPeriod[]
-  enrollmentCurve   EnrollmentCurve[]
-  rentTerms         RentTerms?
+  user               User?              @relation(fields: [createdBy], references: [id])
+  negotiation        Negotiation?       @relation(fields: [negotiationId], references: [id], onDelete: SetNull)
+  transitionPeriod   TransitionPeriod[]
+  enrollmentCurve    EnrollmentCurve[]
+  rentTerms          RentTerms?
   calculationResults CalculationResult[]
-  capexAssets       CapExAsset[]
+  capexAssets        CapExAsset[]
 
   @@index([status])
   @@index([createdAt(sort: Desc)])
+  @@index([negotiationId])
   @@map("proposals")
 }
 
@@ -418,6 +454,54 @@ model CapExAsset {
 
   @@index([proposalId])
   @@map("capex_assets")
+}
+
+// v2.2: Negotiation entity for grouping related proposals
+model Negotiation {
+  id        String   @id @default(uuid())
+  developer String
+  property  String
+  status    NegotiationStatus @default(ACTIVE)
+  notes     String?
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  proposals LeaseProposal[]
+
+  @@unique([developer, property])
+  @@index([status])
+  @@index([developer])
+  @@map("negotiations")
+}
+
+enum NegotiationStatus {
+  ACTIVE
+  ACCEPTED
+  REJECTED
+  CLOSED
+}
+
+enum ProposalStatus {
+  DRAFT
+  PENDING_REVIEW
+  IN_NEGOTIATION
+  COUNTER_RECEIVED
+  COUNTER_SENT
+  ACCEPTED
+  REJECTED
+  EXPIRED
+  NEGOTIATION_CLOSED
+}
+
+enum ProposalPurpose {
+  NEGOTIATION
+  STRESS_TEST
+  SIMULATION
+}
+
+enum ProposalOrigin {
+  OUR_OFFER
+  THEIR_COUNTER
 }
 ```
 

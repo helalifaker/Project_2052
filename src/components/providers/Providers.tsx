@@ -7,6 +7,7 @@ import { KeyboardShortcutsDialog } from "@/components/layout/KeyboardShortcutsDi
 import { useGlobalKeyboardShortcuts } from "@/lib/hooks/useKeyboardShortcuts";
 import { AuthProvider } from "@/components/providers/AuthProvider";
 import { ThemeProvider } from "@/components/providers/ThemeProvider";
+import { rehydrateUIStore } from "@/lib/stores/ui-store";
 
 interface ProvidersProps {
   children: React.ReactNode;
@@ -18,6 +19,12 @@ function GlobalProviders({ children }: ProvidersProps) {
 
   // Initialize global keyboard shortcuts
   useGlobalKeyboardShortcuts();
+
+  // Rehydrate Zustand UI store on client-side mount
+  // This prevents SSR/client hydration mismatch issues
+  React.useEffect(() => {
+    rehydrateUIStore();
+  }, []);
 
   // ? key to show keyboard shortcuts help
   React.useEffect(() => {

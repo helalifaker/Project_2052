@@ -25,7 +25,8 @@ import {
   Flag,
 } from "lucide-react";
 import { formatMillions } from "@/lib/utils/financial";
-import { chartColorVars } from "@/lib/design-tokens/chart-colors";
+import { chartColors, chartColorVars } from "@/lib/design-tokens/chart-colors";
+import { chartAnimationDurations } from "@/lib/design-tokens/chart-config";
 
 type DataPoint = {
   year: number;
@@ -66,7 +67,7 @@ const CashFlowCustomTooltip = ({
 
   // Determine health zone with Atelier colors
   let healthZone = "Healthy";
-  let healthColor = chartColorVars["--atelier-ink-positive"];
+  let healthColor: string = chartColorVars["--atelier-ink-positive"];
   if (cash < dangerThreshold) {
     healthZone = "Danger";
     healthColor = chartColorVars["--atelier-ink-negative"];
@@ -431,7 +432,7 @@ export function CashFlowWaterfallChart({
                   stroke={chartColorVars["--atelier-chart-proposal-b"]}
                   strokeWidth={3}
                   fill="url(#cashGradient)"
-                  animationDuration={1500}
+                  animationDuration={chartAnimationDurations.waterfall}
                 />
               </AreaChart>
             </ResponsiveContainer>
@@ -505,19 +506,19 @@ export function CashFlowWaterfallChart({
                   dataKey="operatingCF"
                   fill={chartColorVars["--atelier-ink-positive"]}
                   name="Operating CF"
-                  animationDuration={1500}
+                  animationDuration={chartAnimationDurations.waterfall}
                 />
                 <Bar
                   dataKey="investingCF"
                   fill={chartColorVars["--atelier-ink-negative"]}
                   name="Investing CF"
-                  animationDuration={1500}
+                  animationDuration={chartAnimationDurations.waterfall}
                 />
                 <Bar
                   dataKey="financingCF"
                   fill={chartColorVars["--atelier-chart-proposal-a"]}
                   name="Financing CF"
-                  animationDuration={1500}
+                  animationDuration={chartAnimationDurations.waterfall}
                 />
               </BarChart>
             </ResponsiveContainer>

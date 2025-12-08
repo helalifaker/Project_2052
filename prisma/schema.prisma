@@ -15,6 +15,7 @@ model User {
 
   // Relations
   proposalsCreated           LeaseProposal[]        @relation("ProposalCreator")
+  negotiationsCreated        Negotiation[]          @relation("NegotiationCreator")
   configUpdates              SystemConfig[]         @relation("ConfigUpdater")
   scenariosCreated           Scenario[]             @relation("ScenarioCreator")
   sensitivityAnalysesCreated SensitivityAnalysis[]  @relation("SensitivityAnalysisCreator")
@@ -41,6 +42,19 @@ enum ProposalStatus {
   ACCEPTED
   REJECTED
   NEGOTIATION_CLOSED
+}
+
+enum NegotiationStatus {
+  ACTIVE
+  ACCEPTED
+  REJECTED
+  CLOSED
+}
+
+enum ProposalPurpose {
+  NEGOTIATION   // Part of a negotiation workflow
+  STRESS_TEST   // What-if analysis after negotiation finalized
+  SIMULATION    // Standalone simulation (default)
 }
 
 enum CapExCategoryType {
@@ -164,6 +178,26 @@ model TransitionConfig {
   updatedBy          String?
 }
 
+model Negotiation {
+  id          String            @id @default(uuid())
+  developer   String            /// Developer/landlord company name
+  property    String            /// Property/site name
+  status      NegotiationStatus @default(ACTIVE)
+  notes       String?           /// General negotiation notes
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+  createdBy   String
+
+  // Relations
+  creator     User              @relation("NegotiationCreator", fields: [createdBy], references: [id], onDelete: Restrict)
+  proposals   LeaseProposal[]   @relation("NegotiationProposals")
+
+  // Unique constraint: one negotiation per developer+property combination
+  @@unique([developer, property])
+  @@index([status])
+  @@index([createdBy])
+}
+
 model LeaseProposal {
   id           String    @id @default(uuid())
   name         String
@@ -184,10 +218,13 @@ model LeaseProposal {
   // Contract Period Configuration
   contractPeriodYears Int @default(30) @db.Integer /// Dynamic period length: 25 years (2028-2052) or 30 years (2028-2057)
 
-  // Negotiation Context (v2.1)
-  developer        String?
-  property         String?
-  negotiationRound Int            @default(1)
+  // Negotiation Context (v2.2)
+  negotiationId    String?                              /// FK to Negotiation entity (null for stress tests/simulations)
+  purpose          ProposalPurpose @default(SIMULATION) /// NEGOTIATION | STRESS_TEST | SIMULATION
+  offerNumber      Int?                                 /// Simple counter: 1, 2, 3... (null for non-negotiation proposals)
+  developer        String?                              /// DEPRECATED: Use negotiation.developer instead
+  property         String?                              /// DEPRECATED: Use negotiation.property instead
+  negotiationRound Int            @default(1)          /// DEPRECATED: Use offerNumber instead
   version          String?
   origin           ProposalOrigin @default(OUR_OFFER)
   status           ProposalStatus @default(DRAFT)
@@ -203,6 +240,7 @@ model LeaseProposal {
 
   // Relations
   creator              User                   @relation("ProposalCreator", fields: [createdBy], references: [id], onDelete: Restrict)
+  negotiation          Negotiation?           @relation("NegotiationProposals", fields: [negotiationId], references: [id], onDelete: SetNull)
   assets               CapExAsset[]           @relation("ProposalAssets")
   transitionCapex      CapExTransition[]      @relation("ProposalTransitionCapex")
   parentProposal       LeaseProposal?         @relation("ProposalVersions", fields: [parentProposalId], references: [id], onDelete: SetNull)
@@ -210,8 +248,10 @@ model LeaseProposal {
   scenarios            Scenario[]             @relation("ProposalScenarios")
   sensitivityAnalyses  SensitivityAnalysis[]  @relation("ProposalSensitivityAnalyses")
 
-  // Indexes for negotiation queries (v2.1)
-  @@index([developer, property, negotiationRound], name: "idx_negotiation_thread")
+  // Indexes for negotiation queries (v2.2)
+  @@index([negotiationId, offerNumber], name: "idx_negotiation_offers")
+  @@index([purpose], name: "idx_purpose")
+  @@index([developer, property, negotiationRound], name: "idx_negotiation_thread") // DEPRECATED: kept for backward compatibility
   @@index([status], name: "idx_status")
 
   // PERFORMANCE OPTIMIZATION: Additional indexes for common queries

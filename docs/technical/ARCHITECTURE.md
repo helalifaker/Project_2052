@@ -23,6 +23,7 @@ The School Lease Financial Planning System is a full-stack web application that 
 **Key Capabilities:**
 - 30-year financial projections (2023-2053) in <1 second
 - Three lease models: Fixed, Revenue Share, Partner (Hybrid)
+- Full negotiation workflow with timeline tracking and counter-offers
 - Interactive scenario analysis with real-time (<200ms) calculations
 - Sensitivity analysis with tornado charts
 - Proposal comparison matrices (up to 5 proposals)
@@ -33,7 +34,7 @@ The School Lease Financial Planning System is a full-stack web application that 
 ```
 ┌──────────────────────────────────────────────────────────────┐
 │                         CLIENT TIER                           │
-│  (Browser - React 19 + Next.js 15 App Router + TypeScript)  │
+│  (Browser - React 19 + Next.js 16 App Router + TypeScript)  │
 │                                                                │
 │  - UI Components (shadcn/ui + Tailwind CSS)                  │
 │  - State Management (Zustand + React Hook Form)              │
@@ -43,7 +44,7 @@ The School Lease Financial Planning System is a full-stack web application that 
                      │ HTTPS (TLS 1.3)
 ┌────────────────────▼─────────────────────────────────────────┐
 │                       APPLICATION TIER                        │
-│          (Next.js 15 API Routes - Serverless Functions)      │
+│          (Next.js 16 API Routes - Serverless Functions)      │
 │                                                                │
 │  - Authentication & Authorization (Middleware)                │
 │  - API Endpoints (REST-like, JSON)                           │
@@ -71,11 +72,12 @@ The School Lease Financial Planning System is a full-stack web application that 
 │           (PostgreSQL 14+ via Prisma ORM)                     │
 │                                                                │
 │  - User & Authentication (users, roles)                       │
+│  - Negotiations (developer + property groupings)              │
 │  - System Configuration (zakat rate, interest rates)          │
 │  - Historical Data (2023-2024 actuals)                        │
 │  - Proposals (transition, enrollment, curriculum, rent)       │
 │  - Scenarios & Sensitivity Analyses (saved results)           │
-│  - CapEx Assets (manual items, auto-reinvestment)             │
+│  - CapEx Assets & Categories (manual items, reinvestment)     │
 └──────────────────────────────────────────────────────────────┘
 ```
 
@@ -86,8 +88,8 @@ The School Lease Financial Planning System is a full-stack web application that 
 ### Frontend
 
 **Framework:**
-- **Next.js 15** (App Router with React Server Components)
-- **React 19** (latest with React Compiler enabled)
+- **Next.js 16** (App Router with React Server Components)
+- **React 19.2** (latest stable)
 - **TypeScript 5** (strict mode)
 
 **UI Components:**
@@ -118,8 +120,8 @@ The School Lease Financial Planning System is a full-stack web application that 
 ### Backend
 
 **Runtime:**
-- **Node.js 18+** (LTS)
-- **Next.js 15 API Routes** (serverless functions)
+- **Node.js 20+** (LTS)
+- **Next.js 16 API Routes** (serverless functions)
 
 **Database:**
 - **PostgreSQL 14+** (primary database)
@@ -175,7 +177,7 @@ The School Lease Financial Planning System is a full-stack web application that 
 - **Pages:** `/app/page.tsx`, `/app/proposals/[id]/page.tsx`, etc.
 - **Layouts:** `/app/layout.tsx` (root layout with navigation)
 - **UI Components:** `/src/components/ui/` (reusable primitives)
-- **Feature Components:** `/src/components/proposals/`, `/src/components/dashboard/`
+- **Feature Components:** `/src/components/proposals/`, `/src/components/dashboard/`, `/src/components/negotiations/`
 
 **Key patterns:**
 - **Server Components** for initial data loading (faster)
@@ -1003,6 +1005,6 @@ NEXT_PUBLIC_APP_URL=https://yourapp.com
 
 ---
 
-**Document Version:** 1.0
-**Last Updated:** November 2024
+**Document Version:** 2.0
+**Last Updated:** December 2025
 **Maintained By:** Documentation Agent

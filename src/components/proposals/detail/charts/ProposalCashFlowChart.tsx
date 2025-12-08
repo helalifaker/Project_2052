@@ -17,7 +17,12 @@ import {
   Label,
   Legend,
 } from "recharts";
-import { Wallet, TrendingUp, ArrowDownCircle, ArrowUpCircle } from "lucide-react";
+import {
+  Wallet,
+  TrendingUp,
+  ArrowDownCircle,
+  ArrowUpCircle,
+} from "lucide-react";
 import { formatMillions } from "@/lib/utils/financial";
 import { chartColors } from "@/lib/design-tokens/chart-colors";
 import { getGridProps, chartAnimation } from "@/lib/design-tokens/chart-config";
@@ -60,22 +65,25 @@ const CashFlowTooltip = ({
 
   const { cash, operatingCF, investingCF, financingCF } = point;
 
-  // Determine health zone
+  // Determine health zone - Atelier colors
   let healthZone = "Healthy";
-  let healthColor = "text-emerald-600";
+  let healthColor = "var(--financial-positive)";
   if (cash < dangerThreshold) {
     healthZone = "Danger";
-    healthColor = "text-rose-600";
+    healthColor = "var(--financial-negative)";
   } else if (cash < cautionThreshold) {
     healthZone = "Caution";
-    healthColor = "text-amber-600";
+    healthColor = "var(--financial-warning)";
   }
 
   return (
     <div className="bg-background/95 backdrop-blur-md border border-border/50 rounded-lg shadow-xl p-4 space-y-3">
       <div className="flex items-center justify-between gap-4">
         <div className="font-semibold text-lg">{year}</div>
-        <div className={`text-xs px-2 py-1 rounded-full bg-primary/10 ${healthColor} font-semibold`}>
+        <div
+          className="text-xs px-2 py-1 rounded-full bg-primary/10 font-semibold"
+          style={{ color: healthColor }}
+        >
           {healthZone}
         </div>
       </div>
@@ -83,40 +91,81 @@ const CashFlowTooltip = ({
       <div className="space-y-2 text-sm">
         <div className="flex items-center justify-between gap-8">
           <div className="flex items-center gap-2">
-            <Wallet className="h-4 w-4 text-blue-600" />
+            <Wallet
+              className="h-4 w-4"
+              style={{ color: "var(--atelier-chart-proposal-b)" }}
+            />
             <span className="font-semibold">Cash Position</span>
           </div>
-          <span className="font-mono font-bold text-blue-600">{formatMillions(cash)}</span>
+          <span
+            className="font-mono font-bold"
+            style={{ color: "var(--atelier-chart-proposal-b)" }}
+          >
+            {formatMillions(cash)}
+          </span>
         </div>
 
         <div className="h-px bg-border my-2"></div>
 
         <div className="flex items-center justify-between gap-8">
           <div className="flex items-center gap-2">
-            <ArrowUpCircle className="h-3 w-3 text-emerald-600" />
+            <ArrowUpCircle
+              className="h-3 w-3"
+              style={{ color: "var(--financial-positive)" }}
+            />
             <span className="text-muted-foreground text-xs">Operating CF</span>
           </div>
-          <span className={`font-mono text-xs ${operatingCF >= 0 ? "text-emerald-600" : "text-rose-600"}`}>
+          <span
+            className="font-mono text-xs"
+            style={{
+              color:
+                operatingCF >= 0
+                  ? "var(--financial-positive)"
+                  : "var(--financial-negative)",
+            }}
+          >
             {formatMillions(operatingCF)}
           </span>
         </div>
 
         <div className="flex items-center justify-between gap-8">
           <div className="flex items-center gap-2">
-            <ArrowDownCircle className="h-3 w-3 text-rose-600" />
+            <ArrowDownCircle
+              className="h-3 w-3"
+              style={{ color: "var(--financial-negative)" }}
+            />
             <span className="text-muted-foreground text-xs">Investing CF</span>
           </div>
-          <span className={`font-mono text-xs ${investingCF >= 0 ? "text-emerald-600" : "text-rose-600"}`}>
+          <span
+            className="font-mono text-xs"
+            style={{
+              color:
+                investingCF >= 0
+                  ? "var(--financial-positive)"
+                  : "var(--financial-negative)",
+            }}
+          >
             {formatMillions(investingCF)}
           </span>
         </div>
 
         <div className="flex items-center justify-between gap-8">
           <div className="flex items-center gap-2">
-            <TrendingUp className="h-3 w-3 text-violet-600" />
+            <TrendingUp
+              className="h-3 w-3"
+              style={{ color: "var(--atelier-chart-proposal-a)" }}
+            />
             <span className="text-muted-foreground text-xs">Financing CF</span>
           </div>
-          <span className={`font-mono text-xs ${financingCF >= 0 ? "text-emerald-600" : "text-rose-600"}`}>
+          <span
+            className="font-mono text-xs"
+            style={{
+              color:
+                financingCF >= 0
+                  ? "var(--financial-positive)"
+                  : "var(--financial-negative)",
+            }}
+          >
             {formatMillions(financingCF)}
           </span>
         </div>
@@ -130,7 +179,9 @@ export function ProposalCashFlowChart({
   contractEndYear,
   height = 350,
 }: ProposalCashFlowChartProps) {
-  const [viewMode, setViewMode] = useState<"cumulative" | "components">("cumulative");
+  const [viewMode, setViewMode] = useState<"cumulative" | "components">(
+    "cumulative",
+  );
 
   if (!data || data.length === 0) {
     return (
@@ -149,11 +200,11 @@ export function ProposalCashFlowChart({
 
   // Find key milestones
   const lowestCashYear = data.reduce((prev, current) =>
-    current.cash < prev.cash ? current : prev
+    current.cash < prev.cash ? current : prev,
   ).year;
 
   const highestCashYear = data.reduce((prev, current) =>
-    current.cash > prev.cash ? current : prev
+    current.cash > prev.cash ? current : prev,
   ).year;
 
   return (
@@ -163,7 +214,10 @@ export function ProposalCashFlowChart({
         <div className="flex items-start justify-between">
           <div className="space-y-1">
             <h3 className="text-lg font-bold flex items-center gap-2">
-              <Wallet className="h-5 w-5 text-blue-600" />
+              <Wallet
+                className="h-5 w-5"
+                style={{ color: "var(--atelier-chart-proposal-b)" }}
+              />
               Cash Flow Analysis
             </h3>
             <p className="text-xs text-muted-foreground">
@@ -195,18 +249,35 @@ export function ProposalCashFlowChart({
         {/* Key Insights */}
         <div className="grid grid-cols-2 gap-3 bg-muted/30 rounded-lg p-3">
           <div className="flex items-center gap-2">
-            <div className="h-8 w-8 rounded-full bg-rose-500/10 flex items-center justify-center">
-              <ArrowDownCircle className="h-4 w-4 text-rose-600" />
+            <div
+              className="h-8 w-8 rounded-full flex items-center justify-center"
+              style={{ backgroundColor: "var(--atelier-ink-negative-soft)" }}
+            >
+              <ArrowDownCircle
+                className="h-4 w-4"
+                style={{ color: "var(--financial-negative)" }}
+              />
             </div>
             <div>
-              <div className="text-[10px] text-muted-foreground">Lowest Cash</div>
+              <div className="text-[10px] text-muted-foreground">
+                Lowest Cash
+              </div>
               <div className="text-sm font-semibold">{lowestCashYear}</div>
             </div>
           </div>
 
           <div className="flex items-center gap-2">
-            <div className="h-8 w-8 rounded-full bg-blue-500/10 flex items-center justify-center">
-              <TrendingUp className="h-4 w-4 text-blue-600" />
+            <div
+              className="h-8 w-8 rounded-full flex items-center justify-center"
+              style={{
+                backgroundColor:
+                  "color-mix(in srgb, var(--atelier-chart-proposal-b) 15%, transparent)",
+              }}
+            >
+              <TrendingUp
+                className="h-4 w-4"
+                style={{ color: "var(--atelier-chart-proposal-b)" }}
+              />
             </div>
             <div>
               <div className="text-[10px] text-muted-foreground">Peak Cash</div>
@@ -219,11 +290,22 @@ export function ProposalCashFlowChart({
         <div style={{ height: `${height}px` }}>
           {viewMode === "cumulative" ? (
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={data} margin={{ top: 10, right: 20, left: 10, bottom: 40 }}>
+              <AreaChart
+                data={data}
+                margin={{ top: 10, right: 20, left: 10, bottom: 40 }}
+              >
                 <defs>
                   <linearGradient id="cashGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor={chartColors.neutral} stopOpacity={0.8} />
-                    <stop offset="100%" stopColor={chartColors.neutral} stopOpacity={0.1} />
+                    <stop
+                      offset="0%"
+                      stopColor={chartColors.neutral}
+                      stopOpacity={0.8}
+                    />
+                    <stop
+                      offset="100%"
+                      stopColor={chartColors.neutral}
+                      stopOpacity={0.1}
+                    />
                   </linearGradient>
                 </defs>
 
@@ -231,16 +313,18 @@ export function ProposalCashFlowChart({
 
                 <XAxis
                   dataKey="year"
-                  stroke="#6b7280"
-                  tick={{ fill: "#6b7280", fontSize: 11 }}
-                  tickLine={{ stroke: "#6b7280" }}
+                  stroke={chartColors.axis}
+                  tick={{ fill: chartColors.axis, fontSize: 11 }}
+                  tickLine={{ stroke: chartColors.axis }}
                 />
 
                 <YAxis
-                  stroke="#6b7280"
-                  tick={{ fill: "#6b7280", fontSize: 11 }}
-                  tickLine={{ stroke: "#6b7280" }}
-                  tickFormatter={(value) => `${(value / 1_000_000).toFixed(0)}M`}
+                  stroke={chartColors.axis}
+                  tick={{ fill: chartColors.axis, fontSize: 11 }}
+                  tickLine={{ stroke: chartColors.axis }}
+                  tickFormatter={(value) =>
+                    `${(value / 1_000_000).toFixed(0)}M`
+                  }
                 />
 
                 <Tooltip
@@ -256,7 +340,7 @@ export function ProposalCashFlowChart({
                 {/* Health Zone Lines */}
                 <ReferenceLine
                   y={dangerThreshold}
-                  stroke="#f43f5e"
+                  stroke={chartColors.negative}
                   strokeDasharray="3 3"
                   strokeWidth={1}
                   opacity={0.5}
@@ -264,14 +348,14 @@ export function ProposalCashFlowChart({
                   <Label
                     value="Danger Zone"
                     position="insideTopLeft"
-                    fill="#f43f5e"
+                    fill={chartColors.negative}
                     fontSize={9}
                   />
                 </ReferenceLine>
 
                 <ReferenceLine
                   y={cautionThreshold}
-                  stroke="#f59e0b"
+                  stroke={chartColors.warning}
                   strokeDasharray="3 3"
                   strokeWidth={1}
                   opacity={0.5}
@@ -279,7 +363,7 @@ export function ProposalCashFlowChart({
                   <Label
                     value="Caution"
                     position="insideTopLeft"
-                    fill="#f59e0b"
+                    fill={chartColors.warning}
                     fontSize={9}
                   />
                 </ReferenceLine>
@@ -287,14 +371,14 @@ export function ProposalCashFlowChart({
                 {/* Contract Markers */}
                 <ReferenceLine
                   x={2028}
-                  stroke="#8b5cf6"
+                  stroke={chartColors.proposalA}
                   strokeWidth={2}
                   opacity={0.4}
                 />
 
                 <ReferenceLine
                   x={contractEndYear}
-                  stroke="#8b5cf6"
+                  stroke={chartColors.proposalA}
                   strokeWidth={2}
                   opacity={0.4}
                 />
@@ -311,21 +395,26 @@ export function ProposalCashFlowChart({
             </ResponsiveContainer>
           ) : (
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={data} margin={{ top: 10, right: 20, left: 10, bottom: 40 }}>
+              <BarChart
+                data={data}
+                margin={{ top: 10, right: 20, left: 10, bottom: 40 }}
+              >
                 <CartesianGrid {...getGridProps()} />
 
                 <XAxis
                   dataKey="year"
-                  stroke="#6b7280"
-                  tick={{ fill: "#6b7280", fontSize: 11 }}
-                  tickLine={{ stroke: "#6b7280" }}
+                  stroke={chartColors.axis}
+                  tick={{ fill: chartColors.axis, fontSize: 11 }}
+                  tickLine={{ stroke: chartColors.axis }}
                 />
 
                 <YAxis
-                  stroke="#6b7280"
-                  tick={{ fill: "#6b7280", fontSize: 11 }}
-                  tickLine={{ stroke: "#6b7280" }}
-                  tickFormatter={(value) => `${(value / 1_000_000).toFixed(0)}M`}
+                  stroke={chartColors.axis}
+                  tick={{ fill: chartColors.axis, fontSize: 11 }}
+                  tickLine={{ stroke: chartColors.axis }}
+                  tickFormatter={(value) =>
+                    `${(value / 1_000_000).toFixed(0)}M`
+                  }
                 />
 
                 <Tooltip
@@ -343,7 +432,11 @@ export function ProposalCashFlowChart({
                   iconType="circle"
                 />
 
-                <ReferenceLine y={0} stroke="#6b7280" strokeWidth={1} />
+                <ReferenceLine
+                  y={0}
+                  stroke={chartColors.axis}
+                  strokeWidth={1}
+                />
 
                 <Bar
                   dataKey="operatingCF"

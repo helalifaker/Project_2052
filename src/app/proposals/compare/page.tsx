@@ -6,7 +6,8 @@ import dynamic from "next/dynamic";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Loader2, ArrowLeft, AlertCircle } from "lucide-react";
+import { Loader2, AlertCircle } from "lucide-react";
+import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import {
   ComparisonTable,
   ProposalSummary,
@@ -233,14 +234,29 @@ function ProposalCompareContent() {
   }, [proposals]);
 
   // EBITDA Chart Data - compares Average EBITDA
+  // Note: avgEbitda may not be present in older proposals' metrics (before it was added)
+  // In that case, compute it from totalEbitda / periodCount
   const ebitdaChartData = useMemo(() => {
-    const ebitdaValues = proposals.map((p) => ({
-      proposalId: p.id,
-      proposalName: p.name,
-      developer: p.developer ?? "Unknown",
-      avgEbitda: parseMetricValue(p.metrics?.avgEbitda),
-      isWinner: false,
-    }));
+    const ebitdaValues = proposals.map((p) => {
+      // Try to get avgEbitda directly from metrics
+      let avgEbitda = parseMetricValue(p.metrics?.avgEbitda);
+
+      // Fallback: compute from totalEbitda if avgEbitda is missing (legacy proposals)
+      if (avgEbitda === 0 && p.metrics?.totalEbitda) {
+        const totalEbitda = parseMetricValue(p.metrics.totalEbitda);
+        // Period count = contractPeriodYears + 5 (2 historical + 3 transition years)
+        const periodCount = (p.contractPeriodYears || 30) + 5;
+        avgEbitda = totalEbitda / periodCount;
+      }
+
+      return {
+        proposalId: p.id,
+        proposalName: p.name,
+        developer: p.developer ?? "Unknown",
+        avgEbitda,
+        isWinner: false,
+      };
+    });
     // Mark winner (highest EBITDA)
     if (ebitdaValues.length > 0) {
       const maxEbitda = Math.max(...ebitdaValues.map((v) => v.avgEbitda));
@@ -332,198 +348,208 @@ function ProposalCompareContent() {
     [proposals],
   );
 
-  // Loading state
+  // Breadcrumbs for consistent navigation
+  const breadcrumbs = [
+    { label: "Proposals", href: "/proposals" },
+    { label: "Compare" },
+  ];
+
+  // Loading state - show within layout for consistency
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin" />
-        <span className="ml-2 text-muted-foreground">Loading proposals...</span>
-      </div>
+      <DashboardLayout breadcrumbs={breadcrumbs}>
+        <div className="flex items-center justify-center py-32">
+          <Loader2 className="h-8 w-8 animate-spin" />
+          <span className="ml-2 text-muted-foreground">
+            Loading proposals...
+          </span>
+        </div>
+      </DashboardLayout>
     );
   }
 
   return (
-    <div className="container mx-auto py-8 space-y-6 max-w-7xl">
-      {/* Header */}
-      <div className="flex items-center justify-between">
+    <DashboardLayout
+      breadcrumbs={breadcrumbs}
+      actions={
+        <DeltaToggle checked={deltaMode} onCheckedChange={setDeltaMode} />
+      }
+    >
+      <div className="space-y-6">
+        {/* Header */}
         <div>
           <h1 className="text-3xl font-bold tracking-tight">War Room</h1>
-          <p className="text-muted-foreground">
+          <p className="text-muted-foreground mt-2">
             Compare proposals side-by-side with comprehensive analysis.
           </p>
         </div>
-        <div className="flex items-center gap-4">
-          <DeltaToggle checked={deltaMode} onCheckedChange={setDeltaMode} />
-          <Button variant="outline" onClick={() => router.back()}>
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Back
-          </Button>
-        </div>
-      </div>
 
-      {/* Error State */}
-      {error && (
-        <Alert variant="destructive">
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
-      )}
+        {/* Error State */}
+        {error && (
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
 
-      {/* Empty State */}
-      {proposals.length === 0 && !loading && !error && (
-        <div className="rounded-lg border border-dashed p-12 text-center">
-          <h3 className="text-lg font-semibold mb-2">No Proposals Selected</h3>
-          <p className="text-muted-foreground mb-4">
-            Select 2-5 proposals from the proposals list to compare
-          </p>
-          <Button onClick={() => router.push("/proposals")}>
-            Browse Proposals
-          </Button>
-        </div>
-      )}
+        {/* Empty State */}
+        {proposals.length === 0 && !loading && !error && (
+          <div className="rounded-lg border border-dashed p-12 text-center">
+            <h3 className="text-lg font-semibold mb-2">
+              No Proposals Selected
+            </h3>
+            <p className="text-muted-foreground mb-4">
+              Select 2-5 proposals from the proposals list to compare
+            </p>
+            <Button onClick={() => router.push("/proposals")}>
+              Browse Proposals
+            </Button>
+          </div>
+        )}
 
-      {/* Tabbed Content */}
-      {proposals.length > 0 && (
-        <Tabs
-          value={activeTab}
-          onValueChange={setActiveTab}
-          className="space-y-6"
-        >
-          <TabsList className="grid w-full grid-cols-3 max-w-2xl">
-            <TabsTrigger value="overview">Overview</TabsTrigger>
-            <TabsTrigger value="visual">Visual Analysis</TabsTrigger>
-            <TabsTrigger value="statements">Financial Statements</TabsTrigger>
-          </TabsList>
+        {/* Tabbed Content */}
+        {proposals.length > 0 && (
+          <Tabs
+            value={activeTab}
+            onValueChange={setActiveTab}
+            className="space-y-6"
+          >
+            <TabsList className="grid w-full grid-cols-3 max-w-2xl">
+              <TabsTrigger value="overview">Overview</TabsTrigger>
+              <TabsTrigger value="visual">Visual Analysis</TabsTrigger>
+              <TabsTrigger value="statements">Financial Statements</TabsTrigger>
+            </TabsList>
 
-          {/* Tab 1: Overview */}
-          <TabsContent value="overview" className="space-y-6">
-            <div className="bg-muted/30 p-4 rounded-lg text-sm text-muted-foreground">
-              <p>
-                <strong>Note:</strong> The first proposal (leftmost) is treated
-                as the
-                <span className="text-primary font-semibold"> Baseline</span>.
-                Enable &quot;Delta View&quot; to see how other proposals compare
-                against it.
-              </p>
-            </div>
-
-            <div>
-              <h2 className="text-xl font-semibold mb-4">Quick Comparison</h2>
-              <ComparisonTable proposals={proposals} deltaMode={deltaMode} />
-            </div>
-
-            <div>
-              <h2 className="text-xl font-semibold mb-4">Detailed Metrics</h2>
-              <ComparisonMetricsTable proposals={metricsTableData} />
-            </div>
-          </TabsContent>
-
-          {/* Tab 2: Visual Analysis */}
-          <TabsContent value="visual" className="space-y-8">
-            {/* Top Row: NAV and NPV side by side */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* NAV Comparison */}
-              <Card className="p-6">
-                <div className="mb-4">
-                  <h2 className="text-lg font-semibold">
-                    Net Annualized Value (NAV) ⭐
-                  </h2>
-                  <p className="text-sm text-muted-foreground">
-                    Primary decision metric: Annual EBITDA minus Annual Rent
-                  </p>
-                </div>
-                <NAVComparisonBarChart data={navChartData} />
-              </Card>
-
-              {/* NPV Comparison */}
-              <Card className="p-6">
-                <div className="mb-4">
-                  <h2 className="text-lg font-semibold">
-                    Net Present Value (NPV)
-                  </h2>
-                  <p className="text-sm text-muted-foreground">
-                    Present value of all future cash flows
-                  </p>
-                </div>
-                <NPVComparisonBarChart data={npvChartData} />
-              </Card>
-            </div>
-
-            {/* EBITDA Comparison */}
-            <Card className="p-6">
-              <div className="mb-4">
-                <h2 className="text-lg font-semibold">
-                  Average EBITDA Comparison
-                </h2>
-                <p className="text-sm text-muted-foreground">
-                  Operating performance comparison across all proposals
+            {/* Tab 1: Overview */}
+            <TabsContent value="overview" className="space-y-6">
+              <div className="bg-muted/30 p-4 rounded-lg text-sm text-muted-foreground">
+                <p>
+                  <strong>Note:</strong> The first proposal (leftmost) is
+                  treated as the
+                  <span className="text-primary font-semibold"> Baseline</span>.
+                  Enable &quot;Delta View&quot; to see how other proposals
+                  compare against it.
                 </p>
               </div>
-              <EBITDAComparisonChart data={ebitdaChartData} />
-            </Card>
 
-            {/* Time Series Charts - require full proposal data */}
-            {loadingFull ? (
-              <div className="flex items-center justify-center h-96">
-                <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                <span className="ml-3 text-muted-foreground">
-                  Loading detailed financial data for time series charts...
-                </span>
+              <div>
+                <h2 className="text-xl font-semibold mb-4">Quick Comparison</h2>
+                <ComparisonTable proposals={proposals} deltaMode={deltaMode} />
               </div>
-            ) : (
-              <>
-                {/* Cumulative Cash Flow */}
+
+              <div>
+                <h2 className="text-xl font-semibold mb-4">Detailed Metrics</h2>
+                <ComparisonMetricsTable proposals={metricsTableData} />
+              </div>
+            </TabsContent>
+
+            {/* Tab 2: Visual Analysis */}
+            <TabsContent value="visual" className="space-y-8">
+              {/* Top Row: NAV and NPV side by side */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* NAV Comparison */}
                 <Card className="p-6">
                   <div className="mb-4">
                     <h2 className="text-lg font-semibold">
-                      Cumulative Cash Flow Over Time
+                      Net Annualized Value (NAV) ⭐
                     </h2>
                     <p className="text-sm text-muted-foreground">
-                      Cash position trajectory across the 30-year projection
+                      Primary decision metric: Annual EBITDA minus Annual Rent
                     </p>
                   </div>
-                  <CumulativeCashFlowComparisonChart
-                    proposals={cashFlowChartData}
-                    winnerId={cashFlowWinnerId}
-                  />
+                  <NAVComparisonBarChart data={navChartData} />
                 </Card>
 
-                {/* Profitability */}
+                {/* NPV Comparison */}
                 <Card className="p-6">
                   <div className="mb-4">
                     <h2 className="text-lg font-semibold">
-                      Profitability Over Time
+                      Net Present Value (NPV)
                     </h2>
                     <p className="text-sm text-muted-foreground">
-                      Net Income progression across the projection period
+                      Present value of all future cash flows
                     </p>
                   </div>
-                  <ProfitabilityComparisonChart
-                    proposals={profitabilityChartData}
-                    winnerId={profitabilityWinnerId}
-                    metric="netIncome"
-                  />
+                  <NPVComparisonBarChart data={npvChartData} />
                 </Card>
-              </>
-            )}
-          </TabsContent>
-
-          {/* Tab 3: Financial Statements */}
-          <TabsContent value="statements" className="space-y-6">
-            {loadingFull ? (
-              <div className="flex items-center justify-center h-96">
-                <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                <span className="ml-3 text-muted-foreground">
-                  Loading detailed financial data...
-                </span>
               </div>
-            ) : (
-              <FinancialStatementsComparison proposals={statementsData} />
-            )}
-          </TabsContent>
-        </Tabs>
-      )}
-    </div>
+
+              {/* EBITDA Comparison */}
+              <Card className="p-6">
+                <div className="mb-4">
+                  <h2 className="text-lg font-semibold">
+                    Average EBITDA Comparison
+                  </h2>
+                  <p className="text-sm text-muted-foreground">
+                    Operating performance comparison across all proposals
+                  </p>
+                </div>
+                <EBITDAComparisonChart data={ebitdaChartData} />
+              </Card>
+
+              {/* Time Series Charts - require full proposal data */}
+              {loadingFull ? (
+                <div className="flex items-center justify-center h-96">
+                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                  <span className="ml-3 text-muted-foreground">
+                    Loading detailed financial data for time series charts...
+                  </span>
+                </div>
+              ) : (
+                <>
+                  {/* Cumulative Cash Flow */}
+                  <Card className="p-6">
+                    <div className="mb-4">
+                      <h2 className="text-lg font-semibold">
+                        Cumulative Cash Flow Over Time
+                      </h2>
+                      <p className="text-sm text-muted-foreground">
+                        Cash position trajectory across the 30-year projection
+                      </p>
+                    </div>
+                    <CumulativeCashFlowComparisonChart
+                      proposals={cashFlowChartData}
+                      winnerId={cashFlowWinnerId}
+                    />
+                  </Card>
+
+                  {/* Profitability */}
+                  <Card className="p-6">
+                    <div className="mb-4">
+                      <h2 className="text-lg font-semibold">
+                        Profitability Over Time
+                      </h2>
+                      <p className="text-sm text-muted-foreground">
+                        Net Income progression across the projection period
+                      </p>
+                    </div>
+                    <ProfitabilityComparisonChart
+                      proposals={profitabilityChartData}
+                      winnerId={profitabilityWinnerId}
+                      metric="netIncome"
+                    />
+                  </Card>
+                </>
+              )}
+            </TabsContent>
+
+            {/* Tab 3: Financial Statements */}
+            <TabsContent value="statements" className="space-y-6">
+              {loadingFull ? (
+                <div className="flex items-center justify-center h-96">
+                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                  <span className="ml-3 text-muted-foreground">
+                    Loading detailed financial data...
+                  </span>
+                </div>
+              ) : (
+                <FinancialStatementsComparison proposals={statementsData} />
+              )}
+            </TabsContent>
+          </Tabs>
+        )}
+      </div>
+    </DashboardLayout>
   );
 }
 

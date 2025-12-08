@@ -50,15 +50,15 @@ export interface DataSeries {
  */
 export interface BaseLineChartProps {
   /** Chart data array */
-  data: any[];
+  data: Record<string, unknown>[];
   /** Data series configuration */
   series: DataSeries[];
   /** X-axis data key */
   xAxisKey: string;
   /** Optional X-axis label formatter */
-  xAxisFormatter?: (value: any) => string;
+  xAxisFormatter?: (value: string | number) => string;
   /** Optional Y-axis label formatter */
-  yAxisFormatter?: (value: any) => string;
+  yAxisFormatter?: (value: string | number) => string;
   /** Optional Y-axis domain */
   yAxisDomain?: [
     number | "auto" | "dataMin" | "dataMax",
@@ -76,6 +76,10 @@ export interface BaseLineChartProps {
   tooltipFormat?: "millions" | "billions" | "percent" | "number";
   /** Additional className */
   className?: string;
+  /** Accessible label for the chart (WCAG 1.1.1) */
+  ariaLabel?: string;
+  /** Detailed description for screen readers */
+  ariaDescription?: string;
 }
 
 /**
@@ -138,13 +142,30 @@ export const BaseLineChart = React.memo(function BaseLineChart({
   tooltipContent,
   tooltipFormat = "millions",
   className,
+  ariaLabel,
+  ariaDescription,
 }: BaseLineChartProps) {
   // Auto-enable legend for multiple series
   const displayLegend =
     showLegend !== undefined ? showLegend : series.length > 1;
 
+  // Generate a unique ID for aria-describedby (always call useId to follow hooks rules)
+  const uniqueId = React.useId();
+  const descriptionId = ariaDescription ? `chart-desc-${uniqueId}` : undefined;
+
   return (
-    <div className={className}>
+    <figure
+      role="img"
+      aria-label={ariaLabel || "Line chart visualization"}
+      aria-describedby={descriptionId}
+      className={className}
+    >
+      {/* Screen reader description */}
+      {ariaDescription && (
+        <figcaption id={descriptionId} className="sr-only">
+          {ariaDescription}
+        </figcaption>
+      )}
       <ResponsiveContainer width="100%" height={height}>
         <LineChart data={data} margin={chartSpacing.margin}>
           {/* Grid */}
@@ -194,6 +215,6 @@ export const BaseLineChart = React.memo(function BaseLineChart({
           ))}
         </LineChart>
       </ResponsiveContainer>
-    </div>
+    </figure>
   );
 });

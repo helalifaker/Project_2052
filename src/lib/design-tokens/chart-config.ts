@@ -147,15 +147,15 @@ export const chartAxis = {
 
 /**
  * Tooltip Configuration
- * Styling for chart tooltips
+ * Styling for chart tooltips - uses our optimized shadow system
  */
 export const chartTooltipStyle = {
   backgroundColor: "hsl(var(--color-background))",
-  border: "1px solid hsl(24 6% 83%)", // stone-300
+  border: "1px solid hsl(var(--color-border))",
   borderRadius: "12px",
-  padding: "12px",
-  boxShadow:
-    "0 4px 6px -1px hsl(24 10% 10% / 0.12), 0 2px 4px -2px hsl(24 10% 10% / 0.08)",
+  padding: "12px 14px",
+  // Using our performance-optimized shadow from CSS variables
+  boxShadow: "var(--shadow-dropdown)",
   fontSize: chartTypography.tooltip.fontSize,
   fontWeight: chartTypography.tooltip.fontWeight,
   fontFamily: chartTypography.tooltip.fontFamily,
@@ -178,13 +178,13 @@ export const chartTooltipContentStyle = {
 
 /**
  * Legend Configuration
- * Styling for chart legends
+ * Styling for chart legends - uses theme-aware colors
  */
 export const chartLegendStyle = {
   fontSize: chartTypography.legend.fontSize,
   fontWeight: chartTypography.legend.fontWeight,
   fontFamily: chartTypography.legend.fontFamily,
-  fill: chartTypography.legend.fill,
+  fill: "hsl(var(--color-chart-axis))", // Theme-aware legend color
   iconType: "circle" as const,
   iconSize: 8,
   wrapperStyle: {
@@ -201,6 +201,25 @@ export const chartAnimation = {
   easing: "ease-out" as const, // Ease-out easing function
   isAnimationActive: true, // Enable animations
   animationBegin: 0, // Start immediately
+} as const;
+
+/**
+ * Chart-Specific Animation Durations
+ * Different chart types need different animation speeds for optimal UX
+ */
+export const chartAnimationDurations = {
+  /** Default animation for most charts */
+  default: 500,
+  /** Waterfall/journey charts - longer for visual storytelling */
+  waterfall: 1500,
+  /** Line chart reveal animation */
+  line: 750,
+  /** Bar chart grow animation */
+  bar: 500,
+  /** Pie chart rotation animation */
+  pie: 1000,
+  /** Counter/number animations (KPI cards) */
+  counter: 2000,
 } as const;
 
 /**

@@ -113,11 +113,12 @@ export function TrendIndicator({
 
   return (
     <span
-      className={cn(
-        "text-xs flex items-center gap-1",
-        isPositive ? "text-green-600" : "text-red-600",
-        className,
-      )}
+      className={cn("text-xs flex items-center gap-1", className)}
+      style={{
+        color: isPositive
+          ? "var(--financial-positive)"
+          : "var(--financial-negative)",
+      }}
     >
       {isPositive ? (
         <TrendingUp className="h-3 w-3" />
@@ -198,9 +199,13 @@ export function CalculationTooltip({
                 <span
                   className={cn(
                     "font-mono",
-                    step.value < 0 && "text-red-600",
                     step.operation === "equals" && "text-primary font-semibold",
                   )}
+                  style={
+                    step.value < 0
+                      ? { color: "var(--financial-negative)" }
+                      : undefined
+                  }
                 >
                   {formatValue(step.value, precision, unit)}
                 </span>
@@ -212,10 +217,13 @@ export function CalculationTooltip({
           <div className="flex items-center justify-between border-t pt-2">
             <span className="text-sm font-medium">Result</span>
             <span
-              className={cn(
-                "text-lg font-bold font-mono",
-                result < 0 ? "text-red-600" : "text-green-600",
-              )}
+              className="text-lg font-bold font-mono"
+              style={{
+                color:
+                  result < 0
+                    ? "var(--financial-negative)"
+                    : "var(--financial-positive)",
+              }}
             >
               {formatValue(result, precision, unit)}
             </span>
@@ -378,11 +386,8 @@ export function EnhancedFinancialValue({
     return (
       <CalculationTooltip breakdown={breakdown} className={className}>
         <span
-          className={cn(
-            "font-mono tabular-nums",
-            value < 0 && "text-red-600",
-            valueClassName,
-          )}
+          className={cn("font-mono tabular-nums", valueClassName)}
+          style={value < 0 ? { color: "var(--financial-negative)" } : undefined}
         >
           {formattedValue}
         </span>
@@ -401,11 +406,8 @@ export function EnhancedFinancialValue({
       className={className}
     >
       <span
-        className={cn(
-          "font-mono tabular-nums",
-          value < 0 && "text-red-600",
-          valueClassName,
-        )}
+        className={cn("font-mono tabular-nums", valueClassName)}
+        style={value < 0 ? { color: "var(--financial-negative)" } : undefined}
       >
         {formattedValue}
       </span>

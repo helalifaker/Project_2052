@@ -3,10 +3,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { authenticateUserWithRole } from "@/middleware/auth";
 import { Role } from "@/lib/types/roles";
-import type {
-  InputJsonValue,
-  LeaseProposalUpdateInput,
-} from "@/lib/types/prisma-helpers";
+import type { LeaseProposalUpdateInput } from "@/lib/types/prisma-helpers";
 import { invalidateProposalCache } from "@/lib/cache/calculation-cache";
 import { UpdateProposalSchema } from "@/lib/validation/proposal";
 
@@ -155,6 +152,33 @@ export async function PATCH(
       updateData.developer = validatedData.developer;
     if (validatedData.property !== undefined)
       updateData.property = validatedData.property;
+
+    // Negotiation context fields (v2.2)
+    if (validatedData.status !== undefined)
+      updateData.status = validatedData.status;
+    if (validatedData.origin !== undefined)
+      updateData.origin = validatedData.origin;
+    if (validatedData.purpose !== undefined)
+      updateData.purpose = validatedData.purpose;
+    if (validatedData.negotiationId !== undefined)
+      updateData.negotiationId = validatedData.negotiationId;
+    if (validatedData.offerNumber !== undefined)
+      updateData.offerNumber = validatedData.offerNumber;
+    if (validatedData.version !== undefined)
+      updateData.version = validatedData.version;
+    if (validatedData.negotiationNotes !== undefined)
+      updateData.negotiationNotes = validatedData.negotiationNotes;
+    if (validatedData.boardComments !== undefined)
+      updateData.boardComments = validatedData.boardComments;
+    if (validatedData.submittedDate !== undefined)
+      updateData.submittedDate = validatedData.submittedDate
+        ? new Date(validatedData.submittedDate)
+        : null;
+    if (validatedData.responseReceivedDate !== undefined)
+      updateData.responseReceivedDate = validatedData.responseReceivedDate
+        ? new Date(validatedData.responseReceivedDate)
+        : null;
+
     if (validatedData.enrollment !== undefined)
       updateData.enrollment = validatedData.enrollment as any;
     if (validatedData.curriculum !== undefined)

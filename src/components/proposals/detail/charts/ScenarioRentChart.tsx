@@ -70,7 +70,7 @@ export function ScenarioRentChart({ data, isLoading }: ScenarioRentChartProps) {
         ]}
         xAxisKey="year"
         xAxisFormatter={(value) => `'${String(value).slice(-2)}`}
-        yAxisFormatter={(value) => `${value.toFixed(1)}M`}
+        yAxisFormatter={(value) => `${Number(value).toFixed(1)}M`}
         tooltipFormat="millions"
         height={280}
         showLegend={true}

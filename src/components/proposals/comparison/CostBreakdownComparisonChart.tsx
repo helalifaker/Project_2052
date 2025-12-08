@@ -15,6 +15,10 @@ import {
 import type { Payload } from "recharts/types/component/DefaultTooltipContent";
 import { formatMillions } from "@/lib/utils/financial";
 import { Card } from "@/components/ui/card";
+import {
+  chartColors,
+  chartColorMappings,
+} from "@/lib/design-tokens/chart-colors";
 
 /**
  * Cost Breakdown Comparison Chart
@@ -55,11 +59,11 @@ interface CostBreakdownComparisonChartProps {
   className?: string;
 }
 
-// Consistent colors for cost categories
+// Consistent colors for cost categories using design tokens
 const COST_COLORS = {
-  rent: "#3b82f6", // blue-500 - Primary cost
-  staffSalaries: "#10b981", // green-500 - Staff costs
-  otherOpEx: "#f59e0b", // amber-500 - Other operating expenses
+  rent: chartColorMappings.costBreakdown.rent, // Copper for rent costs
+  staffSalaries: chartColorMappings.costBreakdown.staff, // Sage for staff costs
+  otherOpEx: chartColorMappings.costBreakdown.otherOpex, // Blue-gray for other OpEx
 };
 
 // Custom tooltip component
@@ -204,7 +208,7 @@ export function CostBreakdownComparisonChart({
                     y={y}
                     dy={16}
                     textAnchor="end"
-                    fill={isWinner ? "#000" : "#666"}
+                    fill={isWinner ? "var(--foreground)" : chartColors.axis}
                     fontWeight={isWinner ? "bold" : "normal"}
                     fontSize={12}
                     transform={`rotate(-45, ${x}, ${y})`}

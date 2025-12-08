@@ -107,7 +107,7 @@ export const CostBreakdownChart = memo(function CostBreakdownChart({
             },
           ]}
           xAxisKey="name"
-          yAxisFormatter={(value: number) => `${value.toFixed(0)}M`}
+          yAxisFormatter={(value) => `${Number(value).toFixed(0)}M`}
           tooltipFormat="millions"
           showLegend={true}
           showGrid={true}
@@ -133,7 +133,9 @@ export const CostBreakdownChart = memo(function CostBreakdownChart({
           <div className="flex items-center justify-center gap-2 mb-1">
             <div
               className="w-3 h-3 rounded-full"
-              style={{ backgroundColor: chartColorMappings.costBreakdown.staff }}
+              style={{
+                backgroundColor: chartColorMappings.costBreakdown.staff,
+              }}
             />
             <span className="text-sm font-medium">Staff</span>
           </div>

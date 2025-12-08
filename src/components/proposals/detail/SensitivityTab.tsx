@@ -10,7 +10,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Download, Play, Loader2, AlertTriangle, Info, Activity } from "lucide-react";
+import {
+  Download,
+  Play,
+  Loader2,
+  AlertTriangle,
+  Info,
+  Activity,
+} from "lucide-react";
 import { toast } from "sonner";
 import {
   ExecutiveCard,
@@ -106,13 +113,19 @@ export function SensitivityTab({ proposal }: SensitivityTabProps) {
 
     // Check baseline
     if (isNaN(baseline) || !isFinite(baseline) || Math.abs(baseline) > 1e12) {
-      console.warn("⚠️ Baseline value is suspicious:", result.baselineMetricValue);
+      console.warn(
+        "⚠️ Baseline value is suspicious:",
+        result.baselineMetricValue,
+      );
       return true;
     }
 
     // Check if baseline is 0 (which would be suspicious for most metrics)
     if (Math.abs(baseline) < 0.01) {
-      console.warn("⚠️ Baseline value is zero or near-zero:", result.baselineMetricValue);
+      console.warn(
+        "⚠️ Baseline value is zero or near-zero:",
+        result.baselineMetricValue,
+      );
       return true;
     }
 
@@ -233,9 +246,13 @@ export function SensitivityTab({ proposal }: SensitivityTabProps) {
         console.warn("⚠️ Sensitivity analysis contains suspicious values");
         // Only show error if ALL values are suspicious (likely calculation error)
         const allZero = data.result.dataPoints.every(
-          (dp: SensitivityDataPoint) => Math.abs(parseFloat(dp.metricValue)) < 0.01,
+          (dp: SensitivityDataPoint) =>
+            Math.abs(parseFloat(dp.metricValue)) < 0.01,
         );
-        if (allZero && Math.abs(parseFloat(data.result.baselineMetricValue)) > 0.01) {
+        if (
+          allZero &&
+          Math.abs(parseFloat(data.result.baselineMetricValue)) > 0.01
+        ) {
           setError(
             "All calculated values are zero, which indicates a calculation error. Please check the console for details and try recalculating the proposal.",
           );
@@ -321,12 +338,14 @@ export function SensitivityTab({ proposal }: SensitivityTabProps) {
 
     // Format in millions if > 1,000,000
     if (Math.abs(numValue) >= 1_000_000) {
-      return new Intl.NumberFormat("en-US", {
-        style: "currency",
-        currency: "SAR",
-        minimumFractionDigits: 1,
-        maximumFractionDigits: 1,
-      }).format(numValue / 1_000_000) + "M";
+      return (
+        new Intl.NumberFormat("en-US", {
+          style: "currency",
+          currency: "SAR",
+          minimumFractionDigits: 1,
+          maximumFractionDigits: 1,
+        }).format(numValue / 1_000_000) + "M"
+      );
     }
 
     return new Intl.NumberFormat("en-US", {
@@ -419,7 +438,9 @@ export function SensitivityTab({ proposal }: SensitivityTabProps) {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="enrollment">Enrollment Capacity</SelectItem>
+                  <SelectItem value="enrollment">
+                    Enrollment Capacity
+                  </SelectItem>
                   <SelectItem value="tuitionGrowth">
                     Tuition Growth Rate
                   </SelectItem>
@@ -510,9 +531,10 @@ export function SensitivityTab({ proposal }: SensitivityTabProps) {
                   Data Quality Warning
                 </h3>
                 <p className="text-sm text-yellow-700/90 dark:text-yellow-400/90">
-                  Some calculated values appear to be outside expected ranges. This
-                  may indicate a calculation error. Please check the browser console
-                  for details and consider recalculating the proposal.
+                  Some calculated values appear to be outside expected ranges.
+                  This may indicate a calculation error. Please check the
+                  browser console for details and consider recalculating the
+                  proposal.
                 </p>
               </div>
             </div>
@@ -531,19 +553,25 @@ export function SensitivityTab({ proposal }: SensitivityTabProps) {
             <ExecutiveCardContent className="pt-6">
               <div className="grid gap-6 md:grid-cols-4">
                 <div>
-                  <Label className="text-muted-foreground text-xs uppercase tracking-wider">Variable</Label>
+                  <Label className="text-muted-foreground text-xs uppercase tracking-wider">
+                    Variable
+                  </Label>
                   <p className="text-lg font-semibold mt-1">
                     {getVariableName(result.variable)}
                   </p>
                 </div>
                 <div>
-                  <Label className="text-muted-foreground text-xs uppercase tracking-wider">Impact Metric</Label>
+                  <Label className="text-muted-foreground text-xs uppercase tracking-wider">
+                    Impact Metric
+                  </Label>
                   <p className="text-lg font-semibold mt-1">
                     {getMetricName(result.metric)}
                   </p>
                 </div>
                 <div>
-                  <Label className="text-muted-foreground text-xs uppercase tracking-wider">Baseline Value</Label>
+                  <Label className="text-muted-foreground text-xs uppercase tracking-wider">
+                    Baseline Value
+                  </Label>
                   <p className="text-lg font-semibold mt-1 font-mono">
                     {formatCurrency(result.baselineMetricValue)}
                   </p>
@@ -583,10 +611,7 @@ export function SensitivityTab({ proposal }: SensitivityTabProps) {
                     }
 
                     // Check for unreasonably large values
-                    if (
-                      Math.abs(baseline) > 1e12 ||
-                      Math.abs(current) > 1e12
-                    ) {
+                    if (Math.abs(baseline) > 1e12 || Math.abs(current) > 1e12) {
                       return null;
                     }
 
@@ -596,35 +621,57 @@ export function SensitivityTab({ proposal }: SensitivityTabProps) {
 
                     return { dp, idx, baseline, current, diff, diffPercent };
                   })
-                  .filter((item): item is NonNullable<typeof item> => item !== null)
+                  .filter(
+                    (item): item is NonNullable<typeof item> => item !== null,
+                  )
                   .map(({ dp, idx, baseline, current, diff, diffPercent }) => {
-
                     return (
                       <div key={idx} className="space-y-2">
                         <div className="flex justify-between text-sm">
                           <span className="font-medium">
                             {getVariableName(result.variable)}:{" "}
-                            <span className={dp.variablePercent >= 0 ? "text-green-600" : "text-red-600"}>
+                            <span
+                              style={{
+                                color:
+                                  dp.variablePercent >= 0
+                                    ? "var(--financial-positive)"
+                                    : "var(--financial-negative)",
+                              }}
+                            >
                               {dp.variablePercent >= 0 ? "+" : ""}
                               {dp.variablePercent}%
                             </span>
                           </span>
                           <span className="text-muted-foreground font-mono text-xs">
                             {formatCurrency(dp.metricValue)} (
-                            <span className={diffPercent >= 0 ? "text-green-600" : "text-red-600"}>
+                            <span
+                              style={{
+                                color:
+                                  diffPercent >= 0
+                                    ? "var(--financial-positive)"
+                                    : "var(--financial-negative)",
+                              }}
+                            >
                               {diffPercent >= 0 ? "+" : ""}
                               {diffPercent.toFixed(1)}%
-                            </span>)
+                            </span>
+                            )
                           </span>
                         </div>
                         <div className="relative h-6 bg-muted/50 rounded-full overflow-hidden">
                           <div
-                            className={`absolute h-full transition-all duration-500 ${diff > 0
-                              ? "bg-green-500/80 left-1/2 rounded-r-full"
-                              : "bg-red-500/80 right-1/2 rounded-l-full"
-                              }`}
+                            className={`absolute h-full transition-all duration-500 ${
+                              diff > 0
+                                ? "left-1/2 rounded-r-full"
+                                : "right-1/2 rounded-l-full"
+                            }`}
                             style={{
                               width: `${Math.min(Math.abs(diffPercent) / 2, 50)}%`,
+                              backgroundColor:
+                                diff > 0
+                                  ? "var(--financial-positive)"
+                                  : "var(--financial-negative)",
+                              opacity: 0.8,
                             }}
                           />
                           <div className="absolute left-1/2 top-0 bottom-0 w-px bg-foreground/20" />
@@ -690,36 +737,54 @@ export function SensitivityTab({ proposal }: SensitivityTabProps) {
                             ? (diff / baseline) * 100
                             : 0;
 
-                        return { dp, idx, baseline, current, diff, diffPercent };
+                        return {
+                          dp,
+                          idx,
+                          baseline,
+                          current,
+                          diff,
+                          diffPercent,
+                        };
                       })
-                      .filter((item): item is NonNullable<typeof item> => item !== null)
-                      .map(({ dp, idx, baseline, current, diff, diffPercent }) => {
-                        return (
-                          <tr key={idx} className="border-b hover:bg-muted/50 transition-colors">
-                            <td className="py-3 px-4 font-medium">
-                              {dp.variableValue}%
-                            </td>
-                            <td className="text-right py-3 px-4 font-mono text-muted-foreground">
-                              {dp.variablePercent >= 0 ? "+" : ""}
-                              {dp.variablePercent}%
-                            </td>
-                            <td className="text-right py-3 px-4 font-semibold font-mono">
-                              {formatCurrency(dp.metricValue)}
-                            </td>
-                            <td
-                              className={`text-right py-3 px-4 font-semibold font-mono ${diff > 0
-                                ? "text-green-600"
-                                : diff < 0
-                                  ? "text-red-600"
-                                  : ""
-                                }`}
+                      .filter(
+                        (item): item is NonNullable<typeof item> =>
+                          item !== null,
+                      )
+                      .map(
+                        ({ dp, idx, baseline, current, diff, diffPercent }) => {
+                          return (
+                            <tr
+                              key={idx}
+                              className="border-b hover:bg-muted/50 transition-colors"
                             >
-                              {diffPercent >= 0 ? "+" : ""}
-                              {diffPercent.toFixed(2)}%
-                            </td>
-                          </tr>
-                        );
-                      })}
+                              <td className="py-3 px-4 font-medium">
+                                {dp.variableValue}%
+                              </td>
+                              <td className="text-right py-3 px-4 font-mono text-muted-foreground">
+                                {dp.variablePercent >= 0 ? "+" : ""}
+                                {dp.variablePercent}%
+                              </td>
+                              <td className="text-right py-3 px-4 font-semibold font-mono">
+                                {formatCurrency(dp.metricValue)}
+                              </td>
+                              <td
+                                className="text-right py-3 px-4 font-semibold font-mono"
+                                style={{
+                                  color:
+                                    diff > 0
+                                      ? "var(--financial-positive)"
+                                      : diff < 0
+                                        ? "var(--financial-negative)"
+                                        : undefined,
+                                }}
+                              >
+                                {diffPercent >= 0 ? "+" : ""}
+                                {diffPercent.toFixed(2)}%
+                              </td>
+                            </tr>
+                          );
+                        },
+                      )}
                   </tbody>
                 </table>
               </div>
@@ -738,8 +803,9 @@ export function SensitivityTab({ proposal }: SensitivityTabProps) {
               Ready to Analyze
             </p>
             <p className="text-sm max-w-md mx-auto">
-              Configure your analysis parameters above and click &quot;Run Analysis&quot;
-              to see how sensitive your financial model is to variable changes.
+              Configure your analysis parameters above and click &quot;Run
+              Analysis&quot; to see how sensitive your financial model is to
+              variable changes.
             </p>
           </div>
         </ExecutiveCard>
@@ -766,25 +832,29 @@ export function SensitivityTab({ proposal }: SensitivityTabProps) {
           <div className="flex items-start gap-3">
             <Info className="h-5 w-5 text-muted-foreground mt-0.5" />
             <div>
-              <h4 className="font-semibold mb-2 text-sm">How Sensitivity Analysis Works</h4>
+              <h4 className="font-semibold mb-2 text-sm">
+                How Sensitivity Analysis Works
+              </h4>
               <ol className="text-sm space-y-1 list-decimal list-inside text-muted-foreground">
                 <li>
-                  Select a variable to vary (e.g., Enrollment Capacity) and a range
-                  (e.g., ±20%)
+                  Select a variable to vary (e.g., Enrollment Capacity) and a
+                  range (e.g., ±20%)
                 </li>
                 <li>
-                  Choose an impact metric to measure (e.g., NPV, IRR, Total Rent)
+                  Choose an impact metric to measure (e.g., NPV, IRR, Total
+                  Rent)
                 </li>
                 <li>
-                  The system will run calculations across the variable range (e.g.,
-                  80% to 120% of baseline)
+                  The system will run calculations across the variable range
+                  (e.g., 80% to 120% of baseline)
                 </li>
                 <li>
-                  Results are visualized showing the impact on your chosen metric
+                  Results are visualized showing the impact on your chosen
+                  metric
                 </li>
                 <li>
-                  This helps identify which variables have the greatest influence on
-                  your chosen metric
+                  This helps identify which variables have the greatest
+                  influence on your chosen metric
                 </li>
               </ol>
             </div>

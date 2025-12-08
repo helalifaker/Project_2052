@@ -36,6 +36,8 @@ import {
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import Decimal from "decimal.js";
+import { ProposalStatusSelect } from "./ProposalStatusSelect";
+import { ProposalStatus } from "@/lib/types/roles";
 
 type ProposalCardMetrics = {
   totalRent?: number | Decimal;
@@ -62,6 +64,7 @@ export interface ProposalCardProps {
   onDuplicate?: (id: string) => void;
   onDelete?: (id: string) => void;
   onExport?: (id: string) => void;
+  onStatusChange?: (id: string, newStatus: ProposalStatus) => void;
   className?: string;
 }
 
@@ -96,6 +99,7 @@ export const ProposalCard = memo(function ProposalCard({
   onDuplicate,
   onDelete,
   onExport,
+  onStatusChange,
   className,
 }: ProposalCardProps) {
   const router = useRouter();
@@ -120,10 +124,10 @@ export const ProposalCard = memo(function ProposalCard({
   const handleDelete = useCallback(() => onDelete?.(id), [id, onDelete]);
   const handleExport = useCallback(() => onExport?.(id), [id, onExport]);
 
-  // Design System Mapping for Status
+  // Design System Mapping for Status - Atelier Edition
   const statusConfig = useMemo(() => {
     const normalized = status?.toUpperCase() ?? "DRAFT";
-    // Map internal statuses to EFIR colors
+    // Map internal statuses to Atelier design system colors
     const map: Record<string, { color: string; bg: string; border: string }> = {
       DRAFT: {
         color: "var(--text-secondary)",
@@ -137,35 +141,41 @@ export const ProposalCard = memo(function ProposalCard({
       },
       SUBMITTED: {
         color: "var(--accent-gold)",
-        bg: "rgba(166, 139, 91, 0.12)",
+        bg: "var(--atelier-craft-gold-soft)",
         border: "var(--accent-gold)",
       },
       UNDER_REVIEW: {
         color: "var(--accent-gold)",
-        bg: "rgba(166, 139, 91, 0.12)",
+        bg: "var(--atelier-craft-gold-soft)",
         border: "var(--accent-gold)",
       },
       ACCEPTED: {
-        color: "var(--accent-sage)",
-        bg: "var(--accent-sage-light)",
-        border: "var(--accent-sage)",
+        color: "var(--financial-positive)",
+        bg: "var(--atelier-ink-positive-soft)",
+        border: "var(--financial-positive)",
       },
       REJECTED: {
-        color: "var(--accent-terracotta)",
-        bg: "var(--accent-terracotta-light)",
-        border: "var(--accent-terracotta)",
+        color: "var(--financial-negative)",
+        bg: "var(--atelier-ink-negative-soft)",
+        border: "var(--financial-negative)",
       },
     };
     return map[normalized] ?? map.DRAFT;
   }, [status]);
 
-  // Design System Mapping for Rent Model
+  // Design System Mapping for Rent Model - Atelier Edition
   const rentModelConfig = useMemo(() => {
     const normalized = rentModel?.toUpperCase() ?? "FIXED";
     const map: Record<string, { color: string; bg: string }> = {
-      FIXED: { color: "var(--accent-slate)", bg: "rgba(100, 116, 139, 0.08)" },
-      REVSHARE: { color: "var(--accent-sage)", bg: "var(--accent-sage-light)" },
-      PARTNER: { color: "var(--accent-gold)", bg: "rgba(166, 139, 91, 0.12)" },
+      FIXED: { color: "var(--accent-slate)", bg: "var(--atelier-stone-100)" },
+      REVSHARE: {
+        color: "var(--financial-positive)",
+        bg: "var(--atelier-ink-positive-soft)",
+      },
+      PARTNER: {
+        color: "var(--accent-gold)",
+        bg: "var(--atelier-craft-gold-soft)",
+      },
     };
     return map[normalized] ?? map.FIXED;
   }, [rentModel]);
@@ -200,26 +210,30 @@ export const ProposalCard = memo(function ProposalCard({
         <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/5 to-transparent skew-x-12 translate-x-[-100%] group-hover:animate-[shimmer_1.5s_infinite]" />
       </div>
 
-      {/* Header Section: Distinct Background based on Status */}
-      <div
-        className="relative z-10 px-6 py-5 border-b border-white/5 flex items-start justify-between backdrop-blur-[2px]"
-        style={{
-          background: `linear-gradient(to bottom, ${statusConfig.bg}, transparent)`,
-        }}
-      >
+      {/* Header Section: Clean white/paper background */}
+      <div className="relative z-10 px-6 py-5 border-b border-border flex items-start justify-between bg-card">
         <div className="space-y-1.5">
           <div className="flex items-center gap-2">
-            <Badge
-              variant="outline"
-              className="text-[10px] uppercase tracking-[0.1em] font-semibold border px-2 py-0.5"
-              style={{
-                color: statusConfig.color,
-                backgroundColor: statusConfig.bg, // Deeper pill
-                borderColor: statusConfig.border,
-              }}
-            >
-              {formatStatus(status ?? null)}
-            </Badge>
+            {canEdit ? (
+              <ProposalStatusSelect
+                proposalId={id}
+                currentStatus={status ?? "DRAFT"}
+                onStatusChange={(newStatus) => onStatusChange?.(id, newStatus)}
+                size="sm"
+              />
+            ) : (
+              <Badge
+                variant="outline"
+                className="text-[10px] uppercase tracking-[0.1em] font-semibold border px-2 py-0.5"
+                style={{
+                  color: statusConfig.color,
+                  backgroundColor: statusConfig.bg,
+                  borderColor: statusConfig.border,
+                }}
+              >
+                {formatStatus(status ?? null)}
+              </Badge>
+            )}
             <span className="text-[10px] text-muted-foreground uppercase tracking-wider flex items-center gap-1">
               <span className="w-1 h-1 rounded-full bg-current opacity-50" />
               {rentModel || "Fixed"}
@@ -308,14 +322,7 @@ export const ProposalCard = memo(function ProposalCard({
             <span className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground font-semibold">
               NPV
             </span>
-            <span
-              className={cn(
-                "font-serif text-3xl font-light tracking-tight tabular-nums block",
-                Number(metrics?.contractRentNPV ?? metrics?.npv ?? 0) >= 0
-                  ? "text-emerald-600 dark:text-emerald-400"
-                  : "text-rose-600 dark:text-rose-400",
-              )}
-            >
+            <span className="font-serif text-3xl font-light tracking-tight tabular-nums block text-foreground">
               {formatMillions(
                 Math.abs(Number(metrics?.contractRentNPV ?? metrics?.npv ?? 0)),
               )}

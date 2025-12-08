@@ -15,6 +15,11 @@ import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { createClient } from "@/lib/supabase/client";
 import {
+  withTimeout,
+  isTimeoutError,
+  AUTH_TIMEOUT_MS,
+} from "@/lib/utils/timeout";
+import {
   Loader2,
   Mail,
   CheckCircle2,
@@ -22,6 +27,7 @@ import {
   RefreshCw,
   ArrowLeft,
 } from "lucide-react";
+import { APP_NAME } from "@/lib/constants";
 
 function VerifyEmailForm() {
   const router = useRouter();
@@ -41,7 +47,11 @@ function VerifyEmailForm() {
         const {
           data: { user },
           error,
-        } = await supabase.auth.getUser();
+        } = await withTimeout(
+          supabase.auth.getUser(),
+          AUTH_TIMEOUT_MS,
+          "Checking verification status timed out. Please refresh the page.",
+        );
 
         if (error) {
           console.error("Error checking auth status:", error);
@@ -65,7 +75,11 @@ function VerifyEmailForm() {
 
         setIsCheckingAuth(false);
       } catch (error) {
-        console.error("Unexpected error checking auth:", error);
+        if (isTimeoutError(error)) {
+          console.warn("Auth check timeout:", error.message);
+        } else {
+          console.error("Unexpected error checking auth:", error);
+        }
         setIsCheckingAuth(false);
       }
     };
@@ -86,11 +100,15 @@ function VerifyEmailForm() {
     try {
       const supabase = createClient();
 
-      // Resend verification email using Supabase's resend method
-      const { error } = await supabase.auth.resend({
-        type: "signup",
-        email: email,
-      });
+      // Resend verification email with timeout protection
+      const { error } = await withTimeout(
+        supabase.auth.resend({
+          type: "signup",
+          email: email,
+        }),
+        AUTH_TIMEOUT_MS,
+        "Request timed out. Please check your connection and try again.",
+      );
 
       if (error) {
         console.error("Resend verification error:", error);
@@ -121,7 +139,11 @@ function VerifyEmailForm() {
       }
     } catch (error) {
       console.error("Unexpected error resending verification:", error);
-      setResendError("An unexpected error occurred. Please try again.");
+      if (isTimeoutError(error)) {
+        setResendError(error.message);
+      } else {
+        setResendError("An unexpected error occurred. Please try again.");
+      }
     } finally {
       setIsResending(false);
     }
@@ -208,7 +230,7 @@ function VerifyEmailForm() {
                 </div>
                 <div className="flex-1">
                   <p className="text-sm">
-                    Check your email inbox for a message from Project 2052
+                    Check your email inbox for a message from {APP_NAME}
                   </p>
                 </div>
               </div>

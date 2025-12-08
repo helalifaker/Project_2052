@@ -28,7 +28,6 @@ import type {
 import { RentModel, CapExCategoryType } from "@/lib/engine/core/types";
 import { authenticateUserWithRole } from "@/middleware/auth";
 import { Role } from "@/lib/types/roles";
-import type { InputJsonValue } from "@/lib/types/prisma-helpers";
 import { prisma } from "@/lib/prisma";
 import {
   getCachedCalculation,
@@ -1083,26 +1082,30 @@ export async function POST(request: Request) {
 
     // Save proposal to database
     console.log("💾 Saving proposal to database...");
-    // Fetch TransitionConfig to record audit timestamp
-    const transitionConfig = await prisma.transitionConfig.findFirst();
+    // ATOMICITY: Use transaction to ensure config fetch + proposal create are atomic
+    // This prevents race conditions where config changes between fetch and create
+    const proposal = await prisma.$transaction(async (tx) => {
+      // Fetch TransitionConfig to record audit timestamp
+      const transitionConfig = await tx.transitionConfig.findFirst();
 
-    const proposal = await prisma.leaseProposal.create({
-      data: {
-        name: proposalData.name,
-        rentModel: proposalData.rentModel,
-        developer: proposalData.developer,
-        createdBy: user.id,
-        contractPeriodYears: input.contractPeriodYears, // FIX: Save contract period
-        enrollment: proposalData.enrollment as any,
-        curriculum: proposalData.curriculum as any,
-        staff: proposalData.staff as any,
-        rentParams: proposalData.rentParams as any,
-        otherOpexPercent: new Decimal(proposalData.otherOpexPercent),
-        financials: serializedResult.periods as any,
-        metrics: serializedResult.metrics as any,
-        calculatedAt: new Date(),
-        transitionConfigUpdatedAt: transitionConfig?.updatedAt || new Date(),
-      },
+      return tx.leaseProposal.create({
+        data: {
+          name: proposalData.name,
+          rentModel: proposalData.rentModel,
+          developer: proposalData.developer,
+          createdBy: user.id,
+          contractPeriodYears: input.contractPeriodYears, // FIX: Save contract period
+          enrollment: proposalData.enrollment as any,
+          curriculum: proposalData.curriculum as any,
+          staff: proposalData.staff as any,
+          rentParams: proposalData.rentParams as any,
+          otherOpexPercent: new Decimal(proposalData.otherOpexPercent),
+          financials: serializedResult.periods as any,
+          metrics: serializedResult.metrics as any,
+          calculatedAt: new Date(),
+          transitionConfigUpdatedAt: transitionConfig?.updatedAt || new Date(),
+        },
+      });
     });
 
     console.log(`✅ Proposal saved with ID: ${proposal.id}`);

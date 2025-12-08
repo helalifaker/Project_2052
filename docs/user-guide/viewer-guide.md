@@ -24,6 +24,7 @@ Welcome to the Viewer Guide for the School Lease Financial Planning System. As a
 ### What You Can Do
 - ✓ View all proposals
 - ✓ View financial statements (P&L, Balance Sheet, Cash Flow)
+- ✓ View negotiations and timelines (read-only)
 - ✓ View saved scenarios and comparisons
 - ✓ Export reports (PDF, Excel)
 - ✓ Access dashboard metrics
@@ -31,6 +32,8 @@ Welcome to the Viewer Guide for the School Lease Financial Planning System. As a
 ### What You Cannot Do
 - ✗ Create new proposals
 - ✗ Edit existing proposals
+- ✗ Create or manage negotiations
+- ✗ Add counter-offers
 - ✗ Run new scenarios (but can view saved ones)
 - ✗ Run new sensitivity analyses (but can view saved ones)
 - ✗ Delete proposals
@@ -62,10 +65,35 @@ Welcome to the Viewer Guide for the School Lease Financial Planning System. As a
 
 Your dashboard displays:
 - **Total Proposals**: Number of proposals in the system
-- **Active Negotiations**: Proposals with status SUBMITTED, UNDER_REVIEW, or COUNTER_RECEIVED
+- **Active Negotiations**: Count of ACTIVE negotiations (developer + property threads)
 - **Average NPV**: Average Net Present Value across all proposals
 - **Recent Activity**: Latest proposals created or modified
-- **Quick Links**: View All Proposals, View Comparisons
+- **Quick Links**: View All Proposals, View Negotiations, View Comparisons
+
+### Viewing Negotiations
+
+**What you see:**
+- Negotiations page showing all negotiation threads
+- Each card shows: developer name, property, status, proposal count
+- Click to view the timeline of offers and counter-offers
+
+**Timeline View (Read-Only):**
+- Visual sequence of all offers in a negotiation
+- Color-coded by origin (OUR_OFFER vs THEIR_COUNTER)
+- Key metrics for each offer (NPV, Total Rent)
+- Negotiation status badge (ACTIVE, ACCEPTED, REJECTED, CLOSED)
+
+**What you CAN do:**
+- ✓ View all negotiations
+- ✓ View timelines and offer history
+- ✓ Click into individual proposals for details
+- ✓ Export negotiation reports
+
+**What you CANNOT do:**
+- ✗ Create new negotiations
+- ✗ Add counter-offers
+- ✗ Update negotiation status
+- ✗ Delete negotiations
 
 [Screenshot: Dashboard Metrics for Viewers]
 
@@ -786,6 +814,6 @@ A: Take a screenshot and contact your administrator or technical support. Includ
 
 ---
 
-**Document Version:** 1.0
-**Last Updated:** November 2024
+**Document Version:** 2.0
+**Last Updated:** December 2025
 **Maintained By:** Documentation Agent

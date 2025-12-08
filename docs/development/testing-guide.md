@@ -455,7 +455,7 @@ src/app/api/proposals/calculate/
 └─ route.test.ts              ⚠️ 3/8 failing (cascading)
 ```
 
-### E2E Tests (12 files in tests/e2e/) - NOT YET RUN
+### E2E Tests (13 files in tests/e2e/)
 ```
 tests/e2e/
 ├─ admin-historical-data.spec.ts
@@ -463,6 +463,7 @@ tests/e2e/
 ├─ admin-capex.spec.ts
 ├─ proposal-wizard.spec.ts
 ├─ proposal-detail.spec.ts
+├─ negotiations.spec.ts        # v2.2 - Negotiation workflow tests
 ├─ scenarios.spec.ts
 ├─ sensitivity.spec.ts
 ├─ comparison.spec.ts
@@ -473,6 +474,25 @@ tests/e2e/
 ```
 
 **Status:** Phase 3 - Will implement when UI components ready
+
+### Negotiation Test Coverage (v2.2)
+
+The negotiation workflow requires comprehensive testing:
+
+#### API Tests (`src/app/api/negotiations/`)
+- `GET /api/negotiations` - List all negotiations
+- `POST /api/negotiations` - Create new negotiation
+- `GET/PATCH/DELETE /api/negotiations/:id` - CRUD operations
+- `POST /api/negotiations/:id/counter` - Create counter-offer
+- `PATCH /api/negotiations/:id/reorder` - Reorder timeline
+
+#### Workflow Tests (`tests/e2e/negotiations.spec.ts`)
+- Create negotiation with developer + property
+- Add counter-offers (OUR_OFFER vs THEIR_COUNTER)
+- Update status (ACTIVE → ACCEPTED/REJECTED/CLOSED)
+- Reorder timeline positions
+- Validate uniqueness constraint (developer + property)
+- Test cascading status updates to linked proposals
 
 ---
 
