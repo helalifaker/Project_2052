@@ -18,7 +18,8 @@
 
 -- Function to get the current authenticated user's role
 -- This function is used by all RLS policies to determine access rights
-CREATE OR REPLACE FUNCTION auth.get_user_role()
+-- NOTE: Uses public schema (not auth) because auth schema is protected in Supabase
+CREATE OR REPLACE FUNCTION public.get_user_role()
 RETURNS TEXT AS $$
 DECLARE
   user_role TEXT;
@@ -26,44 +27,44 @@ BEGIN
   -- Get the role from the User table based on the authenticated user's email
   -- Supabase auth.jwt() returns the authenticated user's metadata
   SELECT role INTO user_role
-  FROM "User"
+  FROM public."User"
   WHERE email = auth.jwt() ->> 'email';
 
   -- Return the role, or 'VIEWER' as default if user not found
   RETURN COALESCE(user_role, 'VIEWER');
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
 
 -- Function to get the current authenticated user's ID
-CREATE OR REPLACE FUNCTION auth.get_user_id()
+CREATE OR REPLACE FUNCTION public.get_user_id()
 RETURNS TEXT AS $$
 DECLARE
   user_id TEXT;
 BEGIN
   -- Get the user ID from the User table based on the authenticated user's email
   SELECT id INTO user_id
-  FROM "User"
+  FROM public."User"
   WHERE email = auth.jwt() ->> 'email';
 
   RETURN user_id;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
 
 -- Function to check if user is ADMIN
-CREATE OR REPLACE FUNCTION auth.is_admin()
+CREATE OR REPLACE FUNCTION public.is_admin()
 RETURNS BOOLEAN AS $$
 BEGIN
-  RETURN auth.get_user_role() = 'ADMIN';
+  RETURN public.get_user_role() = 'ADMIN';
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
 
 -- Function to check if user is ADMIN or PLANNER
-CREATE OR REPLACE FUNCTION auth.is_admin_or_planner()
+CREATE OR REPLACE FUNCTION public.is_admin_or_planner()
 RETURNS BOOLEAN AS $$
 BEGIN
-  RETURN auth.get_user_role() IN ('ADMIN', 'PLANNER');
+  RETURN public.get_user_role() IN ('ADMIN', 'PLANNER');
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
 
 
 -- =====================================================
@@ -80,6 +81,9 @@ ALTER TABLE "CapExAsset" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "CapExConfig" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "TransitionConfig" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "WorkingCapitalRatios" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "Negotiation" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "CapExCategory" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "CapExTransition" ENABLE ROW LEVEL SECURITY;
 
 
 -- =====================================================
@@ -101,7 +105,7 @@ CREATE POLICY "ADMIN can read all users"
   ON "User"
   FOR SELECT
   USING (
-    auth.is_admin()
+    public.is_admin()
   );
 
 -- Only ADMIN can create users
@@ -110,7 +114,7 @@ CREATE POLICY "Only ADMIN can create users"
   ON "User"
   FOR INSERT
   WITH CHECK (
-    auth.is_admin()
+    public.is_admin()
   );
 
 -- Only ADMIN can update users
@@ -119,10 +123,10 @@ CREATE POLICY "Only ADMIN can update users"
   ON "User"
   FOR UPDATE
   USING (
-    auth.is_admin()
+    public.is_admin()
   )
   WITH CHECK (
-    auth.is_admin()
+    public.is_admin()
   );
 
 -- Only ADMIN can delete users
@@ -131,7 +135,7 @@ CREATE POLICY "Only ADMIN can delete users"
   ON "User"
   FOR DELETE
   USING (
-    auth.is_admin()
+    public.is_admin()
   );
 
 
@@ -154,7 +158,7 @@ CREATE POLICY "ADMIN and PLANNER can create proposals"
   ON "LeaseProposal"
   FOR INSERT
   WITH CHECK (
-    auth.is_admin_or_planner()
+    public.is_admin_or_planner()
   );
 
 -- ADMIN and PLANNER can update their own proposals
@@ -163,10 +167,10 @@ CREATE POLICY "ADMIN and PLANNER can update their own proposals"
   ON "LeaseProposal"
   FOR UPDATE
   USING (
-    auth.is_admin_or_planner() AND "createdBy" = auth.get_user_id()
+    public.is_admin_or_planner() AND "createdBy" = public.get_user_id()
   )
   WITH CHECK (
-    auth.is_admin_or_planner() AND "createdBy" = auth.get_user_id()
+    public.is_admin_or_planner() AND "createdBy" = public.get_user_id()
   );
 
 -- ADMIN can update any proposal
@@ -175,10 +179,10 @@ CREATE POLICY "ADMIN can update any proposal"
   ON "LeaseProposal"
   FOR UPDATE
   USING (
-    auth.is_admin()
+    public.is_admin()
   )
   WITH CHECK (
-    auth.is_admin()
+    public.is_admin()
   );
 
 -- ADMIN and PLANNER can delete their own proposals
@@ -187,7 +191,7 @@ CREATE POLICY "ADMIN and PLANNER can delete their own proposals"
   ON "LeaseProposal"
   FOR DELETE
   USING (
-    auth.is_admin_or_planner() AND "createdBy" = auth.get_user_id()
+    public.is_admin_or_planner() AND "createdBy" = public.get_user_id()
   );
 
 -- ADMIN can delete any proposal
@@ -196,7 +200,7 @@ CREATE POLICY "ADMIN can delete any proposal"
   ON "LeaseProposal"
   FOR DELETE
   USING (
-    auth.is_admin()
+    public.is_admin()
   );
 
 
@@ -219,7 +223,7 @@ CREATE POLICY "ADMIN and PLANNER can create scenarios"
   ON "Scenario"
   FOR INSERT
   WITH CHECK (
-    auth.is_admin_or_planner()
+    public.is_admin_or_planner()
   );
 
 -- ADMIN and PLANNER can update their own scenarios
@@ -228,10 +232,10 @@ CREATE POLICY "ADMIN and PLANNER can update their own scenarios"
   ON "Scenario"
   FOR UPDATE
   USING (
-    auth.is_admin_or_planner() AND "createdBy" = auth.get_user_id()
+    public.is_admin_or_planner() AND "createdBy" = public.get_user_id()
   )
   WITH CHECK (
-    auth.is_admin_or_planner() AND "createdBy" = auth.get_user_id()
+    public.is_admin_or_planner() AND "createdBy" = public.get_user_id()
   );
 
 -- ADMIN can update any scenario
@@ -240,10 +244,10 @@ CREATE POLICY "ADMIN can update any scenario"
   ON "Scenario"
   FOR UPDATE
   USING (
-    auth.is_admin()
+    public.is_admin()
   )
   WITH CHECK (
-    auth.is_admin()
+    public.is_admin()
   );
 
 -- ADMIN and PLANNER can delete their own scenarios
@@ -252,7 +256,7 @@ CREATE POLICY "ADMIN and PLANNER can delete their own scenarios"
   ON "Scenario"
   FOR DELETE
   USING (
-    auth.is_admin_or_planner() AND "createdBy" = auth.get_user_id()
+    public.is_admin_or_planner() AND "createdBy" = public.get_user_id()
   );
 
 -- ADMIN can delete any scenario
@@ -261,7 +265,7 @@ CREATE POLICY "ADMIN can delete any scenario"
   ON "Scenario"
   FOR DELETE
   USING (
-    auth.is_admin()
+    public.is_admin()
   );
 
 
@@ -284,7 +288,7 @@ CREATE POLICY "ADMIN and PLANNER can create sensitivity analyses"
   ON "SensitivityAnalysis"
   FOR INSERT
   WITH CHECK (
-    auth.is_admin_or_planner()
+    public.is_admin_or_planner()
   );
 
 -- ADMIN and PLANNER can update their own sensitivity analyses
@@ -293,10 +297,10 @@ CREATE POLICY "ADMIN and PLANNER can update their own sensitivity analyses"
   ON "SensitivityAnalysis"
   FOR UPDATE
   USING (
-    auth.is_admin_or_planner() AND "createdBy" = auth.get_user_id()
+    public.is_admin_or_planner() AND "createdBy" = public.get_user_id()
   )
   WITH CHECK (
-    auth.is_admin_or_planner() AND "createdBy" = auth.get_user_id()
+    public.is_admin_or_planner() AND "createdBy" = public.get_user_id()
   );
 
 -- ADMIN can update any sensitivity analysis
@@ -305,10 +309,10 @@ CREATE POLICY "ADMIN can update any sensitivity analysis"
   ON "SensitivityAnalysis"
   FOR UPDATE
   USING (
-    auth.is_admin()
+    public.is_admin()
   )
   WITH CHECK (
-    auth.is_admin()
+    public.is_admin()
   );
 
 -- ADMIN and PLANNER can delete their own sensitivity analyses
@@ -317,7 +321,7 @@ CREATE POLICY "ADMIN and PLANNER can delete their own sensitivity analyses"
   ON "SensitivityAnalysis"
   FOR DELETE
   USING (
-    auth.is_admin_or_planner() AND "createdBy" = auth.get_user_id()
+    public.is_admin_or_planner() AND "createdBy" = public.get_user_id()
   );
 
 -- ADMIN can delete any sensitivity analysis
@@ -326,7 +330,7 @@ CREATE POLICY "ADMIN can delete any sensitivity analysis"
   ON "SensitivityAnalysis"
   FOR DELETE
   USING (
-    auth.is_admin()
+    public.is_admin()
   );
 
 
@@ -349,7 +353,7 @@ CREATE POLICY "Only ADMIN can create system config"
   ON "SystemConfig"
   FOR INSERT
   WITH CHECK (
-    auth.is_admin()
+    public.is_admin()
   );
 
 -- Only ADMIN can update system config
@@ -358,10 +362,10 @@ CREATE POLICY "Only ADMIN can update system config"
   ON "SystemConfig"
   FOR UPDATE
   USING (
-    auth.is_admin()
+    public.is_admin()
   )
   WITH CHECK (
-    auth.is_admin()
+    public.is_admin()
   );
 
 -- Only ADMIN can delete system config
@@ -370,7 +374,7 @@ CREATE POLICY "Only ADMIN can delete system config"
   ON "SystemConfig"
   FOR DELETE
   USING (
-    auth.is_admin()
+    public.is_admin()
   );
 
 
@@ -393,7 +397,7 @@ CREATE POLICY "ADMIN and PLANNER can create historical data"
   ON "HistoricalData"
   FOR INSERT
   WITH CHECK (
-    auth.is_admin_or_planner()
+    public.is_admin_or_planner()
   );
 
 -- ADMIN and PLANNER can update historical data
@@ -402,10 +406,10 @@ CREATE POLICY "ADMIN and PLANNER can update historical data"
   ON "HistoricalData"
   FOR UPDATE
   USING (
-    auth.is_admin_or_planner()
+    public.is_admin_or_planner()
   )
   WITH CHECK (
-    auth.is_admin_or_planner()
+    public.is_admin_or_planner()
   );
 
 -- Only ADMIN can delete historical data
@@ -414,7 +418,7 @@ CREATE POLICY "Only ADMIN can delete historical data"
   ON "HistoricalData"
   FOR DELETE
   USING (
-    auth.is_admin()
+    public.is_admin()
   );
 
 
@@ -437,7 +441,7 @@ CREATE POLICY "ADMIN and PLANNER can create CapEx assets"
   ON "CapExAsset"
   FOR INSERT
   WITH CHECK (
-    auth.is_admin_or_planner()
+    public.is_admin_or_planner()
   );
 
 -- ADMIN and PLANNER can update CapEx assets
@@ -446,10 +450,10 @@ CREATE POLICY "ADMIN and PLANNER can update CapEx assets"
   ON "CapExAsset"
   FOR UPDATE
   USING (
-    auth.is_admin_or_planner()
+    public.is_admin_or_planner()
   )
   WITH CHECK (
-    auth.is_admin_or_planner()
+    public.is_admin_or_planner()
   );
 
 -- Only ADMIN can delete CapEx assets
@@ -458,7 +462,7 @@ CREATE POLICY "Only ADMIN can delete CapEx assets"
   ON "CapExAsset"
   FOR DELETE
   USING (
-    auth.is_admin()
+    public.is_admin()
   );
 
 
@@ -481,7 +485,7 @@ CREATE POLICY "ADMIN and PLANNER can create CapEx config"
   ON "CapExConfig"
   FOR INSERT
   WITH CHECK (
-    auth.is_admin_or_planner()
+    public.is_admin_or_planner()
   );
 
 -- ADMIN and PLANNER can update CapEx config
@@ -490,10 +494,10 @@ CREATE POLICY "ADMIN and PLANNER can update CapEx config"
   ON "CapExConfig"
   FOR UPDATE
   USING (
-    auth.is_admin_or_planner()
+    public.is_admin_or_planner()
   )
   WITH CHECK (
-    auth.is_admin_or_planner()
+    public.is_admin_or_planner()
   );
 
 -- Only ADMIN can delete CapEx config
@@ -502,7 +506,7 @@ CREATE POLICY "Only ADMIN can delete CapEx config"
   ON "CapExConfig"
   FOR DELETE
   USING (
-    auth.is_admin()
+    public.is_admin()
   );
 
 
@@ -525,7 +529,7 @@ CREATE POLICY "ADMIN and PLANNER can create transition config"
   ON "TransitionConfig"
   FOR INSERT
   WITH CHECK (
-    auth.is_admin_or_planner()
+    public.is_admin_or_planner()
   );
 
 -- ADMIN and PLANNER can update transition config
@@ -534,10 +538,10 @@ CREATE POLICY "ADMIN and PLANNER can update transition config"
   ON "TransitionConfig"
   FOR UPDATE
   USING (
-    auth.is_admin_or_planner()
+    public.is_admin_or_planner()
   )
   WITH CHECK (
-    auth.is_admin_or_planner()
+    public.is_admin_or_planner()
   );
 
 -- Only ADMIN can delete transition config
@@ -546,7 +550,7 @@ CREATE POLICY "Only ADMIN can delete transition config"
   ON "TransitionConfig"
   FOR DELETE
   USING (
-    auth.is_admin()
+    public.is_admin()
   );
 
 
@@ -569,7 +573,7 @@ CREATE POLICY "ADMIN and PLANNER can create working capital ratios"
   ON "WorkingCapitalRatios"
   FOR INSERT
   WITH CHECK (
-    auth.is_admin_or_planner()
+    public.is_admin_or_planner()
   );
 
 -- ADMIN and PLANNER can update working capital ratios
@@ -578,10 +582,10 @@ CREATE POLICY "ADMIN and PLANNER can update working capital ratios"
   ON "WorkingCapitalRatios"
   FOR UPDATE
   USING (
-    auth.is_admin_or_planner()
+    public.is_admin_or_planner()
   )
   WITH CHECK (
-    auth.is_admin_or_planner()
+    public.is_admin_or_planner()
   );
 
 -- Only ADMIN can delete working capital ratios
@@ -590,22 +594,173 @@ CREATE POLICY "Only ADMIN can delete working capital ratios"
   ON "WorkingCapitalRatios"
   FOR DELETE
   USING (
-    auth.is_admin()
+    public.is_admin()
   );
 
 
 -- =====================================================
--- STEP 13: Grant Necessary Permissions
+-- STEP 13: Negotiation Table Policies (User-owned)
 -- =====================================================
 
--- Grant usage on auth schema to authenticated users
-GRANT USAGE ON SCHEMA auth TO authenticated;
+-- All authenticated users can read all negotiations
+DROP POLICY IF EXISTS "All authenticated users can read negotiations" ON "Negotiation";
+CREATE POLICY "All authenticated users can read negotiations"
+  ON "Negotiation"
+  FOR SELECT
+  USING (
+    auth.jwt() IS NOT NULL
+  );
+
+-- ADMIN and PLANNER can create negotiations
+DROP POLICY IF EXISTS "ADMIN and PLANNER can create negotiations" ON "Negotiation";
+CREATE POLICY "ADMIN and PLANNER can create negotiations"
+  ON "Negotiation"
+  FOR INSERT
+  WITH CHECK (
+    public.is_admin_or_planner()
+  );
+
+-- ADMIN and PLANNER can update their own negotiations
+DROP POLICY IF EXISTS "ADMIN and PLANNER can update their own negotiations" ON "Negotiation";
+CREATE POLICY "ADMIN and PLANNER can update their own negotiations"
+  ON "Negotiation"
+  FOR UPDATE
+  USING (
+    public.is_admin_or_planner() AND "createdBy" = public.get_user_id()
+  )
+  WITH CHECK (
+    public.is_admin_or_planner() AND "createdBy" = public.get_user_id()
+  );
+
+-- ADMIN can update any negotiation
+DROP POLICY IF EXISTS "ADMIN can update any negotiation" ON "Negotiation";
+CREATE POLICY "ADMIN can update any negotiation"
+  ON "Negotiation"
+  FOR UPDATE
+  USING (
+    public.is_admin()
+  )
+  WITH CHECK (
+    public.is_admin()
+  );
+
+-- ADMIN and PLANNER can delete their own negotiations
+DROP POLICY IF EXISTS "ADMIN and PLANNER can delete their own negotiations" ON "Negotiation";
+CREATE POLICY "ADMIN and PLANNER can delete their own negotiations"
+  ON "Negotiation"
+  FOR DELETE
+  USING (
+    public.is_admin_or_planner() AND "createdBy" = public.get_user_id()
+  );
+
+-- ADMIN can delete any negotiation
+DROP POLICY IF EXISTS "ADMIN can delete any negotiation" ON "Negotiation";
+CREATE POLICY "ADMIN can delete any negotiation"
+  ON "Negotiation"
+  FOR DELETE
+  USING (
+    public.is_admin()
+  );
+
+
+-- =====================================================
+-- STEP 14: CapExCategory Table Policies (Role-based)
+-- =====================================================
+
+-- All authenticated users can read CapEx categories
+DROP POLICY IF EXISTS "All authenticated users can read CapEx categories" ON "CapExCategory";
+CREATE POLICY "All authenticated users can read CapEx categories"
+  ON "CapExCategory"
+  FOR SELECT
+  USING (
+    auth.jwt() IS NOT NULL
+  );
+
+-- ADMIN and PLANNER can create CapEx categories
+DROP POLICY IF EXISTS "ADMIN and PLANNER can create CapEx categories" ON "CapExCategory";
+CREATE POLICY "ADMIN and PLANNER can create CapEx categories"
+  ON "CapExCategory"
+  FOR INSERT
+  WITH CHECK (
+    public.is_admin_or_planner()
+  );
+
+-- ADMIN and PLANNER can update CapEx categories
+DROP POLICY IF EXISTS "ADMIN and PLANNER can update CapEx categories" ON "CapExCategory";
+CREATE POLICY "ADMIN and PLANNER can update CapEx categories"
+  ON "CapExCategory"
+  FOR UPDATE
+  USING (
+    public.is_admin_or_planner()
+  )
+  WITH CHECK (
+    public.is_admin_or_planner()
+  );
+
+-- Only ADMIN can delete CapEx categories
+DROP POLICY IF EXISTS "Only ADMIN can delete CapEx categories" ON "CapExCategory";
+CREATE POLICY "Only ADMIN can delete CapEx categories"
+  ON "CapExCategory"
+  FOR DELETE
+  USING (
+    public.is_admin()
+  );
+
+
+-- =====================================================
+-- STEP 15: CapExTransition Table Policies (Role-based)
+-- =====================================================
+
+-- All authenticated users can read CapEx transitions
+DROP POLICY IF EXISTS "All authenticated users can read CapEx transitions" ON "CapExTransition";
+CREATE POLICY "All authenticated users can read CapEx transitions"
+  ON "CapExTransition"
+  FOR SELECT
+  USING (
+    auth.jwt() IS NOT NULL
+  );
+
+-- ADMIN and PLANNER can create CapEx transitions
+DROP POLICY IF EXISTS "ADMIN and PLANNER can create CapEx transitions" ON "CapExTransition";
+CREATE POLICY "ADMIN and PLANNER can create CapEx transitions"
+  ON "CapExTransition"
+  FOR INSERT
+  WITH CHECK (
+    public.is_admin_or_planner()
+  );
+
+-- ADMIN and PLANNER can update CapEx transitions
+DROP POLICY IF EXISTS "ADMIN and PLANNER can update CapEx transitions" ON "CapExTransition";
+CREATE POLICY "ADMIN and PLANNER can update CapEx transitions"
+  ON "CapExTransition"
+  FOR UPDATE
+  USING (
+    public.is_admin_or_planner()
+  )
+  WITH CHECK (
+    public.is_admin_or_planner()
+  );
+
+-- Only ADMIN can delete CapEx transitions
+DROP POLICY IF EXISTS "Only ADMIN can delete CapEx transitions" ON "CapExTransition";
+CREATE POLICY "Only ADMIN can delete CapEx transitions"
+  ON "CapExTransition"
+  FOR DELETE
+  USING (
+    public.is_admin()
+  );
+
+
+-- =====================================================
+-- STEP 16: Grant Necessary Permissions
+-- =====================================================
 
 -- Grant execute permissions on helper functions
-GRANT EXECUTE ON FUNCTION auth.get_user_role() TO authenticated;
-GRANT EXECUTE ON FUNCTION auth.get_user_id() TO authenticated;
-GRANT EXECUTE ON FUNCTION auth.is_admin() TO authenticated;
-GRANT EXECUTE ON FUNCTION auth.is_admin_or_planner() TO authenticated;
+-- NOTE: Functions are in public schema (auth schema is protected in Supabase)
+GRANT EXECUTE ON FUNCTION public.get_user_role() TO authenticated;
+GRANT EXECUTE ON FUNCTION public.get_user_id() TO authenticated;
+GRANT EXECUTE ON FUNCTION public.is_admin() TO authenticated;
+GRANT EXECUTE ON FUNCTION public.is_admin_or_planner() TO authenticated;
 
 
 -- =====================================================
@@ -617,16 +772,16 @@ GRANT EXECUTE ON FUNCTION auth.is_admin_or_planner() TO authenticated;
 
 /*
 -- Verify current user's role
-SELECT auth.get_user_role() as my_role;
+SELECT public.get_user_role() as my_role;
 
 -- Verify current user's ID
-SELECT auth.get_user_id() as my_id;
+SELECT public.get_user_id() as my_id;
 
 -- Verify if current user is admin
-SELECT auth.is_admin() as am_i_admin;
+SELECT public.is_admin() as am_i_admin;
 
 -- Verify if current user is admin or planner
-SELECT auth.is_admin_or_planner() as can_i_create;
+SELECT public.is_admin_or_planner() as can_i_create;
 
 -- List all policies on User table
 SELECT schemaname, tablename, policyname, permissive, roles, cmd, qual, with_check
@@ -650,21 +805,24 @@ BEGIN
   RAISE NOTICE 'Row-Level Security (RLS) policies have been successfully applied!';
   RAISE NOTICE '=====================================================';
   RAISE NOTICE '';
-  RAISE NOTICE 'Tables with RLS enabled:';
+  RAISE NOTICE 'Tables with RLS enabled (13 total):';
   RAISE NOTICE '  - User';
   RAISE NOTICE '  - LeaseProposal';
+  RAISE NOTICE '  - Negotiation';
   RAISE NOTICE '  - Scenario';
   RAISE NOTICE '  - SensitivityAnalysis';
   RAISE NOTICE '  - SystemConfig';
   RAISE NOTICE '  - HistoricalData';
   RAISE NOTICE '  - CapExAsset';
+  RAISE NOTICE '  - CapExCategory';
   RAISE NOTICE '  - CapExConfig';
+  RAISE NOTICE '  - CapExTransition';
   RAISE NOTICE '  - TransitionConfig';
   RAISE NOTICE '  - WorkingCapitalRatios';
   RAISE NOTICE '';
   RAISE NOTICE 'Access Control Summary:';
   RAISE NOTICE '  ADMIN:   Full access to all tables and operations';
-  RAISE NOTICE '  PLANNER: Can create/update/delete own proposals and related data';
+  RAISE NOTICE '  PLANNER: Can create/update/delete own proposals, negotiations, and related data';
   RAISE NOTICE '  VIEWER:  Read-only access to all data';
   RAISE NOTICE '';
   RAISE NOTICE 'Next Steps:';

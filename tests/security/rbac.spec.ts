@@ -163,14 +163,20 @@ test.describe("RBAC Security Tests", () => {
     // Use base test without auth fixtures for unauthenticated tests
     baseTest(
       "should redirect unauthenticated users to login",
-      async ({ page }) => {
-        // Clear any existing auth
-        await page.context().clearCookies();
+      async ({ browser }) => {
+        // Create completely fresh context (no cookies, no storage)
+        // This is more reliable than clearCookies() which may not clear httpOnly cookies
+        const context = await browser.newContext();
+        const page = await context.newPage();
 
-        await page.goto("/proposals");
+        try {
+          await page.goto("/proposals", { waitUntil: "networkidle" });
 
-        // Should be redirected to login or show login form
-        await expect(page).toHaveURL(/\/(login|auth)/);
+          // Middleware redirects to /login?redirectTo=/proposals
+          await expect(page).toHaveURL(/\/login/);
+        } finally {
+          await context.close();
+        }
       },
     );
 
