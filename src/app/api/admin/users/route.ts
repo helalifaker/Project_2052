@@ -72,36 +72,39 @@ export async function GET(request: NextRequest) {
       ];
     }
 
-    // Get total count
-    const total = await prisma.user.count({ where });
+    // PERF: Run all database queries in parallel to reduce response time
+    const [total, users, statusCounts] = await Promise.all([
+      // Query 1: Total count for filtered results
+      prisma.user.count({ where }),
 
-    // Get users with pagination
-    const users = await prisma.user.findMany({
-      where,
-      select: {
-        id: true,
-        email: true,
-        name: true,
-        role: true,
-        approvalStatus: true,
-        approvedBy: true,
-        approvedAt: true,
-        rejectionReason: true,
-        createdAt: true,
-      },
-      orderBy: [
-        { approvalStatus: "asc" }, // PENDING first
-        { createdAt: "desc" },
-      ],
-      skip: (page - 1) * limit,
-      take: limit,
-    });
+      // Query 2: Users with pagination
+      prisma.user.findMany({
+        where,
+        select: {
+          id: true,
+          email: true,
+          name: true,
+          role: true,
+          approvalStatus: true,
+          approvedBy: true,
+          approvedAt: true,
+          rejectionReason: true,
+          createdAt: true,
+        },
+        orderBy: [
+          { approvalStatus: "asc" }, // PENDING first
+          { createdAt: "desc" },
+        ],
+        skip: (page - 1) * limit,
+        take: limit,
+      }),
 
-    // Get counts by status for dashboard
-    const statusCounts = await prisma.user.groupBy({
-      by: ["approvalStatus"],
-      _count: { id: true },
-    });
+      // Query 3: Status counts for dashboard summary
+      prisma.user.groupBy({
+        by: ["approvalStatus"],
+        _count: { id: true },
+      }),
+    ]);
 
     const counts = {
       pending:

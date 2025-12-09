@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Form } from "@/components/ui/form";
 import { InputField } from "@/components/forms/FormField";
@@ -25,8 +25,8 @@ export interface Step1BasicsProps {
 export function Step1Basics({ data, onUpdate, onNext }: Step1BasicsProps) {
   const rentModelValue =
     data?.rentModel === "Fixed" ||
-      data?.rentModel === "RevShare" ||
-      data?.rentModel === "Partner"
+    data?.rentModel === "RevShare" ||
+    data?.rentModel === "Partner"
       ? data.rentModel
       : undefined;
 
@@ -36,13 +36,32 @@ export function Step1Basics({ data, onUpdate, onNext }: Step1BasicsProps) {
     rentModel: rentModelValue,
   });
 
-  // Save form data on change
+  // PERF: Debounce form updates to reduce parent re-renders (300ms delay)
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const debouncedUpdate = useCallback(
+    (value: Partial<ProposalFormData>) => {
+      if (debounceRef.current) {
+        clearTimeout(debounceRef.current);
+      }
+      debounceRef.current = setTimeout(() => {
+        onUpdate(value);
+      }, 300);
+    },
+    [onUpdate],
+  );
+
+  // Save form data on change (debounced)
   useEffect(() => {
     const subscription = form.watch((value) => {
-      onUpdate(value);
+      debouncedUpdate(value);
     });
-    return () => subscription.unsubscribe();
-  }, [form, onUpdate]);
+    return () => {
+      subscription.unsubscribe();
+      if (debounceRef.current) {
+        clearTimeout(debounceRef.current);
+      }
+    };
+  }, [form, debouncedUpdate]);
 
   const onSubmit = form.handleSubmit((formData) => {
     onUpdate(formData);
@@ -72,16 +91,18 @@ export function Step1Basics({ data, onUpdate, onNext }: Step1BasicsProps) {
           <div className="space-y-4">
             <label className="text-sm font-medium">Contract Period</label>
             <p className="text-sm text-muted-foreground">
-              Select the duration for the dynamic projection period (starting 2028)
+              Select the duration for the dynamic projection period (starting
+              2028)
             </p>
 
             <div className="grid gap-4 md:grid-cols-2">
               {/* 30 Years Option */}
               <div
-                className={`p-6 rounded-xl border cursor-pointer transition-all ${form.watch("contractPeriodYears") === 30
+                className={`p-6 rounded-xl border cursor-pointer transition-all ${
+                  form.watch("contractPeriodYears") === 30
                     ? "border-primary bg-primary/5 ring-1 ring-primary"
                     : "border-border hover:border-primary/50 hover:bg-muted/50"
-                  }`}
+                }`}
                 onClick={() => form.setValue("contractPeriodYears", 30)}
               >
                 <div className="space-y-2">
@@ -104,10 +125,11 @@ export function Step1Basics({ data, onUpdate, onNext }: Step1BasicsProps) {
 
               {/* 25 Years Option */}
               <div
-                className={`p-6 rounded-xl border cursor-pointer transition-all ${form.watch("contractPeriodYears") === 25
+                className={`p-6 rounded-xl border cursor-pointer transition-all ${
+                  form.watch("contractPeriodYears") === 25
                     ? "border-primary bg-primary/5 ring-1 ring-primary"
                     : "border-border hover:border-primary/50 hover:bg-muted/50"
-                  }`}
+                }`}
                 onClick={() => form.setValue("contractPeriodYears", 25)}
               >
                 <div className="space-y-2">
@@ -140,10 +162,11 @@ export function Step1Basics({ data, onUpdate, onNext }: Step1BasicsProps) {
             <div className="grid gap-4 md:grid-cols-3">
               {/* Fixed Model */}
               <div
-                className={`p-6 rounded-xl border cursor-pointer transition-all ${form.watch("rentModel") === "Fixed"
+                className={`p-6 rounded-xl border cursor-pointer transition-all ${
+                  form.watch("rentModel") === "Fixed"
                     ? "border-primary bg-primary/5 ring-1 ring-primary"
                     : "border-border hover:border-primary/50 hover:bg-muted/50"
-                  }`}
+                }`}
                 onClick={() => form.setValue("rentModel", "Fixed")}
               >
                 <div className="space-y-2">
@@ -166,10 +189,11 @@ export function Step1Basics({ data, onUpdate, onNext }: Step1BasicsProps) {
 
               {/* RevShare Model */}
               <div
-                className={`p-6 rounded-xl border cursor-pointer transition-all ${form.watch("rentModel") === "RevShare"
+                className={`p-6 rounded-xl border cursor-pointer transition-all ${
+                  form.watch("rentModel") === "RevShare"
                     ? "border-primary bg-primary/5 ring-1 ring-primary"
                     : "border-border hover:border-primary/50 hover:bg-muted/50"
-                  }`}
+                }`}
                 onClick={() => form.setValue("rentModel", "RevShare")}
               >
                 <div className="space-y-2">
@@ -192,10 +216,11 @@ export function Step1Basics({ data, onUpdate, onNext }: Step1BasicsProps) {
 
               {/* Partner Model */}
               <div
-                className={`p-6 rounded-xl border cursor-pointer transition-all ${form.watch("rentModel") === "Partner"
+                className={`p-6 rounded-xl border cursor-pointer transition-all ${
+                  form.watch("rentModel") === "Partner"
                     ? "border-primary bg-primary/5 ring-1 ring-primary"
                     : "border-border hover:border-primary/50 hover:bg-muted/50"
-                  }`}
+                }`}
                 onClick={() => form.setValue("rentModel", "Partner")}
               >
                 <div className="space-y-2">

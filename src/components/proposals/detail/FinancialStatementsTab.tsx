@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Download, Loader2, Calculator, Calendar } from "lucide-react";
@@ -54,13 +54,20 @@ export function FinancialStatementsTab({
   // Extract financial periods from proposal
   const periods = proposalData.financials || [];
 
-  // Calculate dynamic period boundaries
-  const allYears = periods.map((p: any) => p.year);
-  const dynamicEndYear = allYears.length > 0 ? Math.max(...allYears) : 2057;
-  const dynamicMidpoint = Math.floor((2028 + dynamicEndYear) / 2);
+  // PERF: Memoize derived calculations to prevent recalculation on every render
+  const { allYears, dynamicEndYear, dynamicMidpoint } = useMemo(() => {
+    const years = periods.map((p: any) => p.year);
+    const endYear = years.length > 0 ? Math.max(...years) : 2057;
+    const midpoint = Math.floor((2028 + endYear) / 2);
+    return {
+      allYears: years,
+      dynamicEndYear: endYear,
+      dynamicMidpoint: midpoint,
+    };
+  }, [periods]);
 
-  // Get year range based on selection
-  const getYearRange = () => {
+  // PERF: Memoize year range calculation
+  const selectedYears = useMemo(() => {
     if (!periods || periods.length === 0) return [];
 
     switch (yearRange) {
@@ -80,9 +87,7 @@ export function FinancialStatementsTab({
       default:
         return allYears;
     }
-  };
-
-  const selectedYears = getYearRange();
+  }, [periods, yearRange, allYears, dynamicMidpoint, dynamicEndYear]);
 
   // Helper to build net interest values (interest income - interest expense)
   const buildNetInterestValues = (): Record<string, number> => {
@@ -103,8 +108,8 @@ export function FinancialStatementsTab({
     return values;
   };
 
-  // Build P&L line items (simplified - 9 key lines)
-  const buildPLLineItems = (): FinancialLineItem[] => {
+  // PERF: Memoize P&L line items to prevent expensive recalculation
+  const plLineItems = useMemo((): FinancialLineItem[] => {
     if (!periods || periods.length === 0) return [];
 
     return [
@@ -156,10 +161,11 @@ export function FinancialStatementsTab({
         isGrandTotal: true,
       },
     ];
-  };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [periods]);
 
-  // Build Balance Sheet line items (simplified - 10 key lines)
-  const buildBSLineItems = (): FinancialLineItem[] => {
+  // PERF: Memoize Balance Sheet line items
+  const bsLineItems = useMemo((): FinancialLineItem[] => {
     if (!periods || periods.length === 0) return [];
 
     return [
@@ -231,10 +237,11 @@ export function FinancialStatementsTab({
         isGrandTotal: true,
       },
     ];
-  };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [periods]);
 
-  // Build Cash Flow line items (simplified - 6 key lines)
-  const buildCFLineItems = (): FinancialLineItem[] => {
+  // PERF: Memoize Cash Flow line items
+  const cfLineItems = useMemo((): FinancialLineItem[] => {
     if (!periods || periods.length === 0) return [];
 
     return [
@@ -271,7 +278,22 @@ export function FinancialStatementsTab({
         isGrandTotal: true,
       },
     ];
-  };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [periods]);
+
+  // PERF: Memoize profitability chart data
+  const profitabilityData = useMemo(() => {
+    return periods.map((period: any) => ({
+      year: period.year,
+      revenue: new Decimal(
+        getNestedValue(period, "profitLoss.totalRevenue") || 0,
+      ),
+      netProfit: new Decimal(
+        getNestedValue(period, "profitLoss.netIncome") || 0,
+      ),
+    }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [periods]);
 
   // Helper to build year values for a given field path
   const buildYearValues = (
@@ -661,7 +683,7 @@ export function FinancialStatementsTab({
                   <FinancialTable
                     title="Profit & Loss Statement"
                     years={selectedYears}
-                    lineItems={buildPLLineItems()}
+                    lineItems={plLineItems}
                     showTooltips={true}
                     highlightTotals={true}
                   />
@@ -676,7 +698,7 @@ export function FinancialStatementsTab({
                   <FinancialTable
                     title="Balance Sheet"
                     years={selectedYears}
-                    lineItems={buildBSLineItems()}
+                    lineItems={bsLineItems}
                     showTooltips={true}
                     highlightTotals={true}
                   />
@@ -691,7 +713,7 @@ export function FinancialStatementsTab({
                   <FinancialTable
                     title="Cash Flow Statement (Indirect Method)"
                     years={selectedYears}
-                    lineItems={buildCFLineItems()}
+                    lineItems={cfLineItems}
                     showTooltips={true}
                     highlightTotals={true}
                   />
@@ -704,15 +726,7 @@ export function FinancialStatementsTab({
               <ExecutiveCard>
                 <ExecutiveCardContent className="p-6">
                   <RevenueNetProfitGrowthChart
-                    data={periods.map((period: any) => ({
-                      year: period.year,
-                      revenue: new Decimal(
-                        getNestedValue(period, "profitLoss.totalRevenue") || 0,
-                      ),
-                      netProfit: new Decimal(
-                        getNestedValue(period, "profitLoss.netIncome") || 0,
-                      ),
-                    }))}
+                    data={profitabilityData}
                     proposalId={proposalData.id}
                     proposalName={proposalData.name}
                   />

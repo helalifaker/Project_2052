@@ -25,6 +25,7 @@ model User {
   sensitivityAnalysesCreated SensitivityAnalysis[]  @relation("SensitivityAnalysisCreator")
 
   @@index([approvalStatus])
+  @@index([role, approvalStatus]) // PERF: Admin user filtering by role + status
 }
 
 enum Role {
@@ -129,6 +130,7 @@ model CapExAsset {
 
   @@index([categoryId])
   @@index([proposalId])
+  @@index([proposalId, purchaseYear]) // PERF: Year-based asset queries for CapEx calculations
 }
 
 model CapExCategory {
@@ -208,6 +210,7 @@ model Negotiation {
   @@unique([developer, property])
   @@index([status])
   @@index([createdBy])
+  @@index([status, updatedAt]) // PERF: Sorting active negotiations by date
 }
 
 model LeaseProposal {
@@ -272,6 +275,7 @@ model LeaseProposal {
   @@index([rentModel], name: "idx_rent_model")
   @@index([createdAt, createdBy], name: "idx_created_composite")
   @@index([calculatedAt], name: "idx_calculated_at") // For dashboard metrics query
+  @@index([createdBy, status], name: "idx_creator_status") // PERF: "My proposals by status" queries
 }
 
 model Scenario {

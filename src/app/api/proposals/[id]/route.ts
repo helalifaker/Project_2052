@@ -60,7 +60,15 @@ export async function GET(
       );
     }
 
-    return NextResponse.json(proposal);
+    // PERF: Add cache headers for browser/CDN caching
+    // - private: Only cache in browser (user-specific data)
+    // - max-age=30: Cache for 30 seconds
+    // - stale-while-revalidate=60: Serve stale while revalidating for 60s
+    return NextResponse.json(proposal, {
+      headers: {
+        "Cache-Control": "private, max-age=30, stale-while-revalidate=60",
+      },
+    });
   } catch (error) {
     console.error("Error fetching proposal:", error);
     return NextResponse.json(
