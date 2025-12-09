@@ -18,6 +18,7 @@ import {
   ChevronRight,
   Sun,
   Moon,
+  Users,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useTheme } from "next-themes";
@@ -73,6 +74,11 @@ const adminNavItems: NavItem[] = [
     title: "CapEx Module",
     href: "/admin/capex",
     icon: Building2,
+  },
+  {
+    title: "User Management",
+    href: "/admin/users",
+    icon: Users,
   },
 ];
 

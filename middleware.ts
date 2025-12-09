@@ -39,10 +39,13 @@ function getOrCreateRequestId(request: NextRequest): string {
 const PUBLIC_ROUTES = [
   "/login",
   "/register",
+  "/verify-email",
+  "/pending-approval",
   "/api/auth/callback",
   "/api/auth/logout",
   "/api/auth/signup",
   "/api/auth/signin",
+  "/api/auth/approval-status",
   "/health",
   "/api/health",
 ];

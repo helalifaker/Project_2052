@@ -16,6 +16,7 @@ import { Form } from "@/components/ui/form";
 import { InputField } from "@/components/forms/FormField";
 import { useProposalForm } from "@/lib/hooks/useProposalForm";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
+import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Role } from "@/lib/types/roles";
 import { AlertCircle, CheckCircle2, Lock, Save, ArrowLeft } from "lucide-react";
 import { z } from "zod";
@@ -890,7 +891,9 @@ function HistoricalDataPageContent() {
 export default function HistoricalDataPage() {
   return (
     <ProtectedRoute allowedRoles={[Role.ADMIN]}>
-      <HistoricalDataPageContent />
+      <DashboardLayout>
+        <HistoricalDataPageContent />
+      </DashboardLayout>
     </ProtectedRoute>
   );
 }

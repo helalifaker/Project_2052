@@ -11,6 +11,12 @@ export enum Role {
   VIEWER = "VIEWER",
 }
 
+export enum ApprovalStatus {
+  PENDING = "PENDING",
+  APPROVED = "APPROVED",
+  REJECTED = "REJECTED",
+}
+
 export enum ProposalOrigin {
   OUR_OFFER = "OUR_OFFER",
   THEIR_COUNTER = "THEIR_COUNTER",
@@ -42,6 +48,7 @@ export enum ProposalPurpose {
 }
 
 export type RoleType = keyof typeof Role;
+export type ApprovalStatusType = keyof typeof ApprovalStatus;
 export type ProposalOriginType = keyof typeof ProposalOrigin;
 export type ProposalStatusType = keyof typeof ProposalStatus;
 export type NegotiationStatusType = keyof typeof NegotiationStatus;

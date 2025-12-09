@@ -18,6 +18,3 @@ export const HistoricalDataItemSchema = z.object({
 export const HistoricalDataArraySchema = z.array(HistoricalDataItemSchema);
 
 export type HistoricalDataItem = z.infer<typeof HistoricalDataItemSchema>;
-
-
-

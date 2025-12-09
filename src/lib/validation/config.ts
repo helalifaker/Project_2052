@@ -32,6 +32,3 @@ export const SystemConfigUpdateSchema = z
   );
 
 export type SystemConfigUpdate = z.infer<typeof SystemConfigUpdateSchema>;
-
-
-

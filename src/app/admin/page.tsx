@@ -11,6 +11,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
+import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Role } from "@/lib/types/roles";
 import { Breadcrumbs } from "@/components/navigation/Breadcrumbs";
 import {
@@ -21,6 +22,7 @@ import {
   AlertCircle,
   TrendingUp,
   Calendar,
+  Users,
 } from "lucide-react";
 
 function AdminDashboardContent() {
@@ -76,10 +78,12 @@ function AdminDashboardContent() {
     <div className="container mx-auto py-8 space-y-8">
       {/* Navigation */}
       <div className="space-y-4">
-        <Breadcrumbs items={[
-          { label: "Dashboard", href: "/dashboard" },
-          { label: "Admin" }
-        ]} />
+        <Breadcrumbs
+          items={[
+            { label: "Dashboard", href: "/dashboard" },
+            { label: "Admin" },
+          ]}
+        />
       </div>
 
       {/* Page Header */}
@@ -282,6 +286,27 @@ function AdminDashboardContent() {
             </Button>
           </CardContent>
         </Card>
+
+        {/* User Management */}
+        <Card
+          className="hover:shadow-lg transition-shadow cursor-pointer"
+          onClick={() => router.push("/admin/users")}
+        >
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <Users className="h-8 w-8 text-primary" />
+            </div>
+            <CardTitle className="mt-4">User Management</CardTitle>
+            <CardDescription>
+              Approve new users and manage roles and permissions
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button className="w-full" variant="outline">
+              Manage Users
+            </Button>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Insights Section */}
@@ -324,7 +349,9 @@ function AdminDashboardContent() {
 export default function AdminDashboardPage() {
   return (
     <ProtectedRoute allowedRoles={[Role.ADMIN]}>
-      <AdminDashboardContent />
+      <DashboardLayout>
+        <AdminDashboardContent />
+      </DashboardLayout>
     </ProtectedRoute>
   );
 }

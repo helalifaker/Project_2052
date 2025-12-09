@@ -17,6 +17,7 @@ import { BackButton } from "@/components/navigation/BackButton";
 import { Breadcrumbs } from "@/components/navigation/Breadcrumbs";
 import { Info, Save, AlertCircle } from "lucide-react";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
+import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Role } from "@/lib/types/roles";
 import { useProposalForm } from "@/lib/hooks/useProposalForm";
 import { toast } from "sonner";
@@ -190,7 +191,9 @@ function TransitionConfigPageContent() {
 export default function TransitionConfigPage() {
   return (
     <ProtectedRoute allowedRoles={[Role.ADMIN]}>
-      <TransitionConfigPageContent />
+      <DashboardLayout>
+        <TransitionConfigPageContent />
+      </DashboardLayout>
     </ProtectedRoute>
   );
 }

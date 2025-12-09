@@ -2,15 +2,16 @@ import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { Role } from "@/lib/types/roles";
+import { Role, ApprovalStatus } from "@/lib/types/roles";
 
 /**
- * Authenticated user with role from database
+ * Authenticated user with role and approval status from database
  */
 export interface AuthenticatedUser {
   id: string;
   email: string;
   role: Role;
+  approvalStatus: ApprovalStatus;
 }
 
 // ============================================================================
@@ -183,11 +184,11 @@ export async function authenticateUser(): Promise<AuthResult> {
       return { success: true, user: cachedUser };
     }
 
-    // Cache miss - fetch user details from database to get role
+    // Cache miss - fetch user details from database to get role and approval status
     try {
       const dbUser = await prisma.user.findUnique({
         where: { id: authUser.id },
-        select: { id: true, email: true, role: true },
+        select: { id: true, email: true, role: true, approvalStatus: true },
       });
 
       if (!dbUser) {
@@ -200,11 +201,45 @@ export async function authenticateUser(): Promise<AuthResult> {
         };
       }
 
+      // Check approval status - block access for non-approved users
+      const approvalStatus = dbUser.approvalStatus as unknown as ApprovalStatus;
+
+      if (approvalStatus === ApprovalStatus.PENDING) {
+        return {
+          success: false,
+          error: NextResponse.json(
+            {
+              error: "Account pending approval",
+              code: "PENDING_APPROVAL",
+              message:
+                "Your account is awaiting administrator approval. You will be notified once your account is approved.",
+            },
+            { status: 403 },
+          ),
+        };
+      }
+
+      if (approvalStatus === ApprovalStatus.REJECTED) {
+        return {
+          success: false,
+          error: NextResponse.json(
+            {
+              error: "Account access denied",
+              code: "ACCOUNT_REJECTED",
+              message:
+                "Your account access request has been denied. Please contact support for more information.",
+            },
+            { status: 403 },
+          ),
+        };
+      }
+
       const authenticatedUser: AuthenticatedUser = {
         id: dbUser.id,
         email: dbUser.email,
-        // Safe cast: Prisma's Role enum has identical string values to our local Role enum
+        // Safe cast: Prisma's enums have identical string values to our local enums
         role: dbUser.role as unknown as Role,
+        approvalStatus: approvalStatus,
       };
 
       // Cache the user for subsequent requests

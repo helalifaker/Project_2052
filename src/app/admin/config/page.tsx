@@ -12,6 +12,7 @@ import { Form } from "@/components/ui/form";
 import { InputField } from "@/components/forms/FormField";
 import { useProposalForm } from "@/lib/hooks/useProposalForm";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
+import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Role } from "@/lib/types/roles";
 import { BackButton } from "@/components/navigation/BackButton";
 import { Breadcrumbs } from "@/components/navigation/Breadcrumbs";
@@ -431,7 +432,9 @@ function SystemConfigPageContent() {
 export default function SystemConfigPage() {
   return (
     <ProtectedRoute allowedRoles={[Role.ADMIN]}>
-      <SystemConfigPageContent />
+      <DashboardLayout>
+        <SystemConfigPageContent />
+      </DashboardLayout>
     </ProtectedRoute>
   );
 }
