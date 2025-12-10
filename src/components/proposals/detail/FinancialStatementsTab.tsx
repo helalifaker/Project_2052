@@ -54,6 +54,106 @@ export function FinancialStatementsTab({
   // Extract financial periods from proposal
   const periods = proposalData.financials || [];
 
+  // ============================================================================
+  // HELPER FUNCTIONS
+  // These must be defined BEFORE useMemo hooks that use them (TDZ prevention)
+  // ============================================================================
+
+  // Helper to get nested value from object path
+  const getNestedValue = (obj: any, path: string): any => {
+    return path.split(".").reduce((current, key) => current?.[key], obj);
+  };
+
+  // Helper to build year values for a given field path
+  const buildYearValues = (
+    fieldPath: string,
+    negate: boolean = false,
+    additionalFieldPath?: string,
+  ): Record<string, number> => {
+    const values: Record<string, number> = {};
+
+    periods.forEach((period: any) => {
+      const year = period.year;
+      const value = getNestedValue(period, fieldPath);
+      const additionalValue = additionalFieldPath
+        ? getNestedValue(period, additionalFieldPath)
+        : 0;
+
+      // Handle various value types: string (from API serialization), number, Decimal object, or null/undefined
+      let numValue = 0;
+      if (value !== undefined && value !== null) {
+        // If it's already a number, use it directly
+        if (typeof value === "number") {
+          numValue = value;
+        }
+        // If it's a string, parse it
+        else if (typeof value === "string") {
+          const parsed = parseFloat(value);
+          numValue = isNaN(parsed) ? 0 : parsed;
+        }
+        // If it's an object with toString (like Decimal.js), convert to string first
+        else if (
+          typeof value === "object" &&
+          value !== null &&
+          typeof value.toString === "function"
+        ) {
+          const parsed = parseFloat(value.toString());
+          numValue = isNaN(parsed) ? 0 : parsed;
+        }
+      }
+
+      // Handle additional value similarly
+      let numAdditional = 0;
+      if (additionalValue !== undefined && additionalValue !== null) {
+        if (typeof additionalValue === "number") {
+          numAdditional = additionalValue;
+        } else if (typeof additionalValue === "string") {
+          const parsed = parseFloat(additionalValue);
+          numAdditional = isNaN(parsed) ? 0 : parsed;
+        } else if (
+          typeof additionalValue === "object" &&
+          additionalValue !== null &&
+          typeof additionalValue.toString === "function"
+        ) {
+          const parsed = parseFloat(additionalValue.toString());
+          numAdditional = isNaN(parsed) ? 0 : parsed;
+        }
+      }
+
+      // Only set the value if we have a valid number (including 0)
+      if (value !== undefined && value !== null) {
+        values[year] = negate
+          ? -(numValue + numAdditional)
+          : numValue + numAdditional;
+      }
+    });
+
+    return values;
+  };
+
+  // Helper to build net interest values (interest income - interest expense)
+  const buildNetInterestValues = (): Record<string, number> => {
+    const values: Record<string, number> = {};
+    periods.forEach((period: any) => {
+      const income = getNestedValue(period, "profitLoss.interestIncome") || 0;
+      const expense = getNestedValue(period, "profitLoss.interestExpense") || 0;
+      const incomeNum =
+        typeof income === "number"
+          ? income
+          : parseFloat(income?.toString() || "0");
+      const expenseNum =
+        typeof expense === "number"
+          ? expense
+          : parseFloat(expense?.toString() || "0");
+      values[period.year] = incomeNum - expenseNum;
+    });
+    return values;
+  };
+
+  // ============================================================================
+  // MEMOIZED CALCULATIONS
+  // ============================================================================
+
   // PERF: Memoize derived calculations to prevent recalculation on every render
   const { allYears, dynamicEndYear, dynamicMidpoint } = useMemo(() => {
     const years = periods.map((p: any) => p.year);
@@ -88,25 +188,6 @@ export function FinancialStatementsTab({
         return allYears;
     }
   }, [periods, yearRange, allYears, dynamicMidpoint, dynamicEndYear]);
-
-  // Helper to build net interest values (interest income - interest expense)
-  const buildNetInterestValues = (): Record<string, number> => {
-    const values: Record<string, number> = {};
-    periods.forEach((period: any) => {
-      const income = getNestedValue(period, "profitLoss.interestIncome") || 0;
-      const expense = getNestedValue(period, "profitLoss.interestExpense") || 0;
-      const incomeNum =
-        typeof income === "number"
-          ? income
-          : parseFloat(income?.toString() || "0");
-      const expenseNum =
-        typeof expense === "number"
-          ? expense
-          : parseFloat(expense?.toString() || "0");
-      values[period.year] = incomeNum - expenseNum;
-    });
-    return values;
-  };
 
   // PERF: Memoize P&L line items to prevent expensive recalculation
   const plLineItems = useMemo((): FinancialLineItem[] => {
@@ -295,73 +376,6 @@ export function FinancialStatementsTab({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [periods]);
 
-  // Helper to build year values for a given field path
-  const buildYearValues = (
-    fieldPath: string,
-    negate: boolean = false,
-    additionalFieldPath?: string,
-  ): Record<string, number> => {
-    const values: Record<string, number> = {};
-
-    periods.forEach((period: any) => {
-      const year = period.year;
-      const value = getNestedValue(period, fieldPath);
-      const additionalValue = additionalFieldPath
-        ? getNestedValue(period, additionalFieldPath)
-        : 0;
-
-      // Handle various value types: string (from API serialization), number, Decimal object, or null/undefined
-      let numValue = 0;
-      if (value !== undefined && value !== null) {
-        // If it's already a number, use it directly
-        if (typeof value === "number") {
-          numValue = value;
-        }
-        // If it's a string, parse it
-        else if (typeof value === "string") {
-          const parsed = parseFloat(value);
-          numValue = isNaN(parsed) ? 0 : parsed;
-        }
-        // If it's an object with toString (like Decimal.js), convert to string first
-        else if (
-          typeof value === "object" &&
-          value !== null &&
-          typeof value.toString === "function"
-        ) {
-          const parsed = parseFloat(value.toString());
-          numValue = isNaN(parsed) ? 0 : parsed;
-        }
-      }
-
-      // Handle additional value similarly
-      let numAdditional = 0;
-      if (additionalValue !== undefined && additionalValue !== null) {
-        if (typeof additionalValue === "number") {
-          numAdditional = additionalValue;
-        } else if (typeof additionalValue === "string") {
-          const parsed = parseFloat(additionalValue);
-          numAdditional = isNaN(parsed) ? 0 : parsed;
-        } else if (
-          typeof additionalValue === "object" &&
-          additionalValue !== null &&
-          typeof additionalValue.toString === "function"
-        ) {
-          const parsed = parseFloat(additionalValue.toString());
-          numAdditional = isNaN(parsed) ? 0 : parsed;
-        }
-      }
-
-      // Only set the value if we have a valid number (including 0)
-      if (value !== undefined && value !== null) {
-        values[year] = negate
-          ? -(numValue + numAdditional)
-          : numValue + numAdditional;
-      }
-    });
-
-    return values;
-  };
-
   // Helper to build formulas (same for all years)
   const buildFormulas = (formula: string): Record<string, string> => {
     const formulas: Record<string, string> = {};
@@ -371,10 +385,9 @@ export function FinancialStatementsTab({
     return formulas;
   };
 
-  // Helper to get nested value from object path
-  const getNestedValue = (obj: any, path: string): any => {
-    return path.split(".").reduce((current, key) => current?.[key], obj);
-  };
+  // ============================================================================
+  // EVENT HANDLERS
+  // ============================================================================
 
   const handleExport = async (format: "excel" | "pdf") => {
     try {

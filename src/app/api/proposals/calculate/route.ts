@@ -25,10 +25,11 @@ import type {
   RevenueShareParams,
   PartnerInvestmentParams,
 } from "@/lib/engine/core/types";
-import { RentModel, CapExCategoryType } from "@/lib/engine/core/types";
+import { RentModel } from "@/lib/engine/core/types";
 import { authenticateUserWithRole } from "@/middleware/auth";
 import { Role } from "@/lib/types/roles";
 import { prisma } from "@/lib/prisma";
+import { buildCapexConfig } from "@/lib/proposals/reconstruct-calculation-input";
 import {
   getCachedCalculation,
   setCachedCalculation,
@@ -819,6 +820,10 @@ export async function POST(request: Request) {
         };
       }
 
+      // Build capexConfig from database (categories, manual items, historical state)
+      // This replaces the previously hardcoded values that were causing CapEx to not flow to Cash Flow
+      const capexConfig = await buildCapexConfig(historicalPeriods);
+
       const dynamicPeriodConfig = {
         year: 2028,
         enrollment: {
@@ -855,26 +860,7 @@ export async function POST(request: Request) {
             : RentModel.PARTNER_INVESTMENT) as RentModel,
         rentParams,
         otherOpexPercent: new Decimal(otherOpexPercent),
-        capexConfig: {
-          categories: [
-            {
-              id: "cat-it",
-              type: CapExCategoryType.IT_EQUIPMENT,
-              name: "IT Equipment",
-              usefulLife: 5,
-              reinvestFrequency: undefined,
-              reinvestAmount: undefined,
-            },
-          ],
-          historicalState: {
-            grossPPE2024: new Decimal(40000000),
-            accumulatedDepreciation2024: new Decimal(10000000),
-            annualDepreciation: new Decimal(1000000),
-            remainingToDepreciate: new Decimal(30000000),
-          },
-          transitionCapex: [],
-          virtualAssets: [],
-        },
+        capexConfig,
       };
 
       const input: CalculationEngineInput = {
@@ -928,26 +914,7 @@ export async function POST(request: Request) {
               : RentModel.PARTNER_INVESTMENT,
         rentParams,
         dynamicPeriodConfig,
-        capexConfig: {
-          categories: [
-            {
-              id: "cat-it",
-              type: CapExCategoryType.IT_EQUIPMENT,
-              name: "IT Equipment",
-              usefulLife: 5,
-              reinvestFrequency: undefined,
-              reinvestAmount: undefined,
-            },
-          ],
-          historicalState: {
-            grossPPE2024: new Decimal(40000000),
-            accumulatedDepreciation2024: new Decimal(10000000),
-            annualDepreciation: new Decimal(1000000),
-            remainingToDepreciate: new Decimal(30000000),
-          },
-          transitionCapex: [],
-          virtualAssets: [],
-        },
+        capexConfig,
         circularSolverConfig: {
           maxIterations: 100,
           convergenceTolerance: new Decimal(0.01),

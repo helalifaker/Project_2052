@@ -129,6 +129,123 @@ const toNumber = (value: unknown): number => {
 };
 
 /**
+ * Historical period data structure needed for building CAPEX configuration.
+ * Only year and balanceSheet/profitLoss fields are required.
+ */
+export interface HistoricalPeriodForCapex {
+  year: number;
+  profitLoss: {
+    depreciation: Decimal;
+  };
+  balanceSheet: {
+    grossPPE: Decimal;
+    accumulatedDepreciation: Decimal;
+  };
+}
+
+/**
+ * Build CAPEX configuration from database and historical data.
+ *
+ * This function is exported for use by both:
+ * - reconstructCalculationInput (for recalculation)
+ * - /api/proposals/calculate (for initial calculation)
+ *
+ * @param historicalPeriods Array of historical periods (needs 2024 data for depreciation state)
+ * @returns Complete CapExConfiguration with categories, historical state, and virtual assets
+ */
+export async function buildCapexConfig(
+  historicalPeriods: HistoricalPeriodForCapex[],
+): Promise<CapExConfiguration> {
+  const year2024 = historicalPeriods.find((p) => p.year === 2024);
+  const virtualAssets: CapExConfiguration["virtualAssets"] = [];
+
+  // Create historical depreciation state based on 2024 actuals
+  let historicalState: CapExConfiguration["historicalState"] = {
+    grossPPE2024: new Decimal(0),
+    accumulatedDepreciation2024: new Decimal(0),
+    annualDepreciation: new Decimal(0),
+    remainingToDepreciate: new Decimal(0),
+  };
+
+  if (year2024) {
+    const grossPPE = year2024.balanceSheet.grossPPE;
+    const accumulatedDep = year2024.balanceSheet.accumulatedDepreciation;
+    const annualDepreciation = year2024.profitLoss.depreciation;
+    const netBookValue = grossPPE.minus(accumulatedDep);
+
+    historicalState = {
+      grossPPE2024: grossPPE,
+      accumulatedDepreciation2024: accumulatedDep,
+      annualDepreciation: annualDepreciation,
+      remainingToDepreciate: netBookValue.greaterThan(0)
+        ? netBookValue
+        : new Decimal(0),
+    };
+  }
+
+  // Fetch CAPEX categories from database (global configuration)
+  const dbCategories = await prisma.capExCategory.findMany({
+    orderBy: { type: "asc" },
+  });
+
+  // Transform DB categories to engine format
+  const categories = dbCategories.map((cat) => ({
+    id: cat.id,
+    type: cat.type as unknown as CapExCategoryType,
+    name: cat.name,
+    usefulLife: cat.usefulLife,
+    reinvestFrequency: cat.reinvestFrequency ?? undefined,
+    reinvestAmount: cat.reinvestAmount
+      ? new Decimal(cat.reinvestAmount)
+      : undefined,
+    reinvestStartYear: cat.reinvestStartYear ?? undefined,
+  }));
+
+  // Fetch ALL global manual CAPEX items (2025+)
+  const dbManualItems = await prisma.capExAsset.findMany({
+    where: {
+      proposalId: null, // Global items only
+      purchaseYear: { gte: 2025 },
+    },
+    include: { category: true },
+    orderBy: { purchaseYear: "asc" },
+  });
+
+  // Split manual items into transition (2025-2027) and dynamic (2028+) periods
+  const dbTransitionItems = dbManualItems.filter(
+    (item) => item.purchaseYear >= 2025 && item.purchaseYear <= 2027,
+  );
+  const dbDynamicItems = dbManualItems.filter(
+    (item) => item.purchaseYear >= 2028,
+  );
+
+  // Transform transition items to engine format
+  const transitionCapex = dbTransitionItems.map((item) => ({
+    categoryType: item.category.type as unknown as CapExCategoryType,
+    year: item.purchaseYear,
+    amount: new Decimal(item.purchaseAmount),
+  }));
+
+  // Add dynamic period manual items as virtual assets (for depreciation)
+  for (const item of dbDynamicItems) {
+    virtualAssets.push({
+      id: `manual-${item.id}`,
+      categoryType: item.category.type as unknown as CapExCategoryType,
+      purchaseYear: item.purchaseYear,
+      purchaseAmount: new Decimal(item.purchaseAmount),
+      usefulLife: item.usefulLife,
+    });
+  }
+
+  return {
+    categories,
+    historicalState,
+    transitionCapex,
+    virtualAssets,
+  };
+}
+
+/**
  * Transform staff config from stored format to engine format
  * Ensures all Decimal fields are proper Decimal instances
  */
@@ -322,107 +439,9 @@ export async function reconstructCalculationInput(
     };
   });
 
-  // Build CAPEX configuration from database + 2024 historical data
-  const buildCapexConfig = async (): Promise<CapExConfiguration> => {
-    const year2024 = historicalPeriods.find((p) => p.year === 2024);
-    const virtualAssets: CapExConfiguration["virtualAssets"] = [];
-
-    // Create historical depreciation state based on 2024 actuals
-    let historicalState: CapExConfiguration["historicalState"] = {
-      grossPPE2024: new Decimal(0),
-      accumulatedDepreciation2024: new Decimal(0),
-      annualDepreciation: new Decimal(0),
-      remainingToDepreciate: new Decimal(0),
-    };
-
-    if (year2024) {
-      const grossPPE = year2024.balanceSheet.grossPPE;
-      const accumulatedDep = year2024.balanceSheet.accumulatedDepreciation;
-      const annualDepreciation = year2024.profitLoss.depreciation;
-      const netBookValue = grossPPE.minus(accumulatedDep);
-
-      historicalState = {
-        grossPPE2024: grossPPE,
-        accumulatedDepreciation2024: accumulatedDep,
-        annualDepreciation: annualDepreciation,
-        remainingToDepreciate: netBookValue.greaterThan(0)
-          ? netBookValue
-          : new Decimal(0),
-      };
-
-      // NOTE: We do NOT create virtual assets for 2024 historical assets.
-      // The historical depreciation mechanism (historicalState.annualDepreciation)
-      // handles the depreciation of pre-2025 assets until fully amortized.
-      // Creating virtual assets here would cause double-counting.
-    }
-
-    // Fetch CAPEX categories from database (global configuration)
-    const dbCategories = await prisma.capExCategory.findMany({
-      orderBy: { type: "asc" },
-    });
-
-    // Transform DB categories to engine format
-    // Note: Casting type to engine's CapExCategoryType - both enums have identical values
-    const categories = dbCategories.map((cat) => ({
-      id: cat.id,
-      type: cat.type as unknown as CapExCategoryType, // Cast Prisma enum to engine enum
-      name: cat.name,
-      usefulLife: cat.usefulLife,
-      reinvestFrequency: cat.reinvestFrequency ?? undefined,
-      reinvestAmount: cat.reinvestAmount
-        ? new Decimal(cat.reinvestAmount)
-        : undefined,
-      reinvestStartYear: cat.reinvestStartYear ?? undefined,
-    }));
-
-    // Fetch ALL global manual CAPEX items (2025+)
-    // For global config, we look for items with NO proposalId
-    const dbManualItems = await prisma.capExAsset.findMany({
-      where: {
-        proposalId: null, // Global items only
-        purchaseYear: { gte: 2025 }, // All years from 2025 onwards
-      },
-      include: { category: true },
-      orderBy: { purchaseYear: "asc" },
-    });
-
-    // Split manual items into transition (2025-2027) and dynamic (2028+) periods
-    const dbTransitionItems = dbManualItems.filter(
-      (item) => item.purchaseYear >= 2025 && item.purchaseYear <= 2027,
-    );
-    const dbDynamicItems = dbManualItems.filter(
-      (item) => item.purchaseYear >= 2028,
-    );
-
-    // Transform transition items to engine format
-    // Note: Casting type to engine's CapExCategoryType - both enums have identical values
-    const transitionCapex = dbTransitionItems.map((item) => ({
-      categoryType: item.category.type as unknown as CapExCategoryType, // Cast Prisma enum to engine enum
-      year: item.purchaseYear,
-      amount: new Decimal(item.purchaseAmount),
-    }));
-
-    // Add dynamic period manual items as virtual assets (for depreciation)
-    for (const item of dbDynamicItems) {
-      virtualAssets.push({
-        id: `manual-${item.id}`,
-        categoryType: item.category.type as unknown as CapExCategoryType,
-        purchaseYear: item.purchaseYear,
-        purchaseAmount: new Decimal(item.purchaseAmount),
-        usefulLife: item.usefulLife,
-      });
-    }
-
-    return {
-      categories,
-      historicalState,
-      transitionCapex,
-      virtualAssets,
-    };
-  };
-
-  // Build capexConfig once and use it in both places
-  const capexConfig = await buildCapexConfig();
+  // Build capexConfig using the exported shared function
+  // This ensures consistency between initial calculation and recalculation
+  const capexConfig = await buildCapexConfig(historicalPeriods);
 
   // Fetch global transition config (all proposals use same config)
   const transitionPeriods = await fetchTransitionPeriods();
