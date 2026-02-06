@@ -21,7 +21,7 @@ concurrency:
 
 env:
   NODE_VERSION: '20'
-  PNPM_VERSION: '9'
+  PNPM_VERSION: '10'
   DATABASE_URL: "postgresql://dummy:dummy@localhost:5432/dummy"
   DIRECT_URL: "postgresql://dummy:dummy@localhost:5432/dummy"
 
