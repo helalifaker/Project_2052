@@ -2,7 +2,7 @@ name: CD Pipeline
 
 on:
   push:
-    branches: [main]
+    branches: [main, staging]
   workflow_dispatch:
     inputs:
       environment:
@@ -21,7 +21,9 @@ concurrency:
 
 env:
   NODE_VERSION: '20'
-  PNPM_VERSION: '9'
+  PNPM_VERSION: '10'
+  DATABASE_URL: "postgresql://dummy:dummy@localhost:5432/dummy"
+  DIRECT_URL: "postgresql://dummy:dummy@localhost:5432/dummy"
 
 jobs:
   pre-deployment-checks:
@@ -35,8 +37,6 @@ jobs:
 
       - name: Install pnpm
         uses: pnpm/action-setup@v4
-        with:
-          version: ${{ env.PNPM_VERSION }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -74,6 +74,9 @@ jobs:
     name: Deploy to Production
     runs-on: ubuntu-latest
     needs: pre-deployment-checks
+    if: |
+      (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.environment != 'staging')
     environment:
       name: production
       url: https://project-2052.vercel.app
@@ -83,14 +86,23 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Enable Corepack
+        run: corepack enable
+
       - name: Install Vercel CLI
         run: npm install -g vercel@latest
 
       - name: Pull Vercel Environment Information
         run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
 
       - name: Build Project Artifacts
         run: vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
 
       - name: Deploy to Vercel Production
         id: deploy
@@ -98,6 +110,9 @@ jobs:
           DEPLOYMENT_URL=$(vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }})
           echo "deployment_url=$DEPLOYMENT_URL" >> $GITHUB_OUTPUT
           echo "Deployed to: $DEPLOYMENT_URL"
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
 
       - name: Wait for deployment to be ready
         run: |
@@ -194,25 +209,6 @@ jobs:
           echo "- View Vercel Analytics: https://vercel.com/analytics" >> $GITHUB_STEP_SUMMARY
           echo "- Monitor uptime: https://uptimerobot.com" >> $GITHUB_STEP_SUMMARY
 
-      # Uncomment and configure for Slack notifications
-      # - name: Notify Slack
-      #   uses: slackapi/slack-github-action@v1
-      #   with:
-      #     webhook-url: ${{ secrets.SLACK_WEBHOOK_URL }}
-      #     payload: |
-      #       {
-      #         "text": "✅ Production deployment successful!",
-      #         "blocks": [
-      #           {
-      #             "type": "section",
-      #             "text": {
-      #               "type": "mrkdwn",
-      #               "text": "*Production Deployment Successful* ✅\n\n*Commit:* ${{ github.sha }}\n*Deployed by:* ${{ github.actor }}\n*URL:* https://project-2052.vercel.app"
-      #             }
-      #           }
-      #         ]
-      #       }
-
   notify-failure:
     name: Notify Failure
     runs-on: ubuntu-latest
@@ -236,29 +232,13 @@ jobs:
           echo "vercel rollback" >> $GITHUB_STEP_SUMMARY
           echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
 
-      # Uncomment and configure for Slack notifications
-      # - name: Notify Slack
-      #   uses: slackapi/slack-github-action@v1
-      #   with:
-      #     webhook-url: ${{ secrets.SLACK_WEBHOOK_URL }}
-      #     payload: |
-      #       {
-      #         "text": "❌ Production deployment failed!",
-      #         "blocks": [
-      #           {
-      #             "type": "section",
-      #             "text": {
-      #               "type": "mrkdwn",
-      #               "text": "*Production Deployment Failed* ❌\n\n*Commit:* ${{ github.sha }}\n*Triggered by:* ${{ github.actor }}\n\nCheck GitHub Actions for details."
-      #             }
-      #           }
-      #         ]
-      #       }
-
   deploy-staging:
     name: Deploy to Staging
     runs-on: ubuntu-latest
-    if: github.event.inputs.environment == 'staging'
+    needs: pre-deployment-checks
+    if: |
+      (github.event_name == 'push' && github.ref == 'refs/heads/staging') ||
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'staging')
     environment:
       name: staging
       url: https://project-2052-staging.vercel.app
@@ -268,14 +248,23 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Enable Corepack
+        run: corepack enable
+
       - name: Install Vercel CLI
         run: npm install -g vercel@latest
 
       - name: Pull Vercel Environment Information
         run: vercel pull --yes --environment=preview --token=${{ secrets.VERCEL_TOKEN }}
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
 
       - name: Build Project Artifacts
         run: vercel build --token=${{ secrets.VERCEL_TOKEN }}
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
 
       - name: Deploy to Vercel Staging
         id: deploy-staging
@@ -283,15 +272,125 @@ jobs:
           DEPLOYMENT_URL=$(vercel deploy --prebuilt --token=${{ secrets.VERCEL_TOKEN }})
           echo "deployment_url=$DEPLOYMENT_URL" >> $GITHUB_OUTPUT
           echo "Deployed to: $DEPLOYMENT_URL"
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
 
-      - name: Run staging smoke tests
+      - name: Alias deployment to stable staging URL
         run: |
+          echo "Aliasing deployment to stable staging URL..."
+          vercel alias ${{ steps.deploy-staging.outputs.deployment_url }} project-2052-staging.vercel.app --token=${{ secrets.VERCEL_TOKEN }}
+          echo "✅ Aliased to https://project-2052-staging.vercel.app"
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+
+      - name: Wait for deployment to be ready
+        run: |
+          echo "Waiting for deployment to be ready..."
           sleep 20
+
+      - name: Create deployment summary
+        run: |
+          echo "## Staging Deployment Successful! 🚀" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Environment:** Staging" >> $GITHUB_STEP_SUMMARY
+          echo "**Preview URL:** ${{ steps.deploy-staging.outputs.deployment_url }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Stable URL:** https://project-2052-staging.vercel.app" >> $GITHUB_STEP_SUMMARY
+          echo "**Commit:** ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Branch:** ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Deployed by:** ${{ github.actor }}" >> $GITHUB_STEP_SUMMARY
+
+  smoke-tests-staging:
+    name: Staging Smoke Tests
+    runs-on: ubuntu-latest
+    needs: deploy-staging
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Health Check
+        run: |
           echo "Running staging health check..."
-          response=$(curl -s -o /dev/null -w "%{http_code}" ${{ steps.deploy-staging.outputs.deployment_url }}/healthz)
+          response=$(curl -s -o /dev/null -w "%{http_code}" https://project-2052-staging.vercel.app/healthz)
           if [ $response -eq 200 ]; then
-            echo "✅ Staging health check passed"
+            echo "✅ Staging health check passed (200 OK)"
           else
-            echo "❌ Staging health check failed"
+            echo "❌ Staging health check failed (HTTP $response)"
             exit 1
           fi
+
+      - name: API Health Check
+        run: |
+          echo "Checking staging API health..."
+          response=$(curl -s -o /dev/null -w "%{http_code}" https://project-2052-staging.vercel.app/api/health)
+          if [ $response -eq 200 ]; then
+            echo "✅ Staging API health check passed (200 OK)"
+          else
+            echo "❌ Staging API health check failed (HTTP $response)"
+            exit 1
+          fi
+
+      - name: Database Connectivity Check
+        run: |
+          echo "Checking staging database connectivity..."
+          response=$(curl -s https://project-2052-staging.vercel.app/api/health)
+          if echo "$response" | grep -q "ok"; then
+            echo "✅ Staging database connectivity confirmed"
+          else
+            echo "❌ Staging database connectivity check failed"
+            echo "Response: $response"
+            exit 1
+          fi
+
+      - name: Static Assets Check
+        run: |
+          echo "Checking staging static assets..."
+          response=$(curl -s -o /dev/null -w "%{http_code}" https://project-2052-staging.vercel.app/_next/static/)
+          if [ $response -eq 200 ] || [ $response -eq 403 ]; then
+            echo "✅ Staging static assets accessible"
+          else
+            echo "❌ Staging static assets check failed (HTTP $response)"
+            exit 1
+          fi
+
+  notify-staging-success:
+    name: Notify Staging Success
+    runs-on: ubuntu-latest
+    needs: [deploy-staging, smoke-tests-staging]
+    if: success()
+
+    steps:
+      - name: Create staging success notification
+        run: |
+          echo "## ✅ Staging Deployment Successful" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Staging deployment completed successfully!" >> $GITHUB_STEP_SUMMARY
+          echo "All staging smoke tests passed." >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Staging URL:** https://project-2052-staging.vercel.app" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Next Steps:**" >> $GITHUB_STEP_SUMMARY
+          echo "1. Verify key user flows on staging" >> $GITHUB_STEP_SUMMARY
+          echo "2. Run manual acceptance tests" >> $GITHUB_STEP_SUMMARY
+          echo "3. When ready, create a PR from staging to main" >> $GITHUB_STEP_SUMMARY
+
+  notify-staging-failure:
+    name: Notify Staging Failure
+    runs-on: ubuntu-latest
+    needs: [deploy-staging, smoke-tests-staging]
+    if: failure()
+
+    steps:
+      - name: Create staging failure notification
+        run: |
+          echo "## ❌ Staging Deployment Failed" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Staging deployment or smoke tests failed!" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Action Required:**" >> $GITHUB_STEP_SUMMARY
+          echo "1. Check workflow logs for errors" >> $GITHUB_STEP_SUMMARY
+          echo "2. Fix issues and push to staging again" >> $GITHUB_STEP_SUMMARY
+          echo "3. Do not create a PR to main until staging is green" >> $GITHUB_STEP_SUMMARY

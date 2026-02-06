@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { authenticateUserWithRole } from "@/middleware/auth";
 import { Role } from "@/lib/types/roles";
 import { TransitionConfigUpsertSchema } from "@/lib/validation/transition";
+import { invalidateTransitionConfigCache } from "@/lib/cache/config-cache";
 import { z } from "zod";
 
 export async function GET() {
@@ -74,6 +75,9 @@ export async function PUT(request: Request) {
         },
       });
     }
+
+    // Invalidate cached config so next calculation picks up new values
+    invalidateTransitionConfigCache();
 
     return NextResponse.json(saved);
   } catch (error) {

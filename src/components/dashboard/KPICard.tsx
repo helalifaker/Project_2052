@@ -99,7 +99,7 @@ export function KPICard({
           <div className="p-1.5 rounded-md bg-white/5 border border-white/5">
             <Icon className="w-3.5 h-3.5" style={{ color: styles.iconColor }} />
           </div>
-          <span className="text-[10px] text-muted-foreground font-medium uppercase tracking-[0.15em]">
+          <span className="label-metric">
             {title}
           </span>
         </div>

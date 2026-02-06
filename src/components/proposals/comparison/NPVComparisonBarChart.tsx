@@ -149,7 +149,7 @@ export function NPVComparisonBarChart({ data }: NPVComparisonBarChartProps) {
       )}
 
       {/* Chart */}
-      <div className="h-[350px]">
+      <div className="h-[350px]" role="img" aria-label="Net present value comparison bar chart for selected proposals">
         <BaseBarChart
           data={chartData}
           series={[

@@ -16,6 +16,7 @@ import {
   ReferenceLine,
   Tooltip,
 } from "recharts";
+import { pdfColors } from "./pdfColorConstants";
 
 interface ProposalPDFReportProps {
   proposal: Proposal;
@@ -66,7 +67,7 @@ export function ProposalPDFReport({ proposal, id }: ProposalPDFReportProps) {
         position: "absolute",
         top: "-10000px",
         left: "-10000px",
-        backgroundColor: "#ffffff",
+        backgroundColor: pdfColors.background,
         fontFamily:
           '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
         padding: "24px",
@@ -81,7 +82,7 @@ export function ProposalPDFReport({ proposal, id }: ProposalPDFReportProps) {
           alignItems: "flex-start",
           marginBottom: "20px",
           paddingBottom: "16px",
-          borderBottom: "2px solid #e2e8f0",
+          borderBottom: `2px solid ${pdfColors.border}`,
         }}
       >
         <div>
@@ -89,7 +90,7 @@ export function ProposalPDFReport({ proposal, id }: ProposalPDFReportProps) {
             style={{
               fontSize: "20px",
               fontWeight: "700",
-              color: "#1e293b",
+              color: pdfColors.heading,
               margin: "0 0 4px 0",
               letterSpacing: "-0.02em",
             }}
@@ -99,7 +100,7 @@ export function ProposalPDFReport({ proposal, id }: ProposalPDFReportProps) {
           <p
             style={{
               fontSize: "13px",
-              color: "#64748b",
+              color: pdfColors.body,
               margin: 0,
             }}
           >
@@ -115,7 +116,7 @@ export function ProposalPDFReport({ proposal, id }: ProposalPDFReportProps) {
           <p
             style={{
               fontSize: "11px",
-              color: "#94a3b8",
+              color: pdfColors.muted,
               margin: "0 0 2px 0",
               textTransform: "uppercase",
               letterSpacing: "0.05em",
@@ -127,7 +128,7 @@ export function ProposalPDFReport({ proposal, id }: ProposalPDFReportProps) {
             style={{
               fontSize: "18px",
               fontWeight: "600",
-              color: "#A68B5B",
+              color: pdfColors.accent,
               margin: 0,
             }}
           >
@@ -150,16 +151,16 @@ export function ProposalPDFReport({ proposal, id }: ProposalPDFReportProps) {
           >
             <defs>
               <linearGradient id="rentGradient" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#A68B5B" stopOpacity={0.4} />
-                <stop offset="50%" stopColor="#A68B5B" stopOpacity={0.15} />
-                <stop offset="95%" stopColor="#A68B5B" stopOpacity={0} />
+                <stop offset="5%" stopColor={pdfColors.accent} stopOpacity={0.4} />
+                <stop offset="50%" stopColor={pdfColors.accent} stopOpacity={0.15} />
+                <stop offset="95%" stopColor={pdfColors.accent} stopOpacity={0} />
               </linearGradient>
               <filter id="shadow" height="130%">
                 <feDropShadow
                   dx="0"
                   dy="2"
                   stdDeviation="3"
-                  floodColor="#A68B5B"
+                  floodColor={pdfColors.accent}
                   floodOpacity="0.15"
                 />
               </filter>
@@ -168,19 +169,19 @@ export function ProposalPDFReport({ proposal, id }: ProposalPDFReportProps) {
             <CartesianGrid
               strokeDasharray="3 3"
               vertical={false}
-              stroke="#e2e8f0"
+              stroke={pdfColors.border}
               strokeOpacity={0.8}
             />
 
             <XAxis
               dataKey="year"
               tick={{
-                fill: "#64748b",
+                fill: pdfColors.body,
                 fontSize: 11,
                 fontWeight: 500,
               }}
-              axisLine={{ stroke: "#cbd5e1" }}
-              tickLine={{ stroke: "#cbd5e1" }}
+              axisLine={{ stroke: pdfColors.axis }}
+              tickLine={{ stroke: pdfColors.axis }}
               tickFormatter={(value) => {
                 // Show every 5 years plus start/end
                 if (
@@ -197,12 +198,12 @@ export function ProposalPDFReport({ proposal, id }: ProposalPDFReportProps) {
 
             <YAxis
               tick={{
-                fill: "#64748b",
+                fill: pdfColors.body,
                 fontSize: 11,
                 fontWeight: 500,
               }}
-              axisLine={{ stroke: "#cbd5e1" }}
-              tickLine={{ stroke: "#cbd5e1" }}
+              axisLine={{ stroke: pdfColors.axis }}
+              tickLine={{ stroke: pdfColors.axis }}
               tickFormatter={(value) => `${value.toFixed(0)}M`}
               domain={["dataMin - 5", "dataMax + 5"]}
             />
@@ -214,19 +215,19 @@ export function ProposalPDFReport({ proposal, id }: ProposalPDFReportProps) {
               ]}
               labelFormatter={(label) => `Year ${label}`}
               contentStyle={{
-                backgroundColor: "#ffffff",
-                border: "1px solid #e2e8f0",
+                backgroundColor: pdfColors.tooltipBg,
+                border: `1px solid ${pdfColors.tooltipBorder}`,
                 borderRadius: "8px",
-                boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+                boxShadow: pdfColors.tooltipShadow,
                 padding: "10px 14px",
               }}
               labelStyle={{
-                color: "#1e293b",
+                color: pdfColors.heading,
                 fontWeight: 600,
                 marginBottom: "4px",
               }}
               itemStyle={{
-                color: "#A68B5B",
+                color: pdfColors.accent,
                 fontWeight: 500,
               }}
             />
@@ -234,13 +235,13 @@ export function ProposalPDFReport({ proposal, id }: ProposalPDFReportProps) {
             {/* Contract start reference line */}
             <ReferenceLine
               x={2028}
-              stroke="#3b82f6"
+              stroke={pdfColors.info}
               strokeDasharray="4 4"
               strokeWidth={1.5}
               label={{
                 value: "Contract Start",
                 position: "top",
-                fill: "#3b82f6",
+                fill: pdfColors.info,
                 fontSize: 10,
                 fontWeight: 500,
               }}
@@ -249,7 +250,7 @@ export function ProposalPDFReport({ proposal, id }: ProposalPDFReportProps) {
             {/* Average rent reference line */}
             <ReferenceLine
               y={avgRent}
-              stroke="#94a3b8"
+              stroke={pdfColors.muted}
               strokeDasharray="8 4"
               strokeWidth={1}
             />
@@ -257,15 +258,15 @@ export function ProposalPDFReport({ proposal, id }: ProposalPDFReportProps) {
             <Area
               type="monotone"
               dataKey="rent"
-              stroke="#A68B5B"
+              stroke={pdfColors.accent}
               strokeWidth={3}
               fill="url(#rentGradient)"
               isAnimationActive={false}
               dot={false}
               activeDot={{
                 r: 6,
-                fill: "#A68B5B",
-                stroke: "#ffffff",
+                fill: pdfColors.accent,
+                stroke: pdfColors.background,
                 strokeWidth: 2,
               }}
               style={{ filter: "url(#shadow)" }}
@@ -294,11 +295,11 @@ export function ProposalPDFReport({ proposal, id }: ProposalPDFReportProps) {
             style={{
               width: "12px",
               height: "12px",
-              backgroundColor: "#94a3b8",
+              backgroundColor: pdfColors.muted,
               borderRadius: "2px",
             }}
           />
-          <span style={{ fontSize: "11px", color: "#64748b" }}>
+          <span style={{ fontSize: "11px", color: pdfColors.body }}>
             Historical (2023-2024)
           </span>
         </div>
@@ -313,11 +314,11 @@ export function ProposalPDFReport({ proposal, id }: ProposalPDFReportProps) {
             style={{
               width: "12px",
               height: "12px",
-              backgroundColor: "#64748b",
+              backgroundColor: pdfColors.body,
               borderRadius: "2px",
             }}
           />
-          <span style={{ fontSize: "11px", color: "#64748b" }}>
+          <span style={{ fontSize: "11px", color: pdfColors.body }}>
             Transition (2025-2027)
           </span>
         </div>
@@ -332,11 +333,11 @@ export function ProposalPDFReport({ proposal, id }: ProposalPDFReportProps) {
             style={{
               width: "12px",
               height: "12px",
-              backgroundColor: "#A68B5B",
+              backgroundColor: pdfColors.accent,
               borderRadius: "2px",
             }}
           />
-          <span style={{ fontSize: "11px", color: "#64748b" }}>
+          <span style={{ fontSize: "11px", color: pdfColors.body }}>
             Contract Period (2028+)
           </span>
         </div>

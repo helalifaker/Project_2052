@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { authenticateUserWithRole } from "@/middleware/auth";
 import { Role } from "@/lib/types/roles";
 import { SystemConfigUpdateSchema } from "@/lib/validation/config";
+import { invalidateSystemConfigCache } from "@/lib/cache/config-cache";
 import { z } from "zod";
 
 export async function GET() {
@@ -101,6 +102,9 @@ export async function PUT(request: Request) {
       where: { id: validatedData.id },
       data: updateData,
     });
+
+    // Invalidate cached config so next calculation picks up new values
+    invalidateSystemConfigCache();
 
     return NextResponse.json(config);
   } catch (error) {

@@ -9,11 +9,10 @@ import { ProposalOverviewTab } from "@/components/proposals/detail/ProposalOverv
 import { useRoleCheck } from "@/lib/hooks/useRoleCheck";
 import { InlineEditableName } from "@/components/proposals/detail/InlineEditableName";
 import { ProposalStatusSelect } from "@/components/proposals/ProposalStatusSelect";
-import { BackButton } from "@/components/navigation/BackButton";
-import { Breadcrumbs } from "@/components/navigation/Breadcrumbs";
 import { PageSkeleton } from "@/components/states/PageSkeleton";
 import { ErrorState } from "@/components/states/ErrorState";
 import { Card } from "@/components/ui/card";
+import { DashboardLayout } from "@/components/layout/DashboardLayout";
 
 // PERFORMANCE OPTIMIZATION: Lazy-load heavy tab components
 // These tabs contain charts (Recharts) and are only loaded when user clicks them
@@ -163,12 +162,20 @@ export default function ProposalDetailPage() {
     }
   };
 
+  const breadcrumbs = [
+    { label: "Dashboard", href: "/" },
+    { label: "Proposals", href: "/proposals" },
+    ...(proposal ? [{ label: proposal.name }] : []),
+  ];
+
   // Loading state - show skeleton
   if (loading) {
     return (
-      <div className="container max-w-[1920px] mx-auto px-6 py-8 space-y-6">
-        <PageSkeleton variant="detail" />
-      </div>
+      <DashboardLayout breadcrumbs={breadcrumbs}>
+        <div aria-busy="true" aria-label="Loading proposal details">
+          <PageSkeleton variant="detail" />
+        </div>
+      </DashboardLayout>
     );
   }
 
@@ -177,7 +184,7 @@ export default function ProposalDetailPage() {
     const is404 = error.message === "PROPOSAL_NOT_FOUND";
 
     return (
-      <div className="container max-w-[1920px] mx-auto px-6 py-8">
+      <DashboardLayout breadcrumbs={breadcrumbs}>
         <ErrorState
           title={is404 ? "Proposal Not Found" : "Failed to Load Proposal"}
           description={
@@ -190,14 +197,14 @@ export default function ProposalDetailPage() {
           showHomeButton={!is404}
           size="full-page"
         />
-      </div>
+      </DashboardLayout>
     );
   }
 
   // Data check - should not happen with proper error handling
   if (!proposal) {
     return (
-      <div className="container max-w-[1920px] mx-auto px-6 py-8">
+      <DashboardLayout breadcrumbs={breadcrumbs}>
         <ErrorState
           title="No Data Available"
           description="Unable to display proposal information."
@@ -205,51 +212,14 @@ export default function ProposalDetailPage() {
           showHomeButton
           size="full-page"
         />
-      </div>
+      </DashboardLayout>
     );
   }
 
   return (
-    <div className="container max-w-[1920px] mx-auto px-6 py-8 space-y-8">
-      {/* Navigation */}
-      <div className="space-y-4">
-        {/* Back Button */}
-        <BackButton href="/proposals" label="Back to Proposals" />
-
-        {/* Breadcrumbs */}
-        <Breadcrumbs
-          items={[
-            { label: "Dashboard", href: "/dashboard" },
-            { label: "Proposals", href: "/proposals" },
-            { label: proposal.name },
-          ]}
-        />
-      </div>
-
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="space-y-1 flex-1">
-          <InlineEditableName
-            proposalId={proposal.id}
-            initialName={proposal.name}
-            status={proposal.status}
-            canEdit={_canEdit}
-            onNameUpdated={(newName) => {
-              setProposal((prev) => ({ ...prev!, name: newName }));
-            }}
-          />
-          <div className="flex items-center gap-4 text-sm text-muted-foreground">
-            {proposal.developer && <span>Developer: {proposal.developer}</span>}
-            <span>Model: {proposal.rentModel}</span>
-            {proposal.calculatedAt && (
-              <span>
-                Calculated:{" "}
-                {new Date(proposal.calculatedAt).toLocaleDateString()}
-              </span>
-            )}
-          </div>
-        </div>
-        {/* Status Dropdown */}
+    <DashboardLayout
+      breadcrumbs={breadcrumbs}
+      actions={
         <ProposalStatusSelect
           proposalId={proposal.id}
           currentStatus={proposal.status}
@@ -259,82 +229,109 @@ export default function ProposalDetailPage() {
             );
           }}
         />
+      }
+    >
+      <div className="space-y-8">
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <div className="space-y-1 flex-1">
+            <InlineEditableName
+              proposalId={proposal.id}
+              initialName={proposal.name}
+              status={proposal.status}
+              canEdit={_canEdit}
+              onNameUpdated={(newName) => {
+                setProposal((prev) => ({ ...prev!, name: newName }));
+              }}
+            />
+            <div className="flex items-center gap-4 text-sm text-muted-foreground">
+              {proposal.developer && <span>Developer: {proposal.developer}</span>}
+              <span>Model: {proposal.rentModel}</span>
+              {proposal.calculatedAt && (
+                <span>
+                  Calculated:{" "}
+                  {new Date(proposal.calculatedAt).toLocaleDateString()}
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* 5-Tab Interface */}
+        <Tabs
+          value={activeTab}
+          onValueChange={setActiveTab}
+          className="space-y-6"
+        >
+          <TabsList className="flex w-auto justify-start border-b bg-transparent p-0">
+            <TabsTrigger
+              value="overview"
+              className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none px-4 py-2"
+            >
+              Overview
+            </TabsTrigger>
+            <TabsTrigger
+              value="dynamic"
+              disabled={isViewer}
+              className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none px-4 py-2"
+            >
+              Dynamic Setup {isViewer && "(Read-only)"}
+            </TabsTrigger>
+            <TabsTrigger
+              value="financials"
+              className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none px-4 py-2"
+            >
+              Financial Statements
+            </TabsTrigger>
+            <TabsTrigger
+              value="scenarios"
+              className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none px-4 py-2"
+            >
+              Scenarios
+            </TabsTrigger>
+            <TabsTrigger
+              value="sensitivity"
+              className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none px-4 py-2"
+            >
+              Sensitivity
+            </TabsTrigger>
+          </TabsList>
+
+          {/* Tab 1: Overview */}
+          <TabsContent value="overview">
+            <ProposalOverviewTab
+              proposal={proposal}
+              onUpdate={handleProposalUpdate}
+            />
+          </TabsContent>
+
+          {/* Tab 2: Dynamic Setup (Edit Mode) */}
+          <TabsContent value="dynamic">
+            <DynamicSetupTab
+              proposal={proposal}
+              onUpdate={handleProposalUpdate}
+            />
+          </TabsContent>
+
+          {/* Tab 3: Financial Statements */}
+          <TabsContent value="financials">
+            <FinancialStatementsTab
+              proposal={proposal}
+              onRecalculated={refreshProposal}
+            />
+          </TabsContent>
+
+          {/* Tab 4: Scenarios (Interactive Sliders) */}
+          <TabsContent value="scenarios">
+            <ScenariosTab proposal={proposal} />
+          </TabsContent>
+
+          {/* Tab 5: Sensitivity Analysis */}
+          <TabsContent value="sensitivity">
+            <SensitivityTab proposal={proposal} />
+          </TabsContent>
+        </Tabs>
       </div>
-
-      {/* 5-Tab Interface */}
-      <Tabs
-        value={activeTab}
-        onValueChange={setActiveTab}
-        className="space-y-6"
-      >
-        <TabsList className="flex w-auto justify-start border-b bg-transparent p-0">
-          <TabsTrigger
-            value="overview"
-            className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none px-4 py-2"
-          >
-            Overview
-          </TabsTrigger>
-          <TabsTrigger
-            value="dynamic"
-            disabled={isViewer}
-            className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none px-4 py-2"
-          >
-            Dynamic Setup {isViewer && "(Read-only)"}
-          </TabsTrigger>
-          <TabsTrigger
-            value="financials"
-            className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none px-4 py-2"
-          >
-            Financial Statements
-          </TabsTrigger>
-          <TabsTrigger
-            value="scenarios"
-            className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none px-4 py-2"
-          >
-            Scenarios
-          </TabsTrigger>
-          <TabsTrigger
-            value="sensitivity"
-            className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none px-4 py-2"
-          >
-            Sensitivity
-          </TabsTrigger>
-        </TabsList>
-
-        {/* Tab 1: Overview */}
-        <TabsContent value="overview">
-          <ProposalOverviewTab
-            proposal={proposal}
-            onUpdate={handleProposalUpdate}
-          />
-        </TabsContent>
-
-        {/* Tab 2: Dynamic Setup (Edit Mode) */}
-        <TabsContent value="dynamic">
-          <DynamicSetupTab
-            proposal={proposal}
-            onUpdate={handleProposalUpdate}
-          />
-        </TabsContent>
-
-        {/* Tab 3: Financial Statements */}
-        <TabsContent value="financials">
-          <FinancialStatementsTab
-            proposal={proposal}
-            onRecalculated={refreshProposal}
-          />
-        </TabsContent>
-
-        {/* Tab 4: Scenarios (Interactive Sliders) */}
-        <TabsContent value="scenarios">
-          <ScenariosTab proposal={proposal} />
-        </TabsContent>
-
-        {/* Tab 5: Sensitivity Analysis */}
-        <TabsContent value="sensitivity">
-          <SensitivityTab proposal={proposal} />
-        </TabsContent>
-      </Tabs>
-    </div>
+    </DashboardLayout>
   );
 }

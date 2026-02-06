@@ -26,6 +26,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { DashboardLayout } from "@/components/layout/DashboardLayout";
 
 // Import wizard steps
 import { Step1Basics } from "@/components/proposals/wizard/Step1Basics";
@@ -217,16 +218,24 @@ function NewProposalPageContent() {
     loadPrefillData();
   }, [searchParams]);
 
+  const breadcrumbs = [
+    { label: "Dashboard", href: "/" },
+    { label: "Proposals", href: "/proposals" },
+    { label: "New Proposal" },
+  ];
+
   // Early returns AFTER all hooks are called
   if (loading || isLoadingPrefill) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center space-y-4">
-          <p className="text-muted-foreground">
-            {isLoadingPrefill ? "Loading proposal data..." : "Loading..."}
-          </p>
+      <DashboardLayout breadcrumbs={breadcrumbs}>
+        <div className="flex items-center justify-center min-h-[60vh]">
+          <div className="text-center space-y-4">
+            <p className="text-muted-foreground">
+              {isLoadingPrefill ? "Loading proposal data..." : "Loading..."}
+            </p>
+          </div>
         </div>
-      </div>
+      </DashboardLayout>
     );
   }
 
@@ -237,7 +246,7 @@ function NewProposalPageContent() {
   // Show error state if there's a critical error
   if (error && error.type === "network") {
     return (
-      <div className="container max-w-4xl mx-auto px-6 py-24">
+      <DashboardLayout breadcrumbs={breadcrumbs}>
         <ErrorState
           title="Failed to Load Proposal"
           description={error.message}
@@ -245,7 +254,7 @@ function NewProposalPageContent() {
           showBackButton
           size="full-page"
         />
-      </div>
+      </DashboardLayout>
     );
   }
 
@@ -536,37 +545,9 @@ function NewProposalPageContent() {
   };
 
   return (
-    <div className="container max-w-[1920px] mx-auto px-6 py-8 space-y-8">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => router.push("/proposals")}
-            className="mb-2"
-          >
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Back to Proposals
-          </Button>
-          <h1 className="text-3xl font-bold tracking-tight">
-            Create New Proposal
-          </h1>
-          <p className="text-muted-foreground mt-1">
-            Step {currentStep + 1} of {activeSteps.length}:{" "}
-            {activeSteps[currentStep].title}
-          </p>
-          {!prefillSource && (
-            <Button
-              variant="link"
-              size="sm"
-              onClick={handleLoadRecent}
-              className="mt-1 px-0 h-auto text-sm"
-            >
-              Load from most recent proposal
-            </Button>
-          )}
-        </div>
+    <DashboardLayout
+      breadcrumbs={breadcrumbs}
+      actions={
         <div className="flex items-center gap-3">
           {hasDraft() && (
             <Button
@@ -579,11 +560,33 @@ function NewProposalPageContent() {
               Clear & Restart
             </Button>
           )}
-          <Button variant="outline" onClick={handleSaveDraft}>
+          <Button variant="outline" size="sm" onClick={handleSaveDraft}>
             <Save className="h-4 w-4 mr-2" />
             Save Draft
           </Button>
         </div>
+      }
+    >
+      <div className="space-y-8">
+      {/* Header */}
+      <div>
+        <h1 className="text-3xl font-bold tracking-tight">
+          Create New Proposal
+        </h1>
+        <p className="text-muted-foreground mt-1">
+          Step {currentStep + 1} of {activeSteps.length}:{" "}
+          {activeSteps[currentStep].title}
+        </p>
+        {!prefillSource && (
+          <Button
+            variant="link"
+            size="sm"
+            onClick={handleLoadRecent}
+            className="mt-1 px-0 h-auto text-sm"
+          >
+            Load from most recent proposal
+          </Button>
+        )}
       </div>
 
       {/* Progress Bar */}
@@ -692,7 +695,8 @@ function NewProposalPageContent() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
+      </div>
+    </DashboardLayout>
   );
 }
 

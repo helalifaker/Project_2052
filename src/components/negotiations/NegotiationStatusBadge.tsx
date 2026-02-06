@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils";
 
 interface NegotiationStatusBadgeProps {
   status: NegotiationStatus;
-  size?: "sm" | "md" | "lg";
+  size?: "sm" | "md" | "lg" | "compact";
   className?: string;
 }
 
@@ -66,6 +66,7 @@ const sizeClasses = {
   sm: "px-2 py-0.5 text-xs",
   md: "px-2.5 py-1 text-xs",
   lg: "px-3 py-1.5 text-sm",
+  compact: "px-2 py-0.5 text-xs",
 };
 
 export function NegotiationStatusBadge({
@@ -74,40 +75,34 @@ export function NegotiationStatusBadge({
   className,
 }: NegotiationStatusBadgeProps) {
   const config = statusConfig[status];
+  const isCompact = size === "compact";
 
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1.5 rounded-full border font-medium",
+        "inline-flex items-center rounded-full border font-medium",
+        !isCompact && "gap-1.5",
         sizeClasses[size],
         className,
       )}
       style={config.style}
     >
-      <span aria-hidden="true" className="w-2 h-2 rounded-full bg-current" />
+      {!isCompact && (
+        <span aria-hidden="true" className="w-2 h-2 rounded-full bg-current" />
+      )}
       <span>{config.label}</span>
     </span>
   );
 }
 
 /**
- * Compact version without icon - useful for tables/lists
+ * @deprecated Use `<NegotiationStatusBadge size="compact" />` instead.
  */
 export function NegotiationStatusBadgeCompact({
   status,
   className,
 }: Omit<NegotiationStatusBadgeProps, "size">) {
-  const config = statusConfig[status];
-
   return (
-    <span
-      className={cn(
-        "inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium",
-        className,
-      )}
-      style={config.style}
-    >
-      {config.label}
-    </span>
+    <NegotiationStatusBadge status={status} size="compact" className={className} />
   );
 }

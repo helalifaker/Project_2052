@@ -177,7 +177,7 @@ function NAVComparisonChartInner({ data }: NAVComparisonChartProps) {
   return (
     <div className="flex flex-col h-full">
       {/* Chart */}
-      <div className="flex-1 min-h-0">
+      <div className="flex-1 min-h-0" role="img" aria-label="Net annualized value comparison bar chart showing NAV for each proposal">
         <ResponsiveContainer width="100%" height="100%">
           <BarChart
             data={chartData}

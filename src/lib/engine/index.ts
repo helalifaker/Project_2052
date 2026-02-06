@@ -153,8 +153,8 @@ export async function calculateFinancialProjections(
       `    - Remaining: ${historicalDepreciationState.remainingToDepreciate.toFixed(2)}`,
     );
 
-    // Track all virtual assets across periods
-    let allVirtualAssets = [...input.capexConfig.virtualAssets];
+    // Track all virtual assets across periods (mutated in place via push())
+    const allVirtualAssets = [...input.capexConfig.virtualAssets];
 
     // ========================================================================
     // PHASE 1: HISTORICAL PERIOD (2023-2024)
@@ -217,11 +217,9 @@ export async function calculateFinancialProjections(
       );
 
       // Accumulate virtual assets (transition period can create new ones)
+      // PERF: Use push() instead of spread to avoid O(n^2) array copying over 30 years
       if ((period as any).capexResult) {
-        allVirtualAssets = [
-          ...allVirtualAssets,
-          ...(period as any).capexResult.newAssets,
-        ];
+        allVirtualAssets.push(...(period as any).capexResult.newAssets);
       }
 
       console.log(`  ✓ Year ${transitionInput.year} calculated`);
@@ -270,11 +268,9 @@ export async function calculateFinancialProjections(
       );
 
       // Accumulate virtual assets created this year
+      // PERF: Use push() instead of spread to avoid O(n^2) array copying over 30 years
       if ((period as any).capexResult) {
-        allVirtualAssets = [
-          ...allVirtualAssets,
-          ...(period as any).capexResult.newAssets,
-        ];
+        allVirtualAssets.push(...(period as any).capexResult.newAssets);
       }
 
       if (year % 5 === 0 || year === dynamicEndYear) {

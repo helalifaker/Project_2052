@@ -2,9 +2,9 @@ name: CI Pipeline
 
 on:
   push:
-    branches: [develop, main]
+    branches: [staging, main]
   pull_request:
-    branches: [develop, main]
+    branches: [staging, main]
 
 # Cancel in-progress runs for the same workflow
 concurrency:
@@ -13,7 +13,9 @@ concurrency:
 
 env:
   NODE_VERSION: '20'
-  PNPM_VERSION: '9'
+  PNPM_VERSION: '10'
+  DATABASE_URL: "postgresql://dummy:dummy@localhost:5432/dummy"
+  DIRECT_URL: "postgresql://dummy:dummy@localhost:5432/dummy"
 
 jobs:
   lint-and-build:
@@ -29,8 +31,6 @@ jobs:
 
       - name: Install pnpm
         uses: pnpm/action-setup@v4
-        with:
-          version: ${{ env.PNPM_VERSION }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -87,8 +87,6 @@ jobs:
 
       - name: Install pnpm
         uses: pnpm/action-setup@v4
-        with:
-          version: ${{ env.PNPM_VERSION }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -142,8 +140,6 @@ jobs:
 
       - name: Install pnpm
         uses: pnpm/action-setup@v4
-        with:
-          version: ${{ env.PNPM_VERSION }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -206,8 +202,6 @@ jobs:
 
       - name: Install pnpm
         uses: pnpm/action-setup@v4
-        with:
-          version: ${{ env.PNPM_VERSION }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -238,8 +232,6 @@ jobs:
 
       - name: Install pnpm
         uses: pnpm/action-setup@v4
-        with:
-          version: ${{ env.PNPM_VERSION }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v4

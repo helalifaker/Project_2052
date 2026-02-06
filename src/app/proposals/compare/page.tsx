@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useState, useMemo, useRef } from "react";
+import { Suspense, useCallback, useEffect, useState, useMemo, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import dynamic from "next/dynamic";
 import { Button } from "@/components/ui/button";
@@ -113,7 +113,37 @@ function ProposalCompareContent() {
   const didFetchProposals = useRef(false);
   const didFetchFullData = useRef(false);
 
-  // Initial data fetch - runs exactly once
+  // Fetch full proposal data in parallel using Promise.all
+  const fetchFullData = useCallback(
+    async (proposalList: ProposalSummary[]) => {
+      if (didFetchFullData.current || proposalList.length === 0) return;
+      didFetchFullData.current = true;
+      setLoadingFull(true);
+
+      try {
+        const results = await Promise.all(
+          proposalList.map(async (p) => {
+            const res = await fetch(`/api/proposals/${p.id}`);
+            if (!res.ok) throw new Error(`Failed to fetch ${p.id}`);
+            const data = await res.json();
+            return { id: p.id, data };
+          }),
+        );
+
+        const dataMap = new Map<string, FullProposal>();
+        results.forEach(({ id, data }) => dataMap.set(id, data));
+        setFullProposals(dataMap);
+      } catch (err) {
+        console.error("Failed to fetch full data:", err);
+        setError("Failed to load detailed data.");
+      } finally {
+        setLoadingFull(false);
+      }
+    },
+    [],
+  );
+
+  // Initial data fetch - runs exactly once, then prefetches full data immediately
   useEffect(() => {
     if (didFetchProposals.current) return;
     didFetchProposals.current = true;
@@ -138,6 +168,9 @@ function ProposalCompareContent() {
 
         setProposals(filtered);
         setError(null);
+
+        // Prefetch full data immediately (no waiting for tab switch)
+        fetchFullData(filtered);
       } catch (err) {
         console.error("Failed to fetch proposals:", err);
         setError("Failed to load proposals. Please refresh the page.");
@@ -147,42 +180,7 @@ function ProposalCompareContent() {
     }
 
     fetchProposals();
-  }, [selectedIds]);
-
-  // Fetch full proposal data when switching to Visual/Statements tabs
-  useEffect(() => {
-    if (activeTab === "overview") return;
-    if (didFetchFullData.current) return;
-    if (proposals.length === 0) return;
-
-    didFetchFullData.current = true;
-
-    async function fetchFullData() {
-      setLoadingFull(true);
-
-      try {
-        const results = await Promise.all(
-          proposals.map(async (p) => {
-            const res = await fetch(`/api/proposals/${p.id}`);
-            if (!res.ok) throw new Error(`Failed to fetch ${p.id}`);
-            const data = await res.json();
-            return { id: p.id, data };
-          }),
-        );
-
-        const dataMap = new Map<string, FullProposal>();
-        results.forEach(({ id, data }) => dataMap.set(id, data));
-        setFullProposals(dataMap);
-      } catch (err) {
-        console.error("Failed to fetch full data:", err);
-        setError("Failed to load detailed data.");
-      } finally {
-        setLoadingFull(false);
-      }
-    }
-
-    fetchFullData();
-  }, [activeTab, proposals]);
+  }, [selectedIds, fetchFullData]);
 
   // Helper to safely parse metric values from database JSON strings
   const parseMetricValue = (value: unknown): number => {
@@ -358,8 +356,8 @@ function ProposalCompareContent() {
   if (loading) {
     return (
       <DashboardLayout breadcrumbs={breadcrumbs}>
-        <div className="flex items-center justify-center py-32">
-          <Loader2 className="h-8 w-8 animate-spin" />
+        <div className="flex items-center justify-center py-32" aria-busy="true" aria-label="Loading proposals for comparison">
+          <Loader2 className="h-8 w-8 animate-spin" aria-hidden="true" />
           <span className="ml-2 text-muted-foreground">
             Loading proposals...
           </span>

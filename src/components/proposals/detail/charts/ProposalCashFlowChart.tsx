@@ -287,7 +287,7 @@ export function ProposalCashFlowChart({
         </div>
 
         {/* Chart */}
-        <div style={{ height: `${height}px` }}>
+        <div style={{ height: `${height}px` }} role="img" aria-label={`Cash flow analysis chart in ${viewMode} view showing cash position from 2023 to ${contractEndYear}`}>
           {viewMode === "cumulative" ? (
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart

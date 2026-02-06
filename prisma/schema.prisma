@@ -89,6 +89,8 @@ model SystemConfig {
 
   // Relations
   updater User? @relation("ConfigUpdater", fields: [updatedBy], references: [id], onDelete: SetNull)
+
+  @@index([updatedBy])
 }
 
 model HistoricalData {
@@ -131,6 +133,8 @@ model CapExAsset {
   @@index([categoryId])
   @@index([proposalId])
   @@index([proposalId, purchaseYear]) // PERF: Year-based asset queries for CapEx calculations
+  @@index([categoryId, purchaseYear]) // PERF: Dashboard CapEx aggregation by category + year range
+  @@index([proposalId, categoryId]) // PERF: Per-proposal category summaries
 }
 
 model CapExCategory {
@@ -303,6 +307,7 @@ model Scenario {
   creator  User          @relation("ScenarioCreator", fields: [createdBy], references: [id], onDelete: Restrict)
 
   @@index([proposalId])
+  @@index([createdBy])
 }
 
 model SensitivityAnalysis {
@@ -327,4 +332,5 @@ model SensitivityAnalysis {
   creator  User          @relation("SensitivityAnalysisCreator", fields: [createdBy], references: [id], onDelete: Restrict)
 
   @@index([proposalId])
+  @@index([createdBy])
 }

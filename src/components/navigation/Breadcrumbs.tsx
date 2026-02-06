@@ -76,10 +76,7 @@ export function Breadcrumbs({ items, className = '' }: BreadcrumbsProps) {
                   aria-current={isCurrent ? 'page' : undefined}
                 >
                   <span
-                    className={isCurrent ? 'text-[#a47b42]' : 'text-muted-foreground'}
-                    style={{
-                      color: isCurrent ? 'var(--copper-700)' : undefined,
-                    }}
+                    className={isCurrent ? 'text-copper-700' : 'text-muted-foreground'}
                   >
                     {item.label}
                   </span>
@@ -215,11 +212,10 @@ export function BreadcrumbsResponsive({ items, className = '' }: BreadcrumbsProp
         {/* Last Item (Current) */}
         <li className="flex items-center">
           <span
-            className="text-[#a47b42]"
+            className="text-copper-700"
             style={{
               fontSize: typography.label.base.size,
               fontWeight: typography.label.base.weight,
-              color: 'var(--copper-700)',
             }}
             aria-current="page"
           >

@@ -42,19 +42,19 @@ npx prisma db push  # if needed
 - [ ] Run verification queries from the SQL script (Part 14)
 - [ ] Confirm RLS is enabled on all 10 tables
 - [ ] Verify 4 helper functions exist
-- [ ] Check that policies were created (should see 30+ policies)
+- [ ] Check that policies were created (should see 52 policies)
 
 ```sql
 -- Quick verification
 SELECT COUNT(DISTINCT tablename) as tables_with_rls
 FROM pg_tables
 WHERE schemaname = 'public' AND rowsecurity = true;
--- Expected: 10
+-- Expected: 11 (10 application tables + _prisma_migrations with deny-all)
 
 SELECT COUNT(*) as total_policies
 FROM pg_policies
 WHERE schemaname = 'public';
--- Expected: 30+
+-- Expected: 52
 ```
 
 ## Testing
@@ -169,7 +169,7 @@ WHERE "createdBy" = auth.get_user_id();
 ## Security Audit
 
 ### Step 11: Security Verification
-- [ ] No tables without RLS enabled (except _prisma_migrations)
+- [ ] No tables without RLS enabled (including _prisma_migrations, which has deny-all RLS)
 - [ ] No policies with unrestricted access
 - [ ] Service role key is secure and not exposed
 - [ ] JWT validation is enabled in Supabase
@@ -271,6 +271,6 @@ ALTER TABLE "LeaseProposal" DISABLE ROW LEVEL SECURITY;
 
 ---
 
-**Checklist Version:** 1.0
-**Last Updated:** November 25, 2024
-**Compatible with:** Project 2052 RLS Policies v1.0
+**Checklist Version:** 1.1
+**Last Updated:** February 6, 2026
+**Compatible with:** Project 2052 RLS Policies v2.1 (consolidated overlapping policies)

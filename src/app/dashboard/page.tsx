@@ -250,12 +250,6 @@ function DashboardContent() {
   const [selectedProposalIds, setSelectedProposalIds] = useState<string[]>([]);
   const maxProposals = 3;
 
-  // Client-side calculated state (for scenario adjustments on existing charts)
-  const [_calculatedKPIs, setCalculatedKPIs] = useState<{
-    avgNPV: number;
-    avgIRR: number;
-  } | null>(null);
-
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
@@ -327,9 +321,9 @@ function DashboardContent() {
     fetchDashboardData();
   }, [statusFilter, router]);
 
-  // Recalculate KPIs when scenario changes
-  useEffect(() => {
-    if (!dashboardData) return;
+  // Derived KPIs recalculated when scenario changes (no extra render cycle)
+  const _calculatedKPIs = useMemo(() => {
+    if (!dashboardData) return null;
 
     let totalNPV = new Decimal(0);
     let totalIRR = new Decimal(0);
@@ -355,7 +349,7 @@ function DashboardContent() {
 
       totalNPV = totalNPV.plus(npv);
       if (irr) {
-        totalIRR = totalIRR.plus(irr.mul(100)); // convert to percent for display
+        totalIRR = totalIRR.plus(irr.mul(100));
         irrCount++;
       }
       count++;
@@ -364,11 +358,10 @@ function DashboardContent() {
     const avgNPV = count > 0 ? totalNPV.dividedBy(count) : new Decimal(0);
     const avgIRR = irrCount > 0 ? totalIRR.dividedBy(irrCount) : new Decimal(0);
 
-    // Update state
-    setCalculatedKPIs({
-      avgNPV: avgNPV.dividedBy(1_000_000).toNumber(), // Convert to Millions for UI
+    return {
+      avgNPV: avgNPV.dividedBy(1_000_000).toNumber(),
       avgIRR: avgIRR.toNumber(),
-    });
+    };
   }, [dashboardData, discountRate, inflationRate, rentGrowthFactor]);
 
   // Memoized Chart Data
@@ -509,7 +502,9 @@ function DashboardContent() {
           </div>
         }
       >
-        <PageSkeleton variant="dashboard" />
+        <div aria-busy="true" aria-label="Loading dashboard data">
+          <PageSkeleton variant="dashboard" />
+        </div>
       </DashboardLayout>
     );
   }

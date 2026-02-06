@@ -182,7 +182,7 @@ export function ProfitabilityComparisonChart({
   const metricLabel = metric === "ebitda" ? "EBITDA" : "Net Income";
 
   return (
-    <div className={className}>
+    <div className={className} role="img" aria-label="Profitability comparison line chart showing net income or EBITDA progression over time for selected proposals">
       <ResponsiveContainer width="100%" height={400}>
         <LineChart data={chartData} margin={chartSpacing.margin}>
           {/* Grid */}

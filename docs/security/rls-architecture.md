@@ -236,28 +236,19 @@ CREATE POLICY "ADMIN and PLANNER can create"
 #### 3. Update Policies (UPDATE)
 **Purpose:** Control who can modify existing rows
 
-**Pattern for ownership:**
+**Pattern (consolidated):**
 ```sql
-CREATE POLICY "Update own resources"
+-- Single policy combining admin-override and ownership check.
+-- Avoids overlapping permissive policies (Supabase perf warning).
+CREATE POLICY "ADMIN can update any, PLANNER own resources"
   ON "LeaseProposal"
   FOR UPDATE
   USING (
-    auth.is_admin_or_planner() AND
-    "createdBy" = auth.get_user_id()
+    is_admin() OR (is_admin_or_planner() AND "createdBy" = get_user_id())
   )
   WITH CHECK (
-    auth.is_admin_or_planner() AND
-    "createdBy" = auth.get_user_id()
+    is_admin() OR (is_admin_or_planner() AND "createdBy" = get_user_id())
   );
-```
-
-**Pattern for admin override:**
-```sql
-CREATE POLICY "ADMIN updates any"
-  ON "LeaseProposal"
-  FOR UPDATE
-  USING (auth.is_admin())
-  WITH CHECK (auth.is_admin());
 ```
 
 ---
@@ -265,12 +256,15 @@ CREATE POLICY "ADMIN updates any"
 #### 4. Delete Policies (DELETE)
 **Purpose:** Control who can delete rows
 
-**Pattern:**
+**Pattern (consolidated):**
 ```sql
-CREATE POLICY "ADMIN deletes any"
-  ON "TableName"
+-- Single policy combining admin-override and ownership check.
+CREATE POLICY "ADMIN can delete any, PLANNER own resources"
+  ON "LeaseProposal"
   FOR DELETE
-  USING (auth.is_admin());
+  USING (
+    is_admin() OR (is_admin_or_planner() AND "createdBy" = get_user_id())
+  );
 ```
 
 ## Policy Evaluation Order
@@ -315,24 +309,28 @@ User executes: SELECT * FROM "LeaseProposal"
          └───────────────────────┘
 ```
 
-### Multiple Policies (OR Logic)
+### Policy Consolidation (v2.1)
 
-When multiple policies exist for the same operation, they are combined with OR:
+PostgreSQL combines multiple permissive policies for the same operation with OR. While functionally correct, this creates overlapping policy evaluation that the Supabase performance advisor flags. To avoid this, we consolidate the OR logic into a single policy:
 
 ```sql
--- Policy 1: Users can read own data
-USING (email = auth.jwt() ->> 'email')
+-- BEFORE (two overlapping permissive policies):
+-- Policy 1: ADMIN and PLANNER can update their own proposals
+-- Policy 2: ADMIN can update any proposal
 
--- Policy 2: ADMIN can read all
-USING (auth.is_admin())
-
--- Combined: User sees rows where EITHER condition is true
-USING (
-  email = auth.jwt() ->> 'email'  -- Own data
-  OR
-  auth.is_admin()                  -- Or is admin
-)
+-- AFTER (single consolidated policy):
+CREATE POLICY "ADMIN can update any, PLANNER own proposals"
+  ON "LeaseProposal"
+  FOR UPDATE
+  USING (
+    is_admin() OR (is_admin_or_planner() AND "createdBy" = get_user_id())
+  )
+  WITH CHECK (
+    is_admin() OR (is_admin_or_planner() AND "createdBy" = get_user_id())
+  );
 ```
+
+This pattern is applied consistently across LeaseProposal, Negotiation, Scenario, and SensitivityAnalysis tables for UPDATE and DELETE operations, and on the User table for SELECT.
 
 ## Table-Specific Architecture
 
@@ -342,9 +340,8 @@ USING (
 │            User Table               │
 ├─────────────────────────────────────┤
 │ Policies:                           │
-│  SELECT:                            │
-│   - Read own data (by email)        │
-│   - ADMIN reads all                 │
+│  SELECT: (consolidated)             │
+│   - Own data OR ADMIN reads all     │
 │  INSERT/UPDATE/DELETE:              │
 │   - ADMIN only                      │
 └─────────────────────────────────────┘
@@ -360,12 +357,10 @@ USING (
 │   - All authenticated               │
 │  INSERT:                            │
 │   - ADMIN and PLANNER               │
-│  UPDATE:                            │
-│   - Own proposals (ADMIN/PLANNER)   │
-│   - Any proposal (ADMIN only)       │
-│  DELETE:                            │
-│   - Own proposals (ADMIN/PLANNER)   │
-│   - Any proposal (ADMIN only)       │
+│  UPDATE: (consolidated)             │
+│   - ADMIN any, PLANNER own only     │
+│  DELETE: (consolidated)             │
+│   - ADMIN any, PLANNER own only     │
 └─────────────────────────────────────┘
 ```
 
@@ -603,8 +598,8 @@ The RLS architecture provides:
 
 ---
 
-**Last Updated:** December 2025
-**Version:** 2.0 (Added Negotiation table RLS - v2.2)
+**Last Updated:** February 2026
+**Version:** 2.1 (Consolidated overlapping RLS policies, secured _prisma_migrations)
 **Related Documentation:**
 - [RLS Setup Guide](./rls-setup-guide.md)
 - [RLS Quick Reference](./rls-quick-reference.md)

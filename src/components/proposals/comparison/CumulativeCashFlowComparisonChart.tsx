@@ -171,7 +171,7 @@ export function CumulativeCashFlowComparisonChart({
   }
 
   return (
-    <div className={className}>
+    <div className={className} role="img" aria-label="Cumulative cash flow comparison area chart showing cash position over time for selected proposals">
       <ResponsiveContainer width="100%" height={400}>
         <AreaChart data={chartData} margin={chartSpacing.margin}>
           {/* Grid */}
