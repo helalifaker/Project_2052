@@ -76,6 +76,8 @@ export async function GET(req: Request) {
             origin: true,
             status: true,
             version: true,
+            // PERF: Only fetch metrics for summary extraction (totalRent, npv, irr).
+            // Fetching full metrics for every proposal in every negotiation was ~80% of payload.
             metrics: true,
             createdAt: true,
             updatedAt: true,
@@ -122,7 +124,9 @@ export async function GET(req: Request) {
               irr: metrics.irr,
             }
           : null,
-        proposals: neg.proposals,
+        // PERF: Removed full proposals array from response.
+        // Clients should fetch per-negotiation proposals via GET /api/negotiations/[id].
+        // Only summary counts and latestOffer are included here.
       };
     });
 

@@ -255,6 +255,9 @@ export function solveCircularDependencies(
   let divergenceCount = 0;
   const MAX_DIVERGENCE_COUNT = 5; // Exit if diverging for 5 consecutive iterations
 
+  // PERF: Track last state to avoid redundant recalculation on non-convergence
+  let lastState: IterationState | null = null;
+
   // Iteration loop
   for (let iteration = 0; iteration < maxIterations; iteration++) {
     // Calculate iteration state
@@ -280,6 +283,8 @@ export function solveCircularDependencies(
       depositInterestRate,
       minCashBalance,
     });
+
+    lastState = state;
 
     // Check convergence (use <= instead of < to catch exact tolerance match)
     if (state.debtDifference.lessThanOrEqualTo(convergenceTolerance)) {
@@ -347,32 +352,10 @@ export function solveCircularDependencies(
   }
 
   // Did not converge within max iterations
-  // Update stats for non-convergence
   updateConvergenceStats(maxIterations, false, maxIterations);
 
-  // Return last state but mark as not converged
-  const finalState = calculateIterationState({
-    debtEstimate,
-    priorPeriod,
-    revenue,
-    rentExpense,
-    staffCosts,
-    otherOpEx,
-    depreciation,
-    ebit,
-    accountsReceivable,
-    prepaidExpenses,
-    grossPPE,
-    accumulatedDepreciation,
-    accountsPayable,
-    accruedExpenses,
-    deferredRevenue,
-    capex,
-    zakatRate,
-    debtInterestRate,
-    depositInterestRate,
-    minCashBalance,
-  });
+  // PERF: Use last computed state directly instead of recalculating
+  const finalState = lastState!;
 
   // Log non-convergence warning for debugging
   if (process.env.NODE_ENV === "development") {

@@ -131,6 +131,8 @@ model CapExAsset {
   @@index([categoryId])
   @@index([proposalId])
   @@index([proposalId, purchaseYear]) // PERF: Year-based asset queries for CapEx calculations
+  @@index([categoryId, purchaseYear]) // PERF: Dashboard CapEx aggregation by category + year range
+  @@index([proposalId, categoryId]) // PERF: Per-proposal category summaries
 }
 
 model CapExCategory {

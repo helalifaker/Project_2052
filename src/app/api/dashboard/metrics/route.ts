@@ -3,7 +3,6 @@ import { prisma } from "@/lib/prisma";
 import { authenticateUserWithRole } from "@/middleware/auth";
 import { Role } from "@/lib/types/roles";
 import Decimal from "decimal.js";
-import { calculateNPV } from "@/lib/utils/financial";
 import {
   calculateComparisonInsights,
   extractProfitabilityWaterfall,
@@ -19,6 +18,19 @@ type DashboardProposal = {
   rentModel: string;
   metrics: unknown;
   financials: unknown;
+  contractPeriodYears: number | null;
+};
+
+/**
+ * Lightweight proposal type used for KPI calculations that only need metrics.
+ * Avoids loading the large financials JSON (~30KB per proposal).
+ */
+type MetricsOnlyProposal = {
+  id: string;
+  name: string;
+  developer: string | null;
+  rentModel: string;
+  metrics: unknown;
   contractPeriodYears: number | null;
 };
 
@@ -177,14 +189,6 @@ const normalizeFinancials = (
     }));
 };
 
-const getContractPeriodFinancials = (
-  financials: FinancialPeriodSnapshot[],
-  contractPeriodYears: number,
-): FinancialPeriodSnapshot[] => {
-  const endYear = 2028 + contractPeriodYears - 1; // 2052 or 2057
-  return financials.filter((p) => p.year >= 2028 && p.year <= endYear);
-};
-
 /**
  * Dashboard Metrics API Endpoint
  *
@@ -246,15 +250,9 @@ export async function GET(_request: Request) {
       });
     }
 
-    // Aggregate KPIs
     const typedProposals = proposals as DashboardProposal[];
 
-    const kpis = await calculateContractPeriodKPIs(
-      typedProposals,
-      discountRate,
-    );
-
-    // Build proposal metrics for comparison insights
+    // Build proposal metrics for comparison insights (uses metrics only, no financials)
     const proposalMetrics: ProposalMetrics[] = typedProposals.map((p) => {
       const metrics = p.metrics as Record<string, unknown> | null;
       return {
@@ -278,14 +276,19 @@ export async function GET(_request: Request) {
     // Calculate comparison insights
     const insights = calculateComparisonInsights(proposalMetrics);
 
-    // Optimize: Run independent operations in parallel
+    // Run all independent operations in parallel.
+    // KPIs now use pre-calculated metrics (no financials needed), so run with chart data.
     const [
+      kpis,
       chartData,
       npvComparison,
       navComparison,
       profitabilityWaterfall,
       sensitivity,
     ] = await Promise.all([
+      // KPIs from pre-calculated metrics + CapEx DB query
+      calculateContractPeriodKPIs(typedProposals, discountRate),
+
       // Extract all chart data in a single pass through financials
       Promise.resolve(extractAllChartData(typedProposals, insights)),
 
@@ -553,61 +556,47 @@ async function extractSensitivityData() {
 }
 
 /**
- * Calculate KPIs focused on the contract period (2028-2052 or 2028-2057)
- * Includes rent NPV calculation using admin discount rate
+ * Calculate KPIs using pre-calculated metrics stored on proposals.
+ * PERFORMANCE: Uses proposal.metrics instead of iterating financials (~30KB per proposal).
+ * This avoids loading ~3MB+ of financials data on dashboard load.
+ *
+ * CapEx aggregation is run in parallel via Promise.all at the call site.
  */
 async function calculateContractPeriodKPIs(
-  proposals: DashboardProposal[],
+  proposals: MetricsOnlyProposal[],
   discountRate: Decimal,
 ): Promise<KPIResponse> {
   let totalContractRent = new Decimal(0);
   let totalRentNPV = new Decimal(0);
   let totalContractEBITDA = new Decimal(0);
   let totalFinalCash = new Decimal(0);
-  let totalNAV = new Decimal(0); // Aggregate NAV across proposals
+  let totalNAV = new Decimal(0);
 
+  // Use pre-calculated metrics instead of re-iterating financials
   proposals.forEach((proposal) => {
-    const contractPeriodYears = proposal.contractPeriodYears || 30;
-    const contractFinancials = getContractPeriodFinancials(
-      normalizeFinancials(proposal.financials),
-      contractPeriodYears,
-    );
-
-    // Sum rent and EBITDA for contract period
-    contractFinancials.forEach((period) => {
-      const rentExpense = parseDecimal(period.profitLoss?.["rentExpense"]);
-      totalContractRent = totalContractRent.plus(rentExpense);
-
-      const ebitda = parseDecimal(period.profitLoss?.["ebitda"]);
-      totalContractEBITDA = totalContractEBITDA.plus(ebitda);
-    });
-
-    // Calculate rent NPV (rent as negative cash flows for NPV)
-    const rentCashFlows = contractFinancials.map((p) =>
-      parseDecimal(p.profitLoss?.["rentExpense"]).neg(),
-    );
-    const rentNPV = calculateNPV(rentCashFlows, discountRate);
-    totalRentNPV = totalRentNPV.plus(rentNPV);
-
-    // Final cash (last period of full projection)
-    const allFinancials = normalizeFinancials(proposal.financials);
-    const lastPeriod = allFinancials[allFinancials.length - 1];
-    const finalCash = parseDecimal(lastPeriod?.balanceSheet?.["cash"]);
-    totalFinalCash = totalFinalCash.plus(finalCash);
-
-    // Extract NAV from proposal metrics
     if (
-      proposal.metrics &&
-      typeof proposal.metrics === "object" &&
-      !Array.isArray(proposal.metrics)
+      !proposal.metrics ||
+      typeof proposal.metrics !== "object" ||
+      Array.isArray(proposal.metrics)
     ) {
-      const metrics = proposal.metrics as Record<string, unknown>;
-      const nav = parseDecimal(metrics.contractNAV);
-      totalNAV = totalNAV.plus(nav);
+      return;
     }
+
+    const metrics = proposal.metrics as Record<string, unknown>;
+
+    // Contract period metrics are already calculated by the engine
+    totalContractRent = totalContractRent.plus(
+      parseDecimal(metrics.contractTotalRent),
+    );
+    totalContractEBITDA = totalContractEBITDA.plus(
+      parseDecimal(metrics.contractTotalEbitda),
+    );
+    totalRentNPV = totalRentNPV.plus(parseDecimal(metrics.contractRentNPV));
+    totalFinalCash = totalFinalCash.plus(parseDecimal(metrics.finalCash));
+    totalNAV = totalNAV.plus(parseDecimal(metrics.contractNAV));
   });
 
-  // Query CapEx from database for contract period
+  // Query CapEx from database for contract period (run in parallel at call site)
   const capexSum = await prisma.capExAsset.aggregate({
     where: {
       proposalId: { in: proposals.map((p) => p.id) },

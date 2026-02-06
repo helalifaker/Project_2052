@@ -11,6 +11,10 @@ import type {
 } from "@/lib/engine/core/types";
 import { CapExCategoryType } from "@/lib/engine/core/types";
 import { mapHistoricalPeriod } from "@/lib/historical/line-item-mapper";
+import {
+  getCachedSystemConfig,
+  getCachedTransitionConfig,
+} from "@/lib/cache/config-cache";
 
 export type ProposalRecord = NonNullable<
   Awaited<ReturnType<typeof prisma.leaseProposal.findUnique>>
@@ -284,9 +288,10 @@ function transformStaffConfig(storedStaff: unknown): Record<string, unknown> {
 /**
  * Fetch global TransitionConfig and convert to TransitionPeriodInput format.
  * All proposals now use the same global transition configuration (2025-2027).
+ * PERF: Uses cached config (5-min TTL) to avoid redundant DB lookups.
  */
 async function fetchTransitionPeriods(): Promise<TransitionPeriodInput[]> {
-  const config = await prisma.transitionConfig.findFirst();
+  const config = await getCachedTransitionConfig();
 
   if (!config) {
     throw new CalculationConfigError(
@@ -302,22 +307,22 @@ async function fetchTransitionPeriods(): Promise<TransitionPeriodInput[]> {
       year: 2025,
       preFillFromPriorYear: false,
       numberOfStudents: config.year2025Students,
-      averageTuitionPerStudent: new Decimal(config.year2025AvgTuition),
-      rentGrowthPercent: new Decimal(config.rentGrowthPercent),
+      averageTuitionPerStudent: config.year2025AvgTuition,
+      rentGrowthPercent: config.rentGrowthPercent,
     },
     {
       year: 2026,
       preFillFromPriorYear: false,
       numberOfStudents: config.year2026Students,
-      averageTuitionPerStudent: new Decimal(config.year2026AvgTuition),
-      rentGrowthPercent: new Decimal(config.rentGrowthPercent),
+      averageTuitionPerStudent: config.year2026AvgTuition,
+      rentGrowthPercent: config.rentGrowthPercent,
     },
     {
       year: 2027,
       preFillFromPriorYear: false,
       numberOfStudents: config.year2027Students,
-      averageTuitionPerStudent: new Decimal(config.year2027AvgTuition),
-      rentGrowthPercent: new Decimal(config.rentGrowthPercent),
+      averageTuitionPerStudent: config.year2027AvgTuition,
+      rentGrowthPercent: config.rentGrowthPercent,
     },
   ];
 }
@@ -332,11 +337,9 @@ export async function reconstructCalculationInput(
     contractPeriodYears?: number | null;
   },
 ): Promise<CalculationEngineInput> {
-  // RELIABILITY: All database calls are wrapped with specific error messages
-  // These errors provide actionable guidance to users and better debugging context
-  const systemConfig = await prisma.systemConfig.findFirst({
-    orderBy: { confirmedAt: "desc" },
-  });
+  // PERF: Use cached config (5-min TTL) to avoid redundant DB lookups.
+  // Cache is invalidated on PUT /api/config.
+  const systemConfig = await getCachedSystemConfig();
   if (!systemConfig) {
     throw new CalculationConfigError(
       "SYSTEM_CONFIG_MISSING",
@@ -448,13 +451,11 @@ export async function reconstructCalculationInput(
 
   const input: CalculationEngineInput = {
     systemConfig: {
-      zakatRate: new Decimal(systemConfig.zakatRate),
-      debtInterestRate: new Decimal(systemConfig.debtInterestRate),
-      depositInterestRate: new Decimal(systemConfig.depositInterestRate),
-      discountRate: systemConfig.discountRate
-        ? new Decimal(systemConfig.discountRate)
-        : undefined,
-      minCashBalance: new Decimal(systemConfig.minCashBalance),
+      zakatRate: systemConfig.zakatRate,
+      debtInterestRate: systemConfig.debtInterestRate,
+      depositInterestRate: systemConfig.depositInterestRate,
+      discountRate: systemConfig.discountRate,
+      minCashBalance: systemConfig.minCashBalance,
     },
     contractPeriodYears: (proposal.contractPeriodYears ?? 30) as 25 | 30, // Default to 30 for legacy proposals
     historicalPeriods,

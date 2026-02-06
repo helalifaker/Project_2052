@@ -35,7 +35,8 @@ const userSessionCache = new Map<string, CachedUser>();
 
 /**
  * Get cached user data if not expired.
- * Updates lastAccessedAt for LRU tracking.
+ * PERF: Uses Map delete+re-insert to maintain LRU order (O(1)).
+ * Map preserves insertion order, so the first entry is always the LRU.
  */
 function getCachedUser(userId: string): AuthenticatedUser | null {
   const cached = userSessionCache.get(userId);
@@ -49,32 +50,25 @@ function getCachedUser(userId: string): AuthenticatedUser | null {
     return null;
   }
 
-  // Update last accessed time for LRU tracking
+  // Move to end of Map (most recently used) by delete + re-insert
+  userSessionCache.delete(userId);
   cached.lastAccessedAt = now;
+  userSessionCache.set(userId, cached);
 
   return cached.user;
 }
 
 /**
  * Cache user data with TTL.
- * Uses LRU eviction when cache is full.
+ * PERF: O(1) LRU eviction using Map insertion order.
+ * The first key in the Map is always the least recently used entry.
  */
 function cacheUser(user: AuthenticatedUser): void {
   const now = Date.now();
 
-  // Prevent unbounded cache growth - evict LRU entry if at limit
-  if (userSessionCache.size >= MAX_CACHE_SIZE) {
-    let lruKey: string | null = null;
-    let lruTime = Infinity;
-
-    // Find least recently used entry
-    for (const [key, cached] of userSessionCache.entries()) {
-      if (cached.lastAccessedAt < lruTime) {
-        lruTime = cached.lastAccessedAt;
-        lruKey = key;
-      }
-    }
-
+  // Prevent unbounded cache growth - evict LRU entry (first key in Map) at O(1)
+  if (userSessionCache.size >= MAX_CACHE_SIZE && !userSessionCache.has(user.id)) {
+    const lruKey = userSessionCache.keys().next().value;
     if (lruKey) userSessionCache.delete(lruKey);
   }
 
