@@ -79,24 +79,6 @@ function LoginForm() {
         throw new Error("Failed to create session");
       }
 
-      // Wait a moment for cookies to be set
-      await new Promise((resolve) => setTimeout(resolve, 100));
-
-      // Verify session is available with timeout
-      const {
-        data: { user: currentUser },
-        error: verifyError,
-      } = await withTimeout(
-        supabase.auth.getUser(),
-        AUTH_TIMEOUT_MS,
-        "Session verification timed out.",
-      );
-
-      if (verifyError || !currentUser) {
-        console.warn("Session verification failed:", verifyError);
-        // Still proceed - cookies might be set but not immediately readable
-      }
-
       // Successful login - redirect to dashboard
       // Use window.location for a full page reload to ensure cookies are sent
       const redirectTo = searchParams.get("redirectTo") || ROUTES.dashboard;

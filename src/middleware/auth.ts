@@ -10,6 +10,7 @@ import { Role, ApprovalStatus } from "@/lib/types/roles";
 export interface AuthenticatedUser {
   id: string;
   email: string;
+  name: string;
   role: Role;
   approvalStatus: ApprovalStatus;
 }
@@ -182,7 +183,7 @@ export async function authenticateUser(): Promise<AuthResult> {
     try {
       const dbUser = await prisma.user.findUnique({
         where: { id: authUser.id },
-        select: { id: true, email: true, role: true, approvalStatus: true },
+        select: { id: true, email: true, name: true, role: true, approvalStatus: true },
       });
 
       if (!dbUser) {
@@ -231,6 +232,7 @@ export async function authenticateUser(): Promise<AuthResult> {
       const authenticatedUser: AuthenticatedUser = {
         id: dbUser.id,
         email: dbUser.email,
+        name: dbUser.name,
         // Safe cast: Prisma's enums have identical string values to our local enums
         role: dbUser.role as unknown as Role,
         approvalStatus: approvalStatus,

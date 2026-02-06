@@ -136,39 +136,14 @@ export function AuthProvider({ children }: AuthProviderProps) {
   }, []);
 
   /**
-   * Refresh user state from Supabase and database
-   * Includes timeout protection to prevent indefinite hangs
+   * Refresh user state from the server session endpoint.
+   * The server validates the JWT and checks the DB (with LRU cache),
+   * so no client-side getUser() is needed here.
    */
   const refreshUser = useCallback(async () => {
-    const supabase = createClient();
-
     try {
       setLoading(true);
-
-      // Wrap Supabase call in Promise.race with timeout
-      const authPromise = supabase.auth.getUser();
-      const timeoutPromise = new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error("Auth timeout")), 5000),
-      );
-
-      let authUser;
-      try {
-        const { data, error } = await Promise.race([
-          authPromise,
-          timeoutPromise,
-        ]);
-        if (error || !data?.user) {
-          setUser(null);
-          return;
-        }
-        authUser = data.user;
-      } catch {
-        console.warn("Supabase auth.getUser() timed out after 5 seconds");
-        setUser(null);
-        return;
-      }
-
-      const userData = await fetchUserData(authUser.id);
+      const userData = await fetchUserData();
       setUser(userData);
     } catch (error) {
       console.error("Error refreshing user:", error);
@@ -211,15 +186,20 @@ export function AuthProvider({ children }: AuthProviderProps) {
   // Initialize auth state and listen for changes
   useEffect(() => {
     const supabase = createClient();
+    let initialFetchDone = false;
 
     // Initial fetch
-    refreshUser();
+    refreshUser().then(() => {
+      initialFetchDone = true;
+    });
 
     // Listen for auth state changes
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (event === "SIGNED_IN" && session?.user) {
+        // Skip if the initial refreshUser() is still handling this
+        if (!initialFetchDone) return;
         const userData = await fetchUserData(session.user.id);
         setUser(userData);
         setLoading(false);

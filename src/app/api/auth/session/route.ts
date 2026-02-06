@@ -2,55 +2,41 @@
  * GET /api/auth/session
  *
  * Checks current authentication session and returns user data.
- * Returns null if not authenticated.
+ * Uses authenticateUser() which leverages the LRU session cache
+ * to avoid redundant database lookups.
+ *
+ * Returns { user: null } if not authenticated (200 status for AuthProvider compatibility).
  */
 
 import { NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
-import { prisma } from "@/lib/prisma";
+import { authenticateUser } from "@/middleware/auth";
 
 /**
  * GET - Get current session and user data
  */
 export async function GET() {
   try {
-    const supabase = await createClient();
+    const authResult = await authenticateUser();
 
-    // Get authenticated user from Supabase
-    const {
-      data: { user: authUser },
-      error: authError,
-    } = await supabase.auth.getUser();
-
-    // Not authenticated
-    if (authError || !authUser) {
+    if (!authResult.success) {
+      // Return { user: null } with 200 for AuthProvider compatibility
+      // (AuthProvider checks data.user, not HTTP status for auth state)
       return NextResponse.json({ user: null }, { status: 200 });
     }
 
-    // Fetch user details from database
-    const user = await prisma.user.findUnique({
-      where: { id: authUser.id },
-      select: {
-        id: true,
-        email: true,
-        name: true,
-        role: true,
-        createdAt: true,
-      },
-    });
+    const { user } = authResult;
 
-    // User exists in Supabase but not in our database
-    if (!user) {
-      return NextResponse.json(
-        {
-          user: null,
-          error: "User not found in database. Please complete registration.",
+    return NextResponse.json(
+      {
+        user: {
+          id: user.id,
+          email: user.email,
+          name: user.name,
+          role: user.role,
         },
-        { status: 200 },
-      );
-    }
-
-    return NextResponse.json({ user }, { status: 200 });
+      },
+      { status: 200 },
+    );
   } catch (error) {
     console.error("Session API error:", error);
     return NextResponse.json(
