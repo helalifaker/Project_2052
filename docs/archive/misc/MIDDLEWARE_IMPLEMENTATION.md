@@ -53,10 +53,10 @@ Added the missing `NEXT_PUBLIC_SUPABASE_URL` environment variable:
 NEXT_PUBLIC_SUPABASE_URL=https://ssxwmxqvafesyldycqzy.supabase.co
 
 # Client-side Publishable Key (safe to expose in browser)
-NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_80OaSML8y7OdJH52Rtr-jQ_B5YM15eD
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=<your-publishable-key-here>
 
 # Server-side Secret Key (NEVER expose in client-side code)
-SUPABASE_SECRET_KEY=sb_secret_q2crxb8j8lkwqsNfnI9oNA_wuyQCRJW
+SUPABASE_SECRET_KEY=<your-secret-key-here>
 ```
 
 ## Key Features
