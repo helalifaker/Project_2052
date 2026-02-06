@@ -89,6 +89,8 @@ model SystemConfig {
 
   // Relations
   updater User? @relation("ConfigUpdater", fields: [updatedBy], references: [id], onDelete: SetNull)
+
+  @@index([updatedBy])
 }
 
 model HistoricalData {
@@ -305,6 +307,7 @@ model Scenario {
   creator  User          @relation("ScenarioCreator", fields: [createdBy], references: [id], onDelete: Restrict)
 
   @@index([proposalId])
+  @@index([createdBy])
 }
 
 model SensitivityAnalysis {
@@ -329,4 +332,5 @@ model SensitivityAnalysis {
   creator  User          @relation("SensitivityAnalysisCreator", fields: [createdBy], references: [id], onDelete: Restrict)
 
   @@index([proposalId])
+  @@index([createdBy])
 }
