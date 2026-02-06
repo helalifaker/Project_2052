@@ -176,7 +176,7 @@ function NegotiationsContent() {
           theirCounters: neg.theirCounters,
           latestOffer: neg.latestOffer,
           latestMetrics: neg.latestMetrics,
-          proposals: neg.proposals.map((p) => ({
+          proposals: (neg.proposals ?? []).map((p) => ({
             id: p.id,
             name: p.name,
             offerNumber: p.offerNumber,

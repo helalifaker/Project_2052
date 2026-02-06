@@ -124,9 +124,21 @@ export async function GET(req: Request) {
               irr: metrics.irr,
             }
           : null,
-        // PERF: Removed full proposals array from response.
-        // Clients should fetch per-negotiation proposals via GET /api/negotiations/[id].
-        // Only summary counts and latestOffer are included here.
+        proposals: neg.proposals.map((p) => ({
+          id: p.id,
+          name: p.name,
+          offerNumber: p.offerNumber,
+          origin: p.origin,
+          status: p.status,
+          updatedAt: p.updatedAt,
+          metrics: p.metrics
+            ? {
+                totalRent: (p.metrics as Record<string, unknown>).totalRent,
+                npv: (p.metrics as Record<string, unknown>).npv,
+                irr: (p.metrics as Record<string, unknown>).irr,
+              }
+            : null,
+        })),
       };
     });
 
