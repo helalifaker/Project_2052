@@ -13,13 +13,16 @@ Project Zeta (Project_2052) is a financial planning application for 30-year proj
 pnpm dev                    # Start Next.js dev server (localhost:3000)
 pnpm build                  # Production build (uses env -u NODE_ENV)
 pnpm lint                   # Run ESLint
+pnpm analyze                # Bundle analysis (opens report in browser)
 
 # Testing
 pnpm test                   # Run Vitest in watch mode
 pnpm test:run               # Run all unit tests once
 pnpm test:coverage          # Run tests with coverage report
+pnpm test:ui                # Vitest with browser UI
 pnpm vitest run src/lib/engine/periods/dynamic.test.ts  # Run a single test file
 pnpm test:e2e               # Run Playwright E2E tests (requires dev server)
+pnpm test:e2e:ui            # Playwright with browser UI
 pnpm test:e2e:headed        # E2E tests with browser visible
 pnpm test:e2e:debug         # E2E tests in debug mode
 pnpm test:load              # Run Artillery load tests
@@ -31,6 +34,14 @@ npx prisma generate         # Generate Prisma client
 npx prisma migrate dev      # Create and apply migrations
 tsx prisma/seed.ts          # Seed database
 ```
+
+## Git Workflow
+
+Two-branch strategy:
+- **`staging`** - Working branch. All development happens here. Auto-deploys to staging on push.
+- **`main`** - Protected. Changes arrive only via PR from staging. Auto-deploys to production on merge.
+
+Husky pre-commit hook runs `lint-staged` on every commit.
 
 ## Tech Stack
 
@@ -45,6 +56,8 @@ tsx prisma/seed.ts          # Seed database
 - **Testing**: Vitest (unit), Playwright (E2E), Artillery (load)
 - **Charts**: Recharts for financial visualizations
 - **Export**: ExcelJS (spreadsheets), jsPDF (reports)
+- **Monitoring**: Sentry (error tracking, conditional on `NEXT_PUBLIC_SENTRY_DSN`)
+- **Bundle Analysis**: `@next/bundle-analyzer` (run with `pnpm analyze`)
 
 ## Architecture
 
@@ -67,7 +80,7 @@ Key files:
 - `core/constants.ts` - Pre-created Decimal constants (ZERO, ONE, rates, year boundaries)
 - `core/decimal-utils.ts` - Decimal.js helper functions (NPV, IRR, annualization)
 - `periods/historical.ts`, `transition.ts`, `dynamic.ts` - Period calculators
-- `solvers/circular.ts` - Resolves Interest ↔ Zakat ↔ Debt circular dependencies
+- `solvers/circular.ts` - Resolves Interest / Zakat / Debt circular dependencies
 - `statements/` - P&L, Balance Sheet, Cash Flow statement builders
 - `capex/capex-calculator.ts` - CapEx and depreciation calculations
 - `sensitivity-analyzer.ts` - Tornado chart variable impact analysis
@@ -86,27 +99,19 @@ The CapEx system manages capital expenditures with:
 Three lease proposal types handled in `periods/dynamic.ts`:
 - **FIXED_ESCALATION**: Base rent with periodic escalation
 - **REVENUE_SHARE**: Percentage of total revenue
-- **PARTNER_INVESTMENT**: Investment-yield model (land + construction costs × yield rate)
+- **PARTNER_INVESTMENT**: Investment-yield model (land + construction costs x yield rate)
 
 ### Negotiation Workflow (`src/components/negotiations/`)
 
-The negotiation system (v2.2) manages lease negotiations between the school and developers:
-
-**Components:**
-- `NegotiationCard.tsx` - Card display for negotiation list
-- `NegotiationTimeline.tsx` - Timeline view of offers/counters
-- `NegotiationStatusBadge.tsx` - Status badge (ACTIVE/ACCEPTED/REJECTED/CLOSED)
-- `ProposalPurposeBadge.tsx` - Purpose badge (NEGOTIATION/STRESS_TEST/SIMULATION)
-- `CreateNegotiationDialog.tsx` - Create new negotiation
-- `AddCounterDialog.tsx` - Add counter-offer to negotiation
-- `LinkProposalDialog.tsx` - Link existing proposal to negotiation
-- `ReorderOffersDialog.tsx` - Reorder offers in timeline
+The negotiation system (v2.2) manages lease negotiations between the school and developers.
 
 **Key Concepts:**
 - **Negotiation**: Parent entity grouping proposals for a specific developer + property
 - **Proposal Purpose**: NEGOTIATION (part of workflow), STRESS_TEST (post-deal analysis), SIMULATION (standalone)
 - **Proposal Origin**: OUR_OFFER or THEIR_COUNTER
 - **Offer Number**: Sequential counter (1, 2, 3...) for each proposal in a negotiation
+
+Full documentation: `docs/features/negotiations/`
 
 ### API Routes (`src/app/api/`)
 
@@ -117,7 +122,7 @@ All routes require:
 4. Proper error handling with appropriate status codes
 
 ```typescript
-// Example API route pattern
+// Standard API route pattern
 export async function POST(request: Request) {
   const authResult = await authenticateUserWithRole([Role.ADMIN, Role.PLANNER]);
   if (!authResult.success) return authResult.error;
@@ -131,12 +136,9 @@ export async function POST(request: Request) {
 }
 ```
 
-**Negotiation Routes:**
-- `GET/POST /api/negotiations` - List and create negotiations
-- `GET/PATCH/DELETE /api/negotiations/[id]` - CRUD for single negotiation
-- `POST /api/negotiations/[id]/proposals` - Link proposal to negotiation
-- `POST /api/negotiations/[id]/counter` - Create counter-offer
-- `PATCH /api/negotiations/[id]/reorder` - Reorder offers in timeline
+### Auth Middleware (`src/middleware/auth.ts`)
+
+The auth middleware includes an in-memory session cache (5-minute TTL, LRU eviction, max 1000 entries) to reduce database lookups. Cache is invalidated on role changes. Use `invalidateUserCache(userId)` when modifying user roles.
 
 ### Validation Layer (`src/lib/validation/`)
 
@@ -149,8 +151,9 @@ Zod schemas organized by domain:
 
 ### State Management (`src/lib/stores/`)
 
-Zustand stores with devtools and persistence:
+Zustand stores with devtools:
 - `ui-store.ts` - Sidebar, modals, command palette, loading states
+- `proposal-store.ts` - Proposal filters, comparison selection, pagination, sorting
 
 ### Web Workers (`src/workers/`)
 
@@ -161,12 +164,14 @@ Heavy calculations offloaded to prevent UI blocking:
 ### Database Schema
 
 Key models in `prisma/schema.prisma`:
-- `Negotiation` - Parent entity for developer + property negotiations (v2.2)
+- `User` - With approval workflow (ApprovalStatus: PENDING, APPROVED, REJECTED)
+- `Negotiation` - Parent entity for developer + property negotiations
 - `LeaseProposal` - Main entity with negotiation tracking, contract period config
 - `Scenario` - What-if scenarios with adjustable parameters
 - `SensitivityAnalysis` - Tornado chart data for variable impact analysis
 - `SystemConfig` - Global rates (zakat, interest, deposit, discount rate)
 - `TransitionConfig` - 2025-2027 student/tuition assumptions
+- `HistoricalData` - Immutable historical financials
 - `CapExCategory`, `CapExAsset`, `CapExTransition` - Capital expenditure tracking
 
 **Key Enums:**
@@ -205,28 +210,29 @@ if (cash.greaterThanOrEqualTo(minCash)) { ... }
 if (ebt.lessThanOrEqualTo(ZERO)) { ... }
 ```
 
-**Converting between Prisma.Decimal and Decimal.js:**
+**Converting between Prisma.Decimal and Decimal.js -- always go through string:**
 ```typescript
-import { Prisma } from '@prisma/client';
-import Decimal from 'decimal.js';
-
-// Save to database - convert to string first
+// Save to database
 await prisma.systemConfig.update({
   data: { zakatRate: new Prisma.Decimal(zakatRate.toString()) }
 });
 
-// Read from database - convert from string
-const config = await prisma.systemConfig.findUnique({ where: { id } });
+// Read from database
 const zakatRate = new Decimal(config.zakatRate.toString());
 
-// Wrong - precision loss!
-// data: { zakatRate: zakatRate.toNumber() }
+// WRONG - precision loss via .toNumber()
 ```
+
+### ESLint Enforcement
+
+The ESLint config (`eslint.config.mjs`) enforces financial safety:
+- **`src/lib/**` and `src/app/api/**`**: `no-explicit-any` is an **error**; financial variable names matching `Price|Cost|Revenue|Profit|Income|Tax|Salary|Rent|Amount|Balance|Budget|Forecast|Scenarios` are blocked from using `number` type or plain number literals.
+- **Test files and `src/lib/engine/**`**: `no-explicit-any` and `no-unused-vars` are relaxed.
+- **`src/components/proposals/**`**: `no-explicit-any`, `no-unused-vars`, and `exhaustive-deps` are all off (legacy area).
 
 ### Type Safety
 
-- Never use `any` type
-- ESLint enforces Decimal.js for financial variable names containing: Price, Cost, Revenue, Profit, Income, Tax, Salary, Rent, Amount, Balance, Budget, Forecast
+- Never use `any` type (enforced by ESLint, see above for exceptions)
 
 ### React Patterns
 
@@ -246,27 +252,18 @@ import { formatMillions } from '@/lib/formatting/millions';
 
 **Select only needed fields:**
 ```typescript
-// Correct - efficient query
 const proposals = await prisma.leaseProposal.findMany({
   select: { id: true, name: true, rentModel: true },
   where: { createdBy: userId }
 });
-
-// Wrong - fetches all fields including large JSON
-const proposals = await prisma.leaseProposal.findMany();
 ```
 
 **Use transactions for multi-table operations:**
 ```typescript
-// Correct - atomic operation
 await prisma.$transaction(async (tx) => {
   const proposal = await tx.leaseProposal.create({ data: proposalData });
   await tx.scenario.create({ data: { ...scenarioData, proposalId: proposal.id } });
 });
-
-// Wrong - not atomic, can leave orphaned records
-const proposal = await prisma.leaseProposal.create({ data: proposalData });
-await prisma.scenario.create({ data: scenarioData });
 ```
 
 **Schema design rules:**
@@ -274,6 +271,10 @@ await prisma.scenario.create({ data: scenarioData });
 - Use enums for fixed values (never String)
 - Add indexes on foreign keys and frequently queried fields
 - Include `createdAt`/`updatedAt` timestamps
+
+### Security Headers
+
+`next.config.ts` applies security headers to all routes: CSP, HSTS, X-Frame-Options (DENY), X-Content-Type-Options, Referrer-Policy, Permissions-Policy. The CSP `connect-src` allows `*.supabase.co` -- update this if adding new external API connections.
 
 ## Performance Targets
 
@@ -284,35 +285,20 @@ await prisma.scenario.create({ data: scenarioData });
 ## Testing
 
 - Unit tests colocated with source files (`*.test.ts`)
-- E2E tests in `tests/e2e/` (accessibility, performance, workflows)
+- E2E tests in `tests/e2e/`
 - Security tests in `tests/security/`
 - Always use DIRECT_URL for database migrations
 
 ### Coverage Targets
 
-| Area | Target | Notes |
-|------|--------|-------|
-| Financial engine | **100%** | Zero tolerance - financial accuracy critical |
-| API routes | 90% | All CRUD operations and error paths |
-| React components | 80% | Focus on business logic, not UI details |
-| Utilities | 90% | All helper functions and formatters |
-| **Overall** | **>85%** | CI/CD gate blocks merges below threshold |
-
-### Key E2E Test Files
-- `accessibility.spec.ts` - WCAG compliance
-- `performance.spec.ts` - Load time, calculation speed
-- `proposal-wizard.spec.ts` - Full proposal creation flow
-- `scenarios.spec.ts` - What-if scenario testing
-- `sensitivity.spec.ts` - Tornado chart validation
+| Area | Target |
+|------|--------|
+| Financial engine | **100%** |
+| API routes | 90% |
+| React components | 80% |
+| Utilities | 90% |
+| **Overall** | **>85%** |
 
 ## Documentation
 
-Detailed documentation is in the `docs/` folder:
-
-| Path | Contents |
-|------|----------|
-| `docs/specifications/` | Business requirements and product specifications |
-| `docs/technical/` | Architecture diagrams and technical decisions |
-| `docs/development/` | Coding standards, testing guides, validation |
-| `docs/security/` | RLS policies, authentication flows |
-| `docs/features/` | Feature-specific documentation (charts, wizard, etc.) |
+Detailed documentation is in the `docs/` folder. Key areas: `docs/specifications/`, `docs/technical/`, `docs/development/`, `docs/security/`, `docs/features/`.
