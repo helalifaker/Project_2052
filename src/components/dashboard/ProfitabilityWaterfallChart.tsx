@@ -173,7 +173,7 @@ export function ProfitabilityWaterfallChart({
   return (
     <div className="flex flex-col h-full">
       {/* Chart */}
-      <div className="flex-1 min-h-0">
+      <div className="flex-1 min-h-0" role="img" aria-label="Profitability waterfall chart showing how revenue flows through costs to net income">
         <BaseBarChart
           data={chartData}
           series={simplifiedData.map((proposal, index) => ({

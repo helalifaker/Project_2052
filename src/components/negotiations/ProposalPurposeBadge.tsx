@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils";
 
 interface ProposalPurposeBadgeProps {
   purpose: ProposalPurpose;
-  size?: "sm" | "md" | "lg";
+  size?: "sm" | "md" | "lg" | "compact";
   className?: string;
 }
 
@@ -70,6 +70,7 @@ const sizeClasses = {
   sm: "px-2 py-0.5 text-xs",
   md: "px-2.5 py-1 text-xs",
   lg: "px-3 py-1.5 text-sm",
+  compact: "px-2 py-0.5 text-xs",
 };
 
 export function ProposalPurposeBadge({
@@ -78,43 +79,34 @@ export function ProposalPurposeBadge({
   className,
 }: ProposalPurposeBadgeProps) {
   const config = purposeConfig[purpose];
+  const isCompact = size === "compact";
 
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1 rounded-full border font-medium",
+        "inline-flex items-center rounded-full border font-medium",
+        !isCompact && "gap-1",
         sizeClasses[size],
         className,
       )}
       style={config.style}
       title={config.description}
     >
-      <span aria-hidden="true">{config.icon}</span>
+      {!isCompact && <span aria-hidden="true">{config.icon}</span>}
       <span>{config.label}</span>
     </span>
   );
 }
 
 /**
- * Compact version without icon - useful for tables/dense lists
+ * @deprecated Use `<ProposalPurposeBadge size="compact" />` instead.
  */
 export function ProposalPurposeBadgeCompact({
   purpose,
   className,
 }: Omit<ProposalPurposeBadgeProps, "size">) {
-  const config = purposeConfig[purpose];
-
   return (
-    <span
-      className={cn(
-        "inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium",
-        className,
-      )}
-      style={config.style}
-      title={config.description}
-    >
-      {config.label}
-    </span>
+    <ProposalPurposeBadge purpose={purpose} size="compact" className={className} />
   );
 }
 

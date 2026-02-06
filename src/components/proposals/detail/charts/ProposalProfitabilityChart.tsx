@@ -243,7 +243,7 @@ export function ProposalProfitabilityChart({
         </div>
 
         {/* Chart */}
-        <div style={{ height: `${height}px` }}>
+        <div style={{ height: `${height}px` }} role="img" aria-label={`Profitability journey chart showing revenue, costs, and net income from 2023 to ${contractEndYear}`}>
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart
               data={data}

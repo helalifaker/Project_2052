@@ -50,7 +50,7 @@ export function ScenarioRentChart({ data, isLoading }: ScenarioRentChartProps) {
     }));
 
   return (
-    <div className="h-[280px]">
+    <div className="h-[280px]" role="img" aria-label="Scenario rent comparison chart showing baseline versus scenario rent expense projections">
       <BaseLineChart
         data={sampledData}
         series={[

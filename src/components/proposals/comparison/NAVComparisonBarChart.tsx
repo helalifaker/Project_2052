@@ -152,7 +152,7 @@ export function NAVComparisonBarChart({ data }: NAVComparisonBarChartProps) {
       )}
 
       {/* Chart */}
-      <div className="h-[350px]">
+      <div className="h-[350px]" role="img" aria-label="Net annualized value comparison bar chart for selected proposals">
         <BaseBarChart
           data={chartData}
           series={[

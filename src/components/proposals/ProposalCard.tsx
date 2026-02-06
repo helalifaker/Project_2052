@@ -198,12 +198,14 @@ export const ProposalCard = memo(function ProposalCard({
   return (
     <Card
       className={cn(
-        "group relative overflow-hidden transition-all duration-500",
+        "group relative overflow-hidden transition-all duration-500 cursor-pointer",
         "glass-card p-0 hover:shadow-2xl hover:scale-[1.01]", // V2 Base
         "animate-slide-up", // Entry animation
         className,
       )}
       onClick={handleView}
+      role="article"
+      aria-label={`Proposal: ${name || developer || "Untitled"} - ${rentModel || "Fixed"} model, Status: ${formatStatus(status ?? null)}`}
     >
       {/* Active Shimmer Border Gradient (on hover) */}
       <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none z-0">
@@ -256,8 +258,9 @@ export const ProposalCard = memo(function ProposalCard({
               size="icon"
               className="h-8 w-8 text-muted-foreground hover:text-foreground rounded-full hover:bg-white/10"
               onClick={(e) => e.stopPropagation()}
+              aria-label="Proposal actions menu"
             >
-              <MoreVertical className="h-4 w-4" />
+              <MoreVertical className="h-4 w-4" aria-hidden="true" />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent
@@ -302,10 +305,10 @@ export const ProposalCard = memo(function ProposalCard({
 
       {/* Body Section: Metrics */}
       <CardContent className="relative z-10 px-6 py-6">
-        <div className="grid grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
           {/* Total Rent */}
           <div className="space-y-1">
-            <span className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground font-semibold">
+            <span className="label-metric">
               Total Rent
             </span>
             <span className="font-serif text-3xl font-light text-foreground tracking-tight tabular-nums block group-hover:text-accent-gold transition-colors">
@@ -319,7 +322,7 @@ export const ProposalCard = memo(function ProposalCard({
           <div className="space-y-1 relative">
             {/* Vertical Divider */}
             <div className="absolute -left-3 top-2 bottom-2 w-px bg-border/40" />
-            <span className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground font-semibold">
+            <span className="label-metric">
               NPV
             </span>
             <span className="font-serif text-3xl font-light tracking-tight tabular-nums block text-foreground">
@@ -332,7 +335,7 @@ export const ProposalCard = memo(function ProposalCard({
           {/* EBITDA */}
           <div className="space-y-1 relative">
             <div className="absolute -left-3 top-2 bottom-2 w-px bg-border/40" />
-            <span className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground font-semibold">
+            <span className="label-metric">
               EBITDA
             </span>
             <span className="font-serif text-3xl font-light text-foreground tracking-tight tabular-nums block">

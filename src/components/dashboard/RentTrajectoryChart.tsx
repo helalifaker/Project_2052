@@ -177,7 +177,7 @@ function RentTrajectoryChartInner({ data }: RentTrajectoryChartProps) {
   return (
     <div className="flex flex-col h-full">
       {/* Chart */}
-      <div className="flex-1 min-h-0">
+      <div className="flex-1 min-h-0" role="img" aria-label="Rent trajectory comparison chart showing annual rent over 30 years for all proposals">
         <BaseLineChart
           data={chartData}
           series={series}

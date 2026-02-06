@@ -54,7 +54,7 @@ export function ScenarioCashFlowChart({
     }));
 
   return (
-    <div className="h-[280px]">
+    <div className="h-[280px]" role="img" aria-label="Scenario cash flow comparison chart showing baseline versus scenario projections">
       <BaseLineChart
         data={sampledData}
         series={[

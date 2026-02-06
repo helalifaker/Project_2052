@@ -4,6 +4,7 @@ import * as React from "react";
 import { usePathname } from "next/navigation";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { ContextBar } from "@/components/layout/ContextBar";
+import { useUIStore } from "@/lib/stores/ui-store";
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -17,13 +18,18 @@ export function DashboardLayout({
   actions,
 }: DashboardLayoutProps) {
   const pathname = usePathname();
+  const sidebarCollapsed = useUIStore((s) => s.sidebarCollapsed);
 
   return (
     <div className="min-h-screen bg-executive font-sans antialiased selection:bg-primary/20 selection:text-primary">
       <Sidebar />
 
-      {/* Main Content Area - Pushed by Sidebar width (w-64 by default) */}
-      <div className="relative z-10 flex min-h-screen flex-col pl-64 transition-all duration-300 ease-in-out">
+      {/* Main Content Area - Pushed by Sidebar width (w-64 expanded, w-16 collapsed) */}
+      <div
+        className={`relative z-10 flex min-h-screen flex-col transition-all duration-300 ease-in-out ${
+          sidebarCollapsed ? "pl-16" : "pl-64"
+        }`}
+      >
         <ContextBar breadcrumbs={breadcrumbs} actions={actions} />
 
         <main className="flex-1 p-8 overflow-x-hidden">

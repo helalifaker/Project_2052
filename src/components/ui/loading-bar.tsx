@@ -53,7 +53,7 @@ export function LoadingBar() {
           loading ? 'w-full' : 'w-0'
         }`}
         style={{
-          boxShadow: '0 0 10px rgba(201, 168, 108, 0.4)'
+          boxShadow: '0 0 10px color-mix(in srgb, var(--copper-500) 40%, transparent)'
         }}
       />
     </div>

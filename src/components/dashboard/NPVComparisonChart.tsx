@@ -167,7 +167,7 @@ function NPVComparisonChartInner({ data }: NPVComparisonChartProps) {
       )}
 
       {/* Chart */}
-      <div className="flex-1 min-h-0">
+      <div className="flex-1 min-h-0" role="img" aria-label="Net present value comparison bar chart showing NPV for each proposal">
         <BaseBarChart
           data={chartData}
           series={[

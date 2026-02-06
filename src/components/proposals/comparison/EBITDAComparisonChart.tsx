@@ -124,7 +124,7 @@ export function EBITDAComparisonChart({ data }: EBITDAComparisonChartProps) {
   return (
     <div className="space-y-4">
       {/* Chart */}
-      <div className="h-[350px]">
+      <div className="h-[350px]" role="img" aria-label="EBITDA comparison bar chart showing average EBITDA for selected proposals">
         <BaseBarChart
           data={chartData}
           series={[

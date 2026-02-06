@@ -22,7 +22,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useTheme } from "next-themes";
-import * as React from "react";
+import { useUIStore, useUIStoreHydration } from "@/lib/stores/ui-store";
 
 interface NavItem {
   title: string;
@@ -86,7 +86,9 @@ export function Sidebar() {
   const pathname = usePathname();
   const { user, isAdmin, loading, signOut } = useAuthContext();
   const { theme, setTheme } = useTheme();
-  const [collapsed, setCollapsed] = React.useState(false);
+  const collapsed = useUIStore((s) => s.sidebarCollapsed);
+  const toggleSidebar = useUIStore((s) => s.toggleSidebar);
+  useUIStoreHydration();
 
   return (
     <aside
@@ -124,7 +126,7 @@ export function Sidebar() {
             variant="ghost"
             size="icon"
             className="h-8 w-8 ml-auto focus-ring-enhanced"
-            onClick={() => setCollapsed(!collapsed)}
+            onClick={toggleSidebar}
             aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
             aria-expanded={!collapsed}
           >

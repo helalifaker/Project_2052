@@ -131,7 +131,7 @@ export default function ExecutiveDemoPage() {
               className="flex items-center gap-2 px-4 py-2 rounded-full text-xs font-medium transition-all hover:gap-3"
               style={{
                 background: "var(--executive-accent)",
-                color: "#1a1a1a",
+                color: "var(--executive-text, #1a1a1a)",
               }}
             >
               Compare with Original

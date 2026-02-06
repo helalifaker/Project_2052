@@ -439,7 +439,9 @@ export default function ProposalsListPage() {
           />
 
           {/* Loading Skeleton */}
-          <PageSkeleton variant="list" />
+          <div aria-busy="true" aria-label="Loading proposals list">
+            <PageSkeleton variant="list" />
+          </div>
         </div>
       </DashboardLayout>
     );

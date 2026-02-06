@@ -1316,6 +1316,38 @@
   }
 
   /* ═══════════════════════════════════════════════════════════════════════════
+     TYPOGRAPHY UTILITIES - Standardized label & heading scales
+     Eliminates inconsistent text-[10px], tracking-[0.2em] etc.
+     ═══════════════════════════════════════════════════════════════════════════ */
+
+  /* Metric labels (used on KPI cards, proposal cards, etc.) */
+  .label-metric {
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    color: var(--text-secondary, hsl(var(--muted-foreground)));
+  }
+
+  /* Section labels (sidebar sections, admin headings) */
+  .label-section {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--text-secondary, hsl(var(--muted-foreground)));
+  }
+
+  /* Card padding tokens for consistent spacing */
+  .card-header-padding {
+    padding: 0.75rem 1.25rem; /* py-3 px-5 */
+  }
+
+  .card-body-padding {
+    padding: 1.25rem; /* p-5 */
+  }
+
+  /* ═══════════════════════════════════════════════════════════════════════════
      MICRO-INTERACTIONS - Performance-focused (GPU-accelerated only)
      Max duration: 200ms for hover, 150ms for active
      ═══════════════════════════════════════════════════════════════════════════ */
